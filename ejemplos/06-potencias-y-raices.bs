@@ -1,0 +1,41 @@
+// Ejemplo 6: potencias y raices
+//
+// La potencia y la raiz quedan DEBAJO de * / % en la jerarquia,
+// o sea que se resuelven primero:  2 * 3 ^ 2  es  2 * (3 ^ 2) = 18
+clase potenciasYRaices {
+    clasePrincipal {
+
+        // --- Potencia: tres formas de escribir lo mismo ---
+        decimal a = 2 ^ 10;
+        decimal b = 2 ** 10;
+        decimal c = potencia(2, 10);
+
+        // Se agrupa de derecha a izquierda:  2 ^ (3 ^ 2) = 512
+        decimal torre = 2 ^ 3 ^ 2;
+
+        // El menos funciona como en matematicas:  -(2 ^ 2) = -4
+        decimal negativa = -2 ^ 2;
+
+        // Y el exponente puede ser negativo
+        decimal fraccion = 2 ^ -3;
+
+        // --- Raiz: el simbolo y las funciones ---
+        decimal r1 = √16;
+        decimal r2 = raiz(16);
+        decimal r3 = raizCuadrada(16);
+
+        // Raiz n-esima: el segundo argumento es el indice
+        decimal cubica1 = raiz(27, 3);
+        decimal cubica2 = raizCubica(27);
+
+        // --- Mezcladas con los demas operadores ---
+        decimal hipotenusa = raiz(3 ^ 2 + 4 ^ 2);
+        decimal mezcla = 2 * 3 ^ 2 + √16;
+
+        imprimirLn(a);
+        imprimirLn(torre);
+        imprimirLn(negativa);
+        imprimirLn(hipotenusa);
+        imprimirLn(mezcla);
+    }
+}

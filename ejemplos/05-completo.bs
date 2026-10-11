@@ -1,0 +1,55 @@
+/*
+   Programa de demostracion:
+   usa arreglos, matrices, entrada, errores y las funciones nativas.
+*/
+clase demostracion {
+
+    funcion decimal areaCirculo(decimal radio) {
+        retornar area.circulo(radio);
+    }
+
+    clasePrincipal {
+        equipo(Null);
+
+        Arreglo entero datos[3];
+        datos[0] = 10;
+        datos[1] = 20;
+        datos[2] = 30;
+
+        Arreglo cadena nombres[] = {"Ana", "Luis", "Sofia"};
+        matriz entero tabla[2][2] = {{1, 2}, {3, 4}};
+
+        entero tam = longitud(datos);
+        imprimirF("El arreglo tiene %d posiciones", tam);
+
+        entero dado = aleatorio(1, 6);
+        decimal p = potencia(2, 10);
+        entero r = redondear(4.7);
+        decimal l = logaritmo(2.718);
+        decimal l10 = logaritmo10(10);
+        decimal s = seno(0);
+        decimal c = coseno(0);
+
+        decimal perim = perimetro.rectangulo(3, 6);
+        decimal vol = volumen.cilindro(3, 10);
+        decimal ar = areaCirculo(5);
+
+        cadena texto = "22";
+        entero numero = convertir(texto, entero);
+
+        entero leido;
+        imprimir("Escribe un numero: ");
+        leer(leido);
+
+        intentar {
+            entero division = 10 / leido;
+            imprimirLn(division);
+        } capturar (Error e) {
+            imprimirLn("Error: division entre cero.");
+        }
+
+        esperar(1000);
+        limpiar();
+        imprimirLn("Programa terminado.");
+    }
+}

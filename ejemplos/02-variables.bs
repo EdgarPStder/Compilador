@@ -1,0 +1,29 @@
+// Ejemplo 1: declaracion de variables por tipo
+clase ejemplo {
+    clasePrincipal {
+        logico activo = verdadero;
+        byte nivel = 10;
+        caracter letra = 'A';
+        corto cantidad = 30000;
+        entero edad = 20;
+        largo poblacion = 8000000L;
+        flotante promedio = 8.5f;
+        decimal pi = 3.1416d;
+        cadena nombre = "Hola";
+
+        entero a;
+        entero x, y, z;
+
+        Constante decimal IVA = 0.16;
+
+        imprimirLn(activo);
+        imprimirLn(nivel);
+        imprimirLn(letra);
+        imprimirLn(cantidad);
+        imprimirLn(edad);
+        imprimirLn(poblacion);
+        imprimirLn(promedio);
+        imprimirLn(pi);
+        imprimirLn(nombre);
+    }
+}

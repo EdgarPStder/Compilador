@@ -1,0 +1,70 @@
+{
+  "name": "swordbyte-compilador",
+  "version": "1.0.0",
+  "description": "Compilador del lenguaje SwordByte: analizador lexico, lexico-sintactico y semantico en tres pestanas, con reporte visual. Proyecto del equipo SwordByte.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "pruebas": "node pruebas/ejecutar.js",
+    "pruebas:ui": "electron pruebas/verificar-ui.js",
+    "capturas": "electron pruebas/verificar-ui.js --capturas",
+    "icono": "node herramientas/generar-icono.js",
+    "gramatica": "node herramientas/generar-gramatica.js",
+    "dist": "electron-builder --win portable nsis",
+    "dist:portable": "electron-builder --win portable",
+    "empaquetar": "electron-builder --win portable nsis"
+  },
+  "keywords": [
+    "compilador",
+    "analizador-lexico",
+    "analizador-sintactico",
+    "analizador-semantico",
+    "swordbyte"
+  ],
+  "author": "Equipo SwordByte",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "mx.swordbyte.compilador",
+    "productName": "Compilador SwordByte",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "ejemplos/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "docs",
+        "to": "docs"
+      },
+      {
+        "from": "README.md",
+        "to": "docs/README.md"
+      }
+    ],
+    "win": {
+      "icon": "build/icono.png",
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "CompiladorSwordByte-${version}-portable.${ext}"
+    },
+    "nsis": {
+      "artifactName": "CompiladorSwordByte-${version}-instalador.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Compilador SwordByte"
+    }
+  }
+}

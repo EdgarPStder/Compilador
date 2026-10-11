@@ -1,0 +1,18 @@
+# Dependencias
+node_modules/
+
+# Ejecutables y empaquetado
+dist/
+
+# Reportes generados
+salida/
+!salida/.gitkeep
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/

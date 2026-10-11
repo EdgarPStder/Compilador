@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+  <title>Compilador SwordByte</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<!-- =============== PESTAÑAS: una por analizador =============== -->
+<nav class="pestanas" role="tablist">
+  <button class="pestana" role="tab" data-pestana="lexico">
+    <span class="pestana-num">1</span>Analizador Léxico
+  </button>
+  <button class="pestana" role="tab" data-pestana="sintactico">
+    <span class="pestana-num">2</span>Analizador Léxico-Sintáctico
+  </button>
+  <button class="pestana" role="tab" data-pestana="semantico">
+    <span class="pestana-num">3</span>Analizador Semántico
+  </button>
+</nav>
+
+<!--
+  Cada pestaña conserva su propio diseño: sus logos, sus botones y sus
+  cuadros van donde los pide su diseño. Lo único común es el estilo (la
+  paleta de colores, los botones y las cajas).
+
+  Las tres comparten el MISMO código: lo que se escribe en una aparece en las
+  otras dos, y al analizar se llenan las tres.
+
+  Los textos con data-dato (equipo, grupo, carrera, materia) los llena app.js
+  con los datos de src/core/comun/Equipo.js.
+-->
+
+<!-- =============== PESTAÑA 1: Analizador Léxico =============== -->
+<!-- Logo UAT a la izquierda, logo UAMM a la derecha, botones a la derecha. -->
+<section id="panel-lexico" class="panel" role="tabpanel" data-pestana="lexico">
+  <header class="encabezado-lexico">
+    <figure class="logo" data-logo="uat"></figure>
+    <div class="titulo-lexico">
+      <p data-dato="carrera">Ingeniería en Sistemas Computacionales</p>
+      <p class="titulo-analizador">Analizador Léxico</p>
+      <p>Grupo : <span data-dato="grupo">9° F</span>  |  Equipo : <span data-dato="equipo">SwordByte</span></p>
+    </div>
+    <figure class="logo" data-logo="uamm"></figure>
+  </header>
+  <div class="linea-puntos"></div>
+
+  <div class="cuerpo">
+    <main class="contenido">
+      <section class="bloque">
+        <h2>Código Fuente :</h2>
+        <textarea id="lex-codigo" class="caja caja-editable editor" spellcheck="false"
+                  autocomplete="off" autocorrect="off" autocapitalize="off" wrap="off"
+                  placeholder="Escribe aquí el código a analizar.  Ejemplo:  a = b + c * 24"></textarea>
+      </section>
+
+      <section class="bloque bloque-crece">
+        <h2>Resultados Análisis : <span id="lex-estado" class="insignia"></span></h2>
+        <div class="caja caja-tabla">
+          <table class="tabla-tokens">
+            <thead>
+              <tr><th>Lexema</th><th>Token</th><th>Descripción</th></tr>
+            </thead>
+            <tbody id="lex-tabla"></tbody>
+          </table>
+          <div id="lex-vacio" class="salida-vacia"></div>
+        </div>
+        <p id="lex-resumen" class="linea-estado"></p>
+      </section>
+    </main>
+
+    <nav class="botonera botonera-derecha">
+      <button id="lex-analizar" class="btn btn-principal">Realizar Análisis</button>
+      <button id="lex-guardar" class="btn">Guardar</button>
+      <button id="lex-borrar" class="btn">Borrar</button>
+      <span class="separador"></span>
+      <button id="lex-fuga" class="btn btn-salir">Fuga</button>
+    </nav>
+  </div>
+
+  <footer class="pie-lexico">
+    <p>Equipo <span data-dato="equipo">SwordByte</span>  —  UAT / UAMMC  —  Grupo: <span data-dato="grupo">9° F</span></p>
+  </footer>
+</section>
+
+<!-- =============== PESTAÑA 2: Analizador Léxico-Sintáctico =============== -->
+<!-- El diseño anterior: los tres logos arriba y los botones a la izquierda.
+     Conserva los nombres (id) que tenía cuando era la única pantalla. -->
+<section id="panel-sintactico" class="panel" role="tabpanel" data-pestana="sintactico">
+  <header class="encabezado">
+    <figure class="logo" data-logo="uat"></figure>
+    <figure class="logo" data-logo="uamm"></figure>
+    <figure class="logo" data-logo="isc"></figure>
+  </header>
+
+  <div class="cuerpo">
+    <nav class="botonera">
+      <button id="btn-limpiar" class="btn">Limpiar</button>
+      <button id="btn-lexico" class="btn">Análisis Léxico</button>
+      <button id="btn-sintactico" class="btn">Análisis Sintáctico</button>
+      <button id="btn-ambos" class="btn btn-principal">Análisis Léxico-Sintáctico</button>
+
+      <span class="separador"></span>
+
+      <button id="btn-equipo" class="btn btn-equipo">Equipo</button>
+      <button id="btn-salir" class="btn btn-salir">Salir</button>
+    </nav>
+
+    <main class="contenido">
+      <section class="bloque">
+        <h2>Código Fuente</h2>
+        <textarea id="codigo" class="caja caja-editable editor" spellcheck="false"
+                  autocomplete="off" autocorrect="off" autocapitalize="off" wrap="off"
+                  placeholder="Escribe aquí el código a analizar.  Ejemplo:  a > b"></textarea>
+      </section>
+
+      <section class="bloque">
+        <h2>Análisis Léxico <span id="estado-lexico" class="insignia"></span></h2>
+        <div id="salida-lexico" class="caja caja-salida"></div>
+      </section>
+
+      <section class="bloque bloque-crece">
+        <h2>Análisis Sintáctico
+          <span id="estado-sintactico" class="insignia"></span>
+
+          <!-- Acercamiento general. También funciona con Ctrl + rueda. -->
+          <span class="zoom">
+            <button id="zoom-menos" class="btn-zoom" title="Alejar">&minus;</button>
+            <span id="zoom-nivel" class="zoom-nivel">100%</span>
+            <button id="zoom-mas" class="btn-zoom" title="Acercar">+</button>
+            <button id="zoom-ajustar" class="btn-zoom btn-zoom-ancho"
+                    title="Ajustar al ancho">Ajustar</button>
+          </span>
+        </h2>
+
+        <!-- Camino de ramas abiertas: aparece al hacer clic en un nodo. -->
+        <div id="arbol-camino" class="arbol-camino oculto"></div>
+
+        <div id="salida-sintactico" class="caja caja-arbol"></div>
+      </section>
+    </main>
+  </div>
+</section>
+
+<!-- =============== PESTAÑA 3: Analizador Semántico =============== -->
+<!-- El diseño del pizarrón: los tres logos en columna a la izquierda, el
+     título arriba y los botones a la derecha. -->
+<section id="panel-semantico" class="panel" role="tabpanel" data-pestana="semantico">
+  <div class="cuerpo">
+    <aside class="logos-columna">
+      <figure class="logo" data-logo="uat"></figure>
+      <figure class="logo" data-logo="uamm"></figure>
+      <figure class="logo" data-logo="isc"></figure>
+    </aside>
+
+    <main class="contenido">
+      <header class="titulo-semantico">
+        <h1 data-dato="materia">Programación de Sistemas de Base II</h1>
+        <p>Analizador Semántico  “<span data-dato="equipo">SwordByte</span>”</p>
+      </header>
+
+      <section class="bloque">
+        <h2>Código para analizar:</h2>
+        <textarea id="sem-codigo" class="caja caja-editable editor" data-alto-minimo="72"
+                  spellcheck="false" autocomplete="off" autocorrect="off"
+                  autocapitalize="off" wrap="off"
+                  placeholder="Escribe aquí cualquier código del lenguaje.  Ejemplo:  a1 = b5 / 20"></textarea>
+      </section>
+
+      <section class="bloque bloque-crece">
+        <h2>Análisis semántico del código dado: <span id="sem-estado" class="insignia"></span></h2>
+        <div id="sem-salida" class="caja caja-semantica"></div>
+      </section>
+    </main>
+
+    <nav class="botonera botonera-derecha botonera-repartida">
+      <button id="sem-limpieza" class="btn">Limpieza</button>
+      <button id="sem-analiza" class="btn btn-principal">Analiza</button>
+      <span class="separador"></span>
+      <button id="sem-equipo" class="btn btn-equipo">Equipo</button>
+      <button id="sem-termina" class="btn btn-salir">Termina</button>
+    </nav>
+  </div>
+</section>
+
+<!-- =============== VENTANA DEL EQUIPO =============== -->
+<div id="modal-equipo" class="modal oculto">
+  <div class="modal-fondo" data-cerrar></div>
+  <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <button class="modal-cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    <p class="modal-etiqueta">Equipo</p>
+    <h3 id="modal-titulo" class="modal-titulo">SwordByte</h3>
+    <ol id="lista-integrantes" class="lista-integrantes"></ol>
+    <button class="btn btn-principal modal-aceptar" data-cerrar>Aceptar</button>
+  </div>
+</div>
+
+<!-- =============== VENTANA DE SALIDA (Fuga / Salir / Termina) =============== -->
+<div id="modal-salir" class="modal oculto">
+  <div class="modal-fondo" data-cancelar></div>
+  <div class="modal-caja" role="alertdialog" aria-modal="true" aria-labelledby="salir-pregunta">
+    <button class="modal-cerrar" data-cancelar aria-label="Cancelar">&times;</button>
+    <p class="modal-etiqueta">Equipo</p>
+    <h3 id="salir-titulo" class="modal-titulo">SwordByte</h3>
+    <ol id="salir-integrantes" class="lista-integrantes"></ol>
+    <p id="salir-pregunta" class="modal-pregunta">¿Quieres salir del compilador?</p>
+    <p id="salir-detalle" class="modal-detalle">El código que escribiste no se guardará.</p>
+    <div class="modal-botones">
+      <button id="salir-cancelar" class="btn" data-cancelar>Cancelar</button>
+      <button id="salir-confirmar" class="btn btn-peligro">Sí, salir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aparece al arrastrar un archivo sobre la ventana. -->
+<div id="zona-soltar" class="zona-soltar oculto">
+  <p>Suelta el archivo para abrirlo<br>
+    <small>Reporte .html, programa .bs o texto .txt</small></p>
+</div>
+
+<!-- Aviso breve al pie: guardado correcto, errores de archivo, etc. -->
+<div id="aviso" class="aviso oculto">
+  <span id="aviso-texto"></span>
+  <button id="aviso-accion" class="aviso-accion oculto"></button>
+</div>
+
+<script src="js/dom.js"></script>
+<script src="js/equipo.js"></script>
+<script src="js/salir.js"></script>
+<script src="js/arbol.js"></script>
+<script src="js/pestanas.js"></script>
+<script src="js/panel-lexico.js"></script>
+<script src="js/panel-sintactico.js"></script>
+<script src="js/panel-semantico.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

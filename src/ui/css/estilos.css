@@ -1,0 +1,912 @@
+/* ==========================================================================
+   Compilador SwordByte — interfaz
+
+   Distribución:
+     - Arriba:   las tres pestañas (Léxico, Léxico-Sintáctico, Semántico)
+     - El resto: el panel de la pestaña activa.
+
+   Cada panel conserva SU diseño (dónde van sus logos, sus botones y sus
+   cuadros):
+     1. Léxico             logo UAT a la izquierda y UAMM a la derecha,
+                           botones a la derecha, pie con el equipo
+     2. Léxico-Sintáctico  los tres logos arriba, botones a la izquierda
+     3. Semántico          los tres logos en columna a la izquierda,
+                           título arriba, botones a la derecha
+
+   Lo que comparten es el estilo: la paleta de :root (aquí abajo), los
+   botones, las cajas y los tipos de letra.
+   ========================================================================== */
+
+:root {
+  --fondo:        #eef1f6;
+  --panel:        #ffffff;
+  --caja:         #f7f9fc;
+  --borde:        #d3dae6;
+  --borde-fuerte: #b9c4d4;
+
+  --texto:        #1e2733;
+  --texto-2:      #5a6a7e;
+  --texto-3:      #8b9aae;
+
+  --azul:         #1f4e9c;
+  --azul-oscuro:  #1a4287;
+  --azul-claro:   #e7effb;
+  --verde:        #17794f;
+  --verde-claro:  #e4f4ec;
+  --rojo:         #c0392b;
+  --rojo-claro:   #fdeceb;
+  --morado:       #5b3fbf;
+
+  --radio:        8px;
+  --mono: 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  --sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--texto);
+  background: var(--fondo);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c2ccda; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #a8b5c7; }
+
+/* ==========================================================================
+   Pestañas
+   ========================================================================== */
+.pestanas {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0 22px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--borde);
+}
+
+.pestana {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 9px 18px 8px;
+  background: transparent;
+  color: var(--texto-2);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: color .13s, border-color .13s, background .13s;
+}
+.pestana:hover { color: var(--azul); background: #f5f8fc; }
+.pestana.activa {
+  color: var(--azul);
+  font-weight: 600;
+  border-bottom-color: var(--azul);
+}
+
+/* El número de la pestaña, en un círculo */
+.pestana-num {
+  display: inline-grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--fondo);
+  color: var(--texto-2);
+}
+.pestana.activa .pestana-num { background: var(--azul); color: #fff; }
+
+/* ==========================================================================
+   Paneles: uno por pestaña. Solo se ve el activo; los demás se esconden
+   sin borrarse, así que al regresar todo sigue ahí.
+   ========================================================================== */
+.panel {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  min-height: 0;
+}
+.panel.activo { display: flex; }
+
+/* La parte de abajo del encabezado: botones y análisis, lado a lado */
+.cuerpo {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ==========================================================================
+   Los logos
+   Cada logo se escala para caber en su hueco sin deformarse. El tamaño del
+   hueco lo pone el encabezado de cada pestaña.
+   ========================================================================== */
+.logo {
+  display: grid;
+  place-items: center;
+}
+.logo img { object-fit: contain; }
+
+/* Respaldo cuando no se encuentra el archivo de imagen */
+.logo .respaldo {
+  font-family: Georgia, serif;
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--texto-3);
+  letter-spacing: 1px;
+  padding: 0 18px;
+}
+
+/* --- Pestaña 1: UAT | título | UAMM, dentro de un recuadro --- */
+.encabezado-lexico {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 20px;
+  margin: 12px 16px 0;
+  padding: 10px 22px;
+  background: var(--panel);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+}
+.encabezado-lexico .logo { height: 64px; }
+.encabezado-lexico .logo:first-child { justify-items: start; }
+.encabezado-lexico .logo:last-child { justify-items: end; }
+.encabezado-lexico .logo img { max-height: 64px; max-width: 240px; }
+
+.titulo-lexico {
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--texto-2);
+}
+/* pre: respeta los espacios dobles de  "9° F  |  Equipo" */
+.titulo-lexico p { white-space: pre; }
+.titulo-lexico .titulo-analizador {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--azul);
+}
+
+/* La línea punteada bajo el encabezado */
+.linea-puntos {
+  flex-shrink: 0;
+  margin: 10px 20% 0;
+  border-bottom: 2px dotted var(--borde-fuerte);
+}
+
+/* El pie con el equipo y el grupo */
+.pie-lexico {
+  flex-shrink: 0;
+  padding: 6px 16px 9px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--texto-2);
+}
+.pie-lexico p { white-space: pre; }
+
+/* --- Pestaña 2: los tres logos arriba, centrados --- */
+.encabezado {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--borde);
+}
+.encabezado .logo { height: 74px; }
+.encabezado .logo img { max-height: 74px; max-width: 300px; }
+
+/* --- Pestaña 3: los tres logos en columna, a la izquierda --- */
+.logos-columna {
+  width: 190px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  padding: 26px 16px;
+  background: var(--panel);
+  border-right: 1px solid var(--borde);
+  overflow-y: auto;
+}
+.logos-columna .logo { width: 100%; }
+.logos-columna .logo img { max-width: 156px; max-height: 96px; }
+
+/* El título del pizarrón: la materia y "Analizador Semántico" con el equipo */
+.titulo-semantico { text-align: center; }
+.titulo-semantico h1 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--azul);
+}
+.titulo-semantico p {
+  font-size: 18px;
+  color: var(--azul);
+  white-space: pre;
+}
+
+/* ==========================================================================
+   Columnas de botones
+   ========================================================================== */
+.botonera {
+  width: 222px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 18px 16px;
+  background: var(--panel);
+  border-right: 1px solid var(--borde);
+  overflow-y: auto;
+}
+
+/* En las pestañas 1 y 3 los botones van a la derecha, como en sus diseños */
+.botonera-derecha {
+  width: 200px;
+  border-right: 0;
+  border-left: 1px solid var(--borde);
+}
+.botonera-derecha .btn { text-align: center; }
+
+/* Empuja los botones que siguen hacia abajo */
+.separador { flex: 1; min-height: 16px; }
+
+/* Pestaña 3: Equipo a media altura y Termina abajo, como en el pizarrón */
+.botonera-repartida { padding-bottom: 46px; }
+
+.contenido {
+  flex: 1;
+  min-width: 0;
+  padding: 18px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+.panel[data-pestana="lexico"] .contenido { padding-top: 12px; padding-bottom: 6px; }
+
+/* ==========================================================================
+   Botones
+   ========================================================================== */
+.btn {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 11px 14px;
+  text-align: left;
+  background: var(--panel);
+  color: var(--texto);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .13s, border-color .13s, transform .06s;
+}
+.btn:hover { background: #f0f4fa; border-color: var(--azul); }
+.btn:active { transform: translateY(1px); }
+
+/* Contorno azul al llegar con el teclado (o cuando la ventana de salida
+   pone el foco en Cancelar), en vez del contorno del navegador */
+.btn:focus-visible,
+.pestana:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+.btn-principal {
+  background: var(--azul);
+  color: #fff;
+  border-color: var(--azul);
+  font-weight: 600;
+}
+.btn-principal:hover { background: var(--azul-oscuro); border-color: var(--azul-oscuro); }
+
+.btn-equipo {
+  background: var(--azul-claro);
+  color: var(--azul);
+  border-color: var(--azul);
+  font-weight: 600;
+}
+.btn-equipo:hover { background: #d8e6fa; }
+
+.btn-salir {
+  color: var(--rojo);
+  font-weight: 600;
+}
+.btn-salir:hover { background: var(--rojo-claro); border-color: var(--rojo); }
+
+.btn-peligro {
+  background: var(--rojo);
+  color: #fff;
+  border-color: var(--rojo);
+  font-weight: 600;
+}
+.btn-peligro:hover { background: #a93226; border-color: #a93226; }
+
+/* ==========================================================================
+   Los tres bloques de la derecha
+   ========================================================================== */
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
+}
+.bloque-crece { flex: 1; min-height: 300px; }
+/* Los demás bloques no se encogen: si falta espacio, la columna se desplaza */
+.bloque:not(.bloque-crece) { flex-shrink: 0; }
+
+.bloque h2 {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.caja {
+  background: var(--panel);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.caja-editable {
+  height: 130px;
+  min-height: 90px;
+  padding: 12px 14px;
+  resize: vertical;
+  outline: none;
+  color: var(--texto);
+  white-space: pre;
+  overflow: auto;
+  tab-size: 4;
+}
+/* El cuadro de la pestaña 3 es de una sola proposición: puede ser más bajo */
+#sem-codigo { min-height: 60px; }
+.caja-editable:focus { border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-claro); }
+.caja-editable::placeholder { color: var(--texto-3); font-family: var(--sans); }
+
+.caja-salida {
+  min-height: 92px;
+  max-height: 260px;
+  padding: 12px 14px;
+  overflow: auto;
+  background: var(--caja);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.caja-arbol {
+  flex: 1;
+  min-height: 300px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--caja);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Zona donde se dibuja el árbol: crece, se desplaza y se centra. */
+.arbol-lienzo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px;
+}
+
+/* ==========================================================================
+   Zoom del árbol
+   ========================================================================== */
+.zoom {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-zoom {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  background: var(--panel);
+  color: var(--texto-2);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.btn-zoom:hover:not(:disabled) { background: #f0f4fa; border-color: var(--azul); color: var(--azul); }
+.btn-zoom:disabled { opacity: .4; cursor: default; }
+.btn-zoom-ancho { font-size: 11.5px; padding: 0 10px; }
+
+.zoom-nivel {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--texto-2);
+  min-width: 44px;
+  text-align: center;
+  user-select: none;
+}
+
+/* ==========================================================================
+   Insignias de estado
+   ========================================================================== */
+.insignia {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 11px;
+  display: none;
+}
+.insignia.visible { display: inline-block; }
+.insignia.ok    { background: var(--verde-claro); color: var(--verde); }
+.insignia.error { background: var(--rojo-claro); color: var(--rojo); }
+
+/* ==========================================================================
+   Salida léxica
+   ========================================================================== */
+.salida-vacia {
+  color: var(--texto-3);
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 12px 14px;
+}
+/* La caja de salida ya trae relleno propio: no se duplica. */
+.caja-salida > .salida-vacia { padding: 0; }
+
+.separador-salida {
+  height: 1px;
+  background: var(--borde-fuerte);
+  margin: 10px 0;
+}
+
+.linea-salida { display: flex; gap: 12px; }
+.linea-salida .num {
+  color: var(--texto-3);
+  min-width: 26px;
+  text-align: right;
+  user-select: none;
+}
+
+/* Colores por categoría: lógicos en azul, relacionales en rojo,
+   aritméticos en negro. Son los mismos que usan los nodos del árbol. */
+.tk-logico        { color: #0b5ed7; font-weight: 700; }
+.tk-relacional    { color: #d12a2a; font-weight: 700; }
+.tk-aritmetico    { color: #000000; font-weight: 700; }
+.tk-numero        { color: #8a5b12; }
+.tk-identificador { color: var(--morado); }
+.tk-texto         { color: var(--verde); }
+.tk-reservada     { color: var(--texto); font-weight: 600; }
+.tk-normal        { color: var(--texto-2); }
+
+.leyenda-lexica {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--borde-fuerte);
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--texto-2);
+}
+.leyenda-lexica span { display: flex; align-items: center; gap: 5px; }
+.leyenda-lexica b { font-family: var(--mono); font-size: 12px; }
+
+/* Lista de errores dentro de la caja del árbol */
+.lista-errores { padding: 12px 14px; }
+
+/* Errores dentro de una caja de salida */
+.error-linea {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--rojo);
+  padding: 5px 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.error-linea .marca { font-weight: 700; }
+.error-linea .sitio { font-family: var(--mono); font-size: 12px; color: var(--texto-2); }
+
+/* ==========================================================================
+   Árbol sintáctico (SVG)
+   ========================================================================== */
+.caja-arbol svg { display: block; }
+
+.arbol-rama { stroke: var(--borde-fuerte); stroke-width: 1.6; fill: none; }
+
+.arbol-nodo rect { stroke-width: 1.5; rx: 6; ry: 6; }
+.arbol-nodo text {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-weight: 600;
+}
+
+.arbol-nodo.logico rect        { fill: #e3edfd; stroke: #0b5ed7; }
+.arbol-nodo.logico text        { fill: #0b5ed7; }
+.arbol-nodo.relacional rect    { fill: #fdeaea; stroke: #d12a2a; }
+.arbol-nodo.relacional text    { fill: #c0392b; }
+.arbol-nodo.aritmetico rect    { fill: #ececec; stroke: #000000; }
+.arbol-nodo.aritmetico text    { fill: #000000; }
+.arbol-nodo.identificador rect { fill: #f1ecff; stroke: #5b3fbf; }
+.arbol-nodo.identificador text { fill: #4b32a3; }
+.arbol-nodo.literal rect       { fill: #fdf3e0; stroke: #b7791f; }
+.arbol-nodo.literal text       { fill: #8a5b12; }
+.arbol-nodo.control rect       { fill: #e4f4ec; stroke: #17794f; }
+.arbol-nodo.control text       { fill: #10593a; }
+.arbol-nodo.llamada rect       { fill: #fdeff5; stroke: #b03a6e; }
+.arbol-nodo.llamada text       { fill: #8e2e58; }
+.arbol-nodo.estructura rect    { fill: #eef1f6; stroke: #7b8a9e; }
+.arbol-nodo.estructura text    { fill: #44536a; }
+.arbol-nodo.operador rect      { fill: #e7effb; stroke: #1f4e9c; }
+.arbol-nodo.operador text      { fill: #1f4e9c; }
+
+/* Un nodo con hijos se puede abrir para ver esa rama sola. */
+.arbol-nodo.con-rama { cursor: zoom-in; }
+.arbol-nodo.con-rama:hover rect {
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
+}
+
+/* --- Camino de ramas abiertas --- */
+.arbol-camino {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+  min-height: 24px;
+  font-size: 12px;
+}
+.arbol-camino.oculto { display: none; }
+
+.camino-ayuda { color: var(--texto-2); }
+
+.camino-flecha { color: var(--borde-fuerte); }
+
+.camino-paso {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 2px 9px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--azul);
+  cursor: pointer;
+}
+.camino-paso:hover:not(:disabled) { background: #f0f4fa; border-color: var(--azul); }
+.camino-paso.camino-actual {
+  background: var(--azul);
+  border-color: var(--azul);
+  color: #fff;
+  cursor: default;
+  opacity: 1;
+}
+
+.arbol-leyenda {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--borde);
+  background: var(--panel);
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--texto-2);
+}
+.arbol-leyenda span { display: flex; align-items: center; gap: 6px; }
+.arbol-leyenda i {
+  width: 11px; height: 11px;
+  border-radius: 3px;
+  border: 1.5px solid;
+  display: inline-block;
+}
+
+/* ==========================================================================
+   Ventana del equipo
+   ========================================================================== */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 100;
+}
+.modal.oculto { display: none; }
+
+.modal-fondo {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 30, 45, .45);
+}
+
+.modal-caja {
+  position: relative;
+  width: min(460px, 92vw);
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 26px 30px 24px;
+  box-shadow: 0 18px 48px rgba(20, 30, 45, .3);
+  text-align: center;
+}
+
+.modal-cerrar {
+  position: absolute;
+  top: 10px; right: 12px;
+  width: 30px; height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--texto-3);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.modal-cerrar:hover { background: var(--caja); color: var(--texto); }
+
+.modal-etiqueta {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--texto-3);
+}
+
+.modal-titulo {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--azul);
+  margin: 2px 0 16px;
+}
+
+.lista-integrantes {
+  list-style: none;
+  text-align: left;
+  border-top: 1px solid var(--borde);
+}
+.lista-integrantes li {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--borde);
+  font-size: 14px;
+}
+.lista-integrantes .numero {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--texto-3);
+  min-width: 16px;
+}
+.lista-integrantes .apellidos { font-weight: 600; }
+.lista-integrantes .nombres { color: var(--texto-2); }
+
+.modal-aceptar { width: auto; margin-top: 18px; min-width: 130px; text-align: center; }
+
+/* Ventana de salida: la misma lista del equipo, más la pregunta */
+.modal-pregunta {
+  margin-top: 18px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.modal-detalle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--rojo);
+}
+.modal-detalle.oculto { display: none; }
+.modal-botones {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.modal-botones .btn { width: auto; min-width: 130px; text-align: center; }
+
+/* ==========================================================================
+   Aviso al pie de la ventana
+   ========================================================================== */
+.aviso {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  max-width: min(660px, 88vw);
+  padding: 12px 20px;
+  border-radius: 9px;
+  background: #223044;
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+  box-shadow: 0 10px 30px rgba(20, 30, 45, .32);
+  z-index: 200;
+}
+/* El texto respeta sus saltos de línea (título arriba, detalle abajo) */
+#aviso-texto { white-space: pre-wrap; }
+.aviso.error { background: var(--rojo); }
+.aviso.oculto { display: none; }
+
+/* Botón dentro del aviso, por ejemplo "Abrir reporte" */
+.aviso-accion {
+  display: block;
+  margin-top: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border: 1px solid rgba(255, 255, 255, .6);
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+.aviso-accion:hover { background: rgba(255, 255, 255, .15); }
+.aviso-accion.oculto { display: none; }
+
+/* ==========================================================================
+   Arrastrar un archivo sobre la ventana
+   ========================================================================== */
+.zona-soltar {
+  position: fixed;
+  inset: 12px;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  border: 3px dashed var(--azul);
+  border-radius: 14px;
+  background: rgba(231, 239, 251, .92);
+  color: var(--azul);
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+.zona-soltar small { font-size: 13px; font-weight: 400; color: var(--texto-2); }
+.zona-soltar.oculto { display: none; }
+
+/* ==========================================================================
+   Pestaña 1: la tabla de tokens
+   ========================================================================== */
+.caja-tabla {
+  flex: 1;
+  min-height: 220px;
+  overflow: auto;
+  background: var(--caja);
+  font-family: var(--sans);
+}
+.caja-tabla > .salida-vacia.oculto { display: none; }
+
+.tabla-tokens {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tabla-tokens th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: 600;
+  color: var(--texto-2);
+  background: var(--panel);
+  border-bottom: 2px solid var(--borde-fuerte);
+  padding: 8px 12px;
+}
+.tabla-tokens td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: top;
+}
+.tabla-tokens td.lexema {
+  font-family: var(--mono);
+  font-weight: 600;
+  white-space: pre;
+}
+.tabla-tokens tbody tr { cursor: pointer; }
+.tabla-tokens tbody tr:hover td { background: #f0f4fa; }
+.tabla-tokens tbody tr.seleccionada td { background: var(--azul-claro); }
+.tabla-tokens tbody tr.seleccionada td:first-child { box-shadow: inset 3px 0 0 var(--azul); }
+.tabla-tokens tr.fila-error td { color: var(--rojo); background: var(--rojo-claro); }
+
+/* Línea de estado bajo la tabla:  ✓ Análisis completado — 7 tokens */
+.linea-estado { font-size: 13px; min-height: 20px; }
+.linea-estado.ok { color: var(--verde); }
+.linea-estado.error { color: var(--rojo); }
+
+/* ==========================================================================
+   Pestaña 3: la gramática generada del código
+   ========================================================================== */
+.caja-semantica {
+  flex: 1;
+  min-height: 260px;
+  overflow: auto;
+  padding: 14px 18px;
+  background: var(--caja);
+  font-family: var(--sans);
+}
+.caja-semantica > .salida-vacia { padding: 0 0 4px; }
+
+/* Arriba de la gramática: cuántas reglas salieron y de qué tipo de código */
+.resumen-gramatica { font-size: 13px; color: var(--verde); margin-bottom: 12px; }
+
+/* Cuando el código tiene errores y no se puede generar la gramática */
+.veredicto {
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.veredicto p { margin-top: 3px; }
+.veredicto.mal { background: var(--rojo-claro); border-color: var(--rojo); color: var(--rojo); }
+.veredicto .error-linea { padding: 3px 0 0; }
+
+/* La gramática, como en el pizarrón:   regla  →  alternativa | alternativa */
+.gramatica {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.gramatica td { padding: 2px 8px; vertical-align: top; }
+.gramatica .regla {
+  font-weight: 700;
+  color: var(--azul);
+  text-align: right;
+  white-space: nowrap;
+  cursor: help;
+}
+.gramatica .flecha { color: var(--texto-3); padding: 2px 2px; }
+
+/* Cada alternativa se queda junta; la línea se corta entre una y otra */
+.gramatica .alternativa {
+  display: inline-block;
+  white-space: nowrap;
+  border-radius: 4px;
+  padding: 0 2px;
+  cursor: help;
+}
+.gramatica .alternativa:hover { background: var(--azul-claro); }
+
+/* Terminales (lo que se escribe tal cual): en negritas; las palabras,
+   además subrayadas como en el pizarrón. */
+.gramatica .terminal { font-weight: 700; color: var(--texto); }
+.gramatica .terminal.palabra { text-decoration: underline; text-underline-offset: 3px; }
+.gramatica .no-terminal { color: var(--morado); }
+.gramatica .meta { color: var(--texto-3); }
+.gramatica .rango { color: #8a5b12; }
+
+.nota-gramatica {
+  margin-top: 14px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--borde-fuerte);
+  font-size: 11.5px;
+  color: var(--texto-2);
+}
+.nota-gramatica b { font-family: var(--mono); }
