@@ -16,3 +16,21 @@ desktop.ini
 # Editores
 .vscode/
 .idea/
+
+# Salidas de compilación y cobertura
+dist/
+build/
+coverage/
+
+# Logs
+npm-debug.log*
+*.log
+
+# Variables de entorno
+.env
+
+# Editores y sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
