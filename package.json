@@ -1,0 +1,16 @@
+{
+  "name": "compilador",
+  "version": "0.1.0",
+  "description": "Compilador educativo en JavaScript: análisis léxico, sintáctico, semántico y generación de código, con interfaz web.",
+  "main": "src/compiler/index.js",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "keywords": ["compilador", "lexer", "parser", "ast", "analizador-semantico"],
+  "author": "Edgar Gael Pesina Santander",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}
