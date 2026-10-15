@@ -17,7 +17,7 @@ const { erroresParaMarcar } = require('../src/core/Compilador');
 
 /** Ordenes que el menu de la aplicacion manda a la interfaz. */
 const CANALES_MENU = [
-  'menu:abrir', 'menu:guardar', 'menu:limpiar',
+  'menu:abrir', 'menu:guardar', 'menu:guardarJava', 'menu:limpiar',
   'menu:analizar', 'menu:equipo', 'menu:salir', 'menu:ejemplo',
   'menu:pestana'
 ];
@@ -30,7 +30,8 @@ contextBridge.exposeInMainWorld('api', {
   resaltar: (texto) => resaltarCodigo(texto),
   /**
    * El codigo con colores y sus errores subrayados en rojo.
-   * @param {string} pestana 'lexico' | 'sintactico' | 'semantico': que
+   * @param {string} pestana 'lexico' | 'sintactico' | 'semantico' |
+   *                         'intermedio' | 'optimizacion' | 'objeto': que
    *                         errores se marcan (ver erroresParaMarcar).
    * @returns {{html: string, errores: Array}}
    */
@@ -48,6 +49,8 @@ contextBridge.exposeInMainWorld('api', {
   guardarReporte: (fuente, pestana) => ipcRenderer.invoke('archivo:guardar', fuente, pestana),
   /** Abre en el navegador el ultimo reporte .html que se guardo. */
   verReporte: () => ipcRenderer.invoke('archivo:verReporte'),
+  /** Guarda el programa Java de la fase 6 (clase.java). */
+  guardarJava: (fuente) => ipcRenderer.invoke('archivo:guardarJava', fuente),
 
   // --- Cerrar la aplicacion (la interfaz ya pregunto antes) ---
   salir: () => ipcRenderer.invoke('app:salir'),

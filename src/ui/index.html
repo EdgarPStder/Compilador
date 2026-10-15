@@ -26,6 +26,9 @@
   <button class="pestana" role="tab" data-pestana="optimizacion">
     <span class="pestana-num">5</span>Optimización
   </button>
+  <button class="pestana" role="tab" data-pestana="objeto">
+    <span class="pestana-num">6</span>Código Objeto
+  </button>
 </nav>
 
 <!--
@@ -33,8 +36,8 @@
   cuadros van donde los pide su diseño. Lo único común es el estilo (la
   paleta de colores, los botones y las cajas).
 
-  Las cinco comparten el MISMO código: lo que se escribe en una aparece en
-  las demás, y al analizar se llenan las cinco.
+  Las seis comparten el MISMO código: lo que se escribe en una aparece en
+  las demás, y al analizar se llenan las seis.
 
   Los textos con data-dato (equipo, grupo, carrera, materia) los llena app.js
   con los datos de src/core/comun/Equipo.js.
@@ -288,6 +291,55 @@
   </div>
 </section>
 
+<!-- =============== PESTAÑA 6: Generador de Código Objeto =============== -->
+<!-- Mismo estilo que las pestañas 3, 4 y 5. El resultado es el programa en
+     Java (el lenguaje destino), escrito a partir del código optimizado de la
+     pestaña 5. Se ve solo, o junto al código optimizado del que sale. -->
+<section id="panel-objeto" class="panel" role="tabpanel" data-pestana="objeto">
+  <div class="cuerpo">
+    <aside class="logos-columna">
+      <figure class="logo" data-logo="uat"></figure>
+      <figure class="logo" data-logo="uamm"></figure>
+      <figure class="logo" data-logo="isc"></figure>
+    </aside>
+
+    <main class="contenido">
+      <header class="titulo-semantico">
+        <h1 data-dato="materia">Programación de Sistemas de Base II</h1>
+        <p>Generador de Código Objeto  “<span data-dato="equipo">SwordByte</span>”</p>
+      </header>
+
+      <section class="bloque">
+        <h2>Programa para traducir a Java:</h2>
+        <textarea id="obj-codigo" class="caja-editable editor" data-revision="objeto" data-alto-minimo="72"
+                  spellcheck="false" autocomplete="off" autocorrect="off"
+                  autocapitalize="off" wrap="off"
+                  placeholder="Escribe aquí un programa.  Ejemplo:  clase ejemplo { clasePrincipal { para (entero i = 1; i <= 3; i++) { imprimirLn(i); } } }"></textarea>
+      </section>
+
+      <section class="bloque bloque-crece">
+        <h2>Código objeto (Java): <span id="obj-estado" class="insignia"></span>
+          <!-- Dos formas de verlo -->
+          <span class="zoom" role="tablist">
+            <button id="obj-ver-java" class="btn-zoom btn-zoom-ancho btn-vista activa" role="tab">Java</button>
+            <button id="obj-ver-lado" class="btn-zoom btn-zoom-ancho btn-vista" role="tab">Junto al optimizado</button>
+          </span>
+        </h2>
+        <div id="obj-salida" class="caja caja-semantica caja-intermedio"></div>
+      </section>
+    </main>
+
+    <nav class="botonera botonera-derecha botonera-repartida">
+      <button id="obj-limpieza" class="btn">Limpieza</button>
+      <button id="obj-genera" class="btn btn-principal">Genera</button>
+      <button id="obj-guardar" class="btn">Guardar .java</button>
+      <span class="separador"></span>
+      <button id="obj-equipo" class="btn btn-equipo">Equipo</button>
+      <button id="obj-termina" class="btn btn-salir">Termina</button>
+    </nav>
+  </div>
+</section>
+
 <!-- =============== VENTANA DEL EQUIPO =============== -->
 <div id="modal-equipo" class="modal oculto">
   <div class="modal-fondo" data-cerrar></div>
@@ -341,6 +393,7 @@
 <script src="js/vista-intermedio.js"></script>
 <script src="js/panel-intermedio.js"></script>
 <script src="js/panel-optimizacion.js"></script>
+<script src="js/panel-objeto.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

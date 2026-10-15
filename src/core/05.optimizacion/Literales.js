@@ -11,6 +11,7 @@
  *   t1 = 7 / 2          ->   t1 = 3            (entre enteros, como Java)
  *   t1 = 7.0 / 2        ->   t1 = 3.5
  *   t1 = 2 > 1          ->   t1 = verdadero
+ *   t1 = "Ana" == "Ana" ->   t1 = verdadero
  *   t1 = "Hola " + "tú" ->   t1 = "Hola tú"
  *   t1 = "Total: " + 16 ->   t1 = "Total: 16"
  *   x = (decimal) 5     ->   x = 5.0
@@ -35,6 +36,7 @@ const esDecimal = (x) => DECIMAL.test(x);
 const esNumero = (x) => esEntero(x) || esDecimal(x);
 const esLogico = (x) => x === 'verdadero' || x === 'falso';
 const esCadena = (x) => /^"/.test(x);
+const esCaracter = (x) => /^'/.test(x);
 
 /**
  * Cualquier valor escrito tal cual, tambien con sufijo (8.5f, 20L) o un
@@ -119,6 +121,12 @@ function calcular (op, a, b) {
     return logico((a === b) === (op === '=='));
   }
 
+  // --- Dos textos o dos caracteres: son iguales si se escriben igual ---
+  // (la fase 4 los escribe siempre de la misma forma:  “Ana” y "Ana" quedan "Ana")
+  if ((op === '==' || op === '!=') && ((esCadena(a) && esCadena(b)) || (esCaracter(a) && esCaracter(b)))) {
+    return logico((a === b) === (op === '=='));
+  }
+
   // --- Dos textos: se juntan ---
   if (op === '+' && esCadena(a) && esCadena(b)) return a.slice(0, -1) + b.slice(1);
 
@@ -132,13 +140,30 @@ function calcular (op, a, b) {
 }
 
 /**
- * El valor de  (tipo) x  si x es un numero fijo, o null. Solo se hace la
- * conversion que la fase 4 escribe para un decimal:
- *   (decimal) 5   ->  5.0        (decimal) 2.5  ->  2.5
+ * El valor de  (tipo) x  si x es un valor fijo, o null. Se calculan las
+ * conversiones a decimal y a entero, de un numero o de un texto que es un
+ * numero (como convertir("12", entero)):
+ *   (decimal) 5     ->  5.0        (decimal) "2.5"  ->  2.5
+ *   (entero) 1.75   ->  1          (entero) "12"    ->  12
+ * Las que fallarian al ejecutarse ("hola", un numero que no cabe) se dejan:
+ * ese Error debe seguir pasando.
  */
 function convertirFijo (x, tipo) {
-  if (tipo !== 'decimal' || !esNumero(x)) return null;
-  return comoDecimal(Number(x));
+  let n = null;
+  if (esNumero(x)) {
+    n = Number(x);
+  } else if (esCadena(x) && x.indexOf('\\') === -1) {
+    const texto = x.slice(1, -1).trim();
+    if (tipo === 'entero' && /^[-+]?\d+$/.test(texto)) n = Number(texto);
+    if (tipo === 'decimal' && /^[-+]?(\d+(\.\d*)?|\.\d+)$/.test(texto)) n = Number(texto);
+  }
+  if (n === null) return null;
+  if (tipo === 'decimal') return comoDecimal(n);
+  if (tipo === 'entero') {
+    const r = Math.trunc(n);   // como (int) en Java: se quitan los decimales
+    return r >= MINIMO_ENTERO && r <= MAXIMO_ENTERO ? String(r + 0) : null;
+  }
+  return null;
 }
 
 module.exports = { esEntero, esDecimal, esNumero, esLogico, esLiteral, opuesto, negar, calcular, convertirFijo };

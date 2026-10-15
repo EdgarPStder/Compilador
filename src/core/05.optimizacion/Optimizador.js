@@ -25,6 +25,8 @@
  *   Simplificacion algebraica  t1 = x * 1            ->  t1 = x
  *   Reduccion de fuerza        t1 = x * 2            ->  t1 = x + x
  *   Codigo muerto              a = 5 (y nadie usa a) ->  (se quita)
+ *                              a = 5 (y luego a = 6) ->  (se quita el primero)
+ *                              potencia(2, 10) sin usar ->  (se quita, con sus param)
  *   Codigo inalcanzable        lo que va despues de un goto o un return
  *   Optimizacion de saltos     ifFalse verdadero goto L1 (nunca salta), goto a
  *                              la instruccion de abajo, goto a otro goto,
@@ -43,7 +45,7 @@
  */
 
 const { OPERADORES, rehacer } = require('../04.intermedio/Instrucciones');
-const { esNumero, esLogico, esLiteral, opuesto, negar, calcular, convertirFijo } = require('./Literales');
+const { esEntero, esDecimal, esNumero, esLogico, esLiteral, opuesto, negar, calcular, convertirFijo } = require('./Literales');
 
 /** El nombre de cada optimizacion, para mostrarla. */
 const OPTIMIZACIONES = {
@@ -107,13 +109,30 @@ function esCalculo (ins) {
 /**
  * Una instruccion "pura": solo calcula un valor, sin hacer nada mas. Si nadie
  * usa ese valor, se puede quitar. Dividir no cuenta (entre cero lanza un
- * Error), ni leer de un arreglo (fuera de lugar tambien), ni convertir (un
- * texto que no es numero), ni llamar a una funcion (puede imprimir).
+ * Error, salvo entre un numero fijo que no es cero), ni leer de un arreglo
+ * (fuera de lugar tambien), ni convertir a numero (un texto que no es
+ * numero), ni llamar a una funcion (puede imprimir).
  */
 function esPura (ins) {
-  if (ins.op === '/' || ins.op === '%') return false;
+  if ((ins.op === '/' || ins.op === '%') && !divisorSeguro(ins.arg2)) return false;
+  // Pasar cualquier valor a texto nunca falla
+  if (ins.op === 'convertir' && ins.arg2 === 'cadena') return true;
   return esCalculo(ins) || ins.op === '=';
 }
+
+/**
+ * Un divisor con el que dividir nunca lanza un Error: un entero fijo que no
+ * es cero, o un decimal fijo (entre decimales, 5 / 0.0 da Infinity, no falla).
+ */
+const divisorSeguro = (x) => esDecimal(x) || (esEntero(x) && Number(x) !== 0);
+
+/**
+ * Las funciones del lenguaje que solo calculan un valor: no imprimen, no
+ * leen, no fallan y siempre dan lo mismo. Si nadie usa lo que devuelven, la
+ * llamada completa sobra (aleatorio no: cambia la serie de numeros al azar).
+ */
+const NATIVAS_PURAS = ['potencia', 'redondear', 'logaritmo', 'logaritmo10', 'seno', 'coseno', 'longitud'];
+const esNativaPura = (f) => NATIVAS_PURAS.indexOf(f) !== -1 || /^(perimetro|area|volumen)\./.test(f);
 
 // ====================================================================
 // El optimizador
@@ -192,6 +211,7 @@ class Optimizador {
       hubo = this.porBloques() || hubo;
       hubo = this.unirConCopias() || hubo;
       hubo = this.quitarCodigoMuerto() || hubo;
+      hubo = this.quitarValoresPisados() || hubo;
       hubo = this.optimizarSaltos() || hubo;
       if (!hubo) break;
     }
@@ -435,6 +455,17 @@ class Optimizador {
       const usos = this.contarUsos(inicio, fin);
       for (let i = inicio; i <= fin; i++) {
         const ins = this.ins[i];
+        if (ins.quitada) continue;
+        // Una funcion del lenguaje que solo calcula, y nadie usa su valor:
+        // se va la llamada con sus param (que siempre van justo antes).
+        if (ins.op === 'call' && esNativaPura(ins.arg1) && !(ins.resultado && usos.get(ins.resultado))) {
+          const params = this.ins.slice(i - Number(ins.arg2), i);
+          params.forEach((p) => { p.quitada = true; });
+          ins.quitada = true;
+          this.anotar('muerto', params.map((p) => p.texto).concat([ins.texto]).join('  ·  '), '', ins.linea);
+          hubo = true;
+          continue;
+        }
         const definido = nombreDefinido(ins);
         if (!definido || usos.get(definido)) continue;
         if (esPura(ins)) {
@@ -448,6 +479,51 @@ class Optimizador {
     });
     this.compactar();
     return hubo;
+  }
+
+  /**
+   * Un valor que se cambia antes de que alguien lo use tampoco sirve:
+   *   v = 14          (nadie lee v aqui)      ->   (se quita)
+   *   v = 13
+   * Solo dentro de un bloque, y fuera de un intentar: ahi, si algo falla en
+   * medio, el capturar podria usar el valor de antes.
+   */
+  quitarValoresPisados () {
+    let hubo = false;
+    const enIntentar = this.dentroDeIntentar();
+    this.funciones().forEach(([inicio, fin]) => {
+      this.bloques(inicio, fin).forEach(([desde, hasta]) => {
+        for (let i = desde; i <= hasta; i++) {
+          const ins = this.ins[i];
+          if (ins.quitada || !esPura(ins) || enIntentar[i]) continue;
+          const x = nombreDefinido(ins);
+          for (let j = i + 1; j <= hasta; j++) {
+            const otra = this.ins[j];
+            if (otra.quitada) continue;
+            if (nombresLeidos(otra).indexOf(x) !== -1) break;
+            if (nombreDefinido(otra) === x) {
+              this.quitar(ins, 'muerto');
+              hubo = true;
+              break;
+            }
+          }
+        }
+      });
+    });
+    this.compactar();
+    return hubo;
+  }
+
+  /** Para cada instruccion: true si esta dentro de un intentar (entre  intentar L  y  L:). */
+  dentroDeIntentar () {
+    const dentro = this.ins.map(() => false);
+    this.ins.forEach((ins, i) => {
+      if (ins.op !== 'intentar') return;
+      for (let j = i + 1; j < this.ins.length && !(this.ins[j].op === 'etiqueta' && this.ins[j].resultado === ins.resultado); j++) {
+        dentro[j] = true;
+      }
+    });
+    return dentro;
   }
 
   // ------------------------------------------------------------------
@@ -557,7 +633,8 @@ class Optimizador {
  *   antes (cuantas instrucciones habia), instrucciones (las que quedan, con
  *   numero, original, op, arg1, arg2, resultado, texto, linea, comentarios y
  *   optimizaciones), cambios ([{ optimizacion, nombre, antes, despues, linea }]),
- *   porOptimizacion ([{ clave, nombre, veces }]), temporales, etiquetas, prefijos }
+ *   porOptimizacion ([{ clave, nombre, veces }]), temporales, etiquetas, prefijos,
+ *   y, para la fase 6, clase y simbolos (los mismos de la fase 4) }
  */
 function optimizarCodigo (intermedio) {
   const resultado = {
@@ -569,7 +646,10 @@ function optimizarCodigo (intermedio) {
     porOptimizacion: [],
     temporales: 0,
     etiquetas: 0,
-    prefijos: intermedio ? intermedio.prefijos : { temporal: 't', etiqueta: 'L' }
+    prefijos: intermedio ? intermedio.prefijos : { temporal: 't', etiqueta: 'L' },
+    // Lo que la fase 6 necesita y no cambia al optimizar: la clase y los tipos
+    clase: intermedio ? intermedio.clase : '',
+    simbolos: intermedio ? intermedio.simbolos : []
   };
 
   if (!intermedio || intermedio.estado === 'vacio') {

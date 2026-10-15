@@ -2,7 +2,8 @@
    Compilador SwordByte — interfaz
 
    Distribución:
-     - Arriba:   las tres pestañas (Léxico, Léxico-Sintáctico, Semántico)
+     - Arriba:   las seis pestañas (Léxico, Léxico-Sintáctico, Semántico,
+                 Código Intermedio, Optimización y Código Objeto)
      - El resto: el panel de la pestaña activa.
 
    Cada panel conserva SU diseño (dónde van sus logos, sus botones y sus
@@ -12,6 +13,7 @@
      2. Léxico-Sintáctico  los tres logos arriba, botones a la izquierda
      3. Semántico          los tres logos en columna a la izquierda,
                            título arriba, botones a la derecha
+     4, 5 y 6              el diseño de la 3
 
    Lo que comparten es el estilo: la paleta de :root (aquí abajo), los
    botones, las cajas y los tipos de letra.
@@ -111,8 +113,8 @@ body {
 }
 .pestana.activa .pestana-num { background: var(--azul); color: #fff; }
 
-/* En una ventana angosta las cinco pestañas se juntan un poco */
-@media (max-width: 1080px) {
+/* En una ventana angosta las seis pestañas se juntan un poco */
+@media (max-width: 1180px) {
   .pestanas { padding: 0 8px; gap: 0; overflow-x: auto; }
   .pestana { padding: 9px 10px 8px; font-size: 12.5px; }
 }
@@ -1170,3 +1172,49 @@ body {
   color: var(--texto-2);
 }
 .nota-gramatica b { font-family: var(--mono); }
+
+
+/* ==========================================================================
+   Pestaña 6: el código objeto (Java)
+   ========================================================================== */
+
+/* El programa Java: número de renglón · renglón con los colores de Java */
+.codigo-java {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.codigo-java td { padding: 0 10px; white-space: pre; vertical-align: top; }
+.codigo-java td.num {
+  color: var(--texto-3);
+  text-align: right;
+  user-select: none;
+  border-right: 1px solid var(--borde);
+}
+.codigo-java td.java { padding-left: 14px; }
+.codigo-java tr:hover td.java { background: var(--azul-claro); }
+
+/* "Funciones de apoyo:" antes de sus chips */
+.chips-titulo { font-size: 12px; color: var(--texto-2); align-self: center; }
+
+/* Junto al optimizado: el código de tres direcciones y el Java, lado a lado */
+.lado-a-lado {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 18px;
+  align-items: start;
+}
+.lado-a-lado .lado {
+  overflow-x: auto;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 8px 4px 10px;
+  background: var(--panel);
+}
+.titulo-lado {
+  margin: 0 8px 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--azul);
+}

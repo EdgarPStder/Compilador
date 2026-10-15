@@ -1358,10 +1358,43 @@ prueba('todos los ejemplos correctos generan su codigo y sus saltos llegan a una
   });
 });
 
+prueba('una variable con el mismo nombre y otro tipo en otro bloque se renombra (x_2)', () => {
+  // Para la fase 6: en Java cada variable tiene un solo tipo
+  igual(tresDe('entero a;\nleer(a);\nsi (a > 0) { entero x = a; imprimirLn(x); } sino { cadena x = "no"; imprimirLn(x); }'),
+    'leer a / t1 = a > 0 / ifFalse t1 goto L1 / x = a / param x / call imprimirLn, 1 / goto L2 / ' +
+    'L1: / x_2 = "no" / param x_2 / call imprimirLn, 1 / L2:');
+  // Con el mismo tipo se queda el mismo nombre
+  verdadero(!tresDe('si (verdadero) { entero x = 1; imprimirLn(x); }\nsi (falso) { entero x = 2; imprimirLn(x); }').includes('x_2'),
+    'se renombro una variable del mismo tipo');
+});
+
+prueba('romper dentro de intentar sale primero del intentar (finIntentar)', () => {
+  igual(tresDe('para (entero i = 0; i < 3; i++) { intentar { si (i == 1) { romper; } imprimirLn(i); } ' +
+    'capturar (Error e) { imprimirLn("e"); } }'),
+  'i = 0 / L1: / t1 = i < 3 / ifFalse t1 goto L5 / intentar L3 / t2 = i == 1 / ifFalse t2 goto L2 / ' +
+    'finIntentar / goto L5 / L2: / param i / call imprimirLn, 1 / finIntentar / goto L4 / ' +
+    'L3: / capturar e / param "e" / call imprimirLn, 1 / L4: / i = i + 1 / goto L1 / L5:');
+});
+
+prueba('los textos con comillas de Word quedan con comillas normales', () => {
+  igual(tresDe('imprimirLn(“Hola”);'), 'param "Hola" / call imprimirLn, 1');
+  igual(tresDe('cadena c = "a\\tb";\nimprimirLn(c);'), 'c = "a\\tb" / param c / call imprimirLn, 1');
+});
+
+prueba('la fase 4 entrega la clase y los simbolos de cada funcion (para la fase 6)', () => {
+  const ci = compilar('clase p {\n  funcion entero doble(entero n) { entero r = n * 2; retornar r; }\n' +
+    '  clasePrincipal { matriz entero m[2][3]; cadena s = "x"; imprimirLn(doble(4)); }\n}').intermedio;
+  igual(ci.clase, 'p');
+  igual(JSON.stringify(ci.simbolos),
+    '[{"nombre":"doble","tipoRetorno":"entero","parametros":["n"],"variables":{"n":"entero","r":"entero"},"columnas":{}},' +
+    '{"nombre":"clasePrincipal","tipoRetorno":"vacio","parametros":[],"variables":{"m":"entero[][]","s":"cadena"},"columnas":{"m":"3"}}]');
+});
+
 // =====================================================================
 grupo('Optimizacion del codigo intermedio (fase 5)');
 
 const { ejecutarIntermedio } = require('./interprete-intermedio');
+const { programaAlAzar } = require('./programas-al-azar');
 
 /** El resultado de la fase 5 para unas instrucciones dentro de clasePrincipal. */
 function optimizadoDe (codigo) {
@@ -1568,6 +1601,262 @@ prueba('programas con trampas imprimen lo mismo antes y despues de optimizar', (
     'impar\n');
 });
 
+prueba('las funciones que solo calculan se quitan si nadie usa su valor', () => {
+  igual(optDe('decimal p = potencia(2, 3);\nentero r = redondear(2.6);\nimprimirLn("fin");'),
+    'param "fin" / call imprimirLn, 1');
+  const quitada = optimizadoDe('decimal p = potencia(2, 3);').cambios.find((c) => c.optimizacion === 'muerto');
+  igual(quitada.antes, 'param 2  ·  param 3  ·  p = call potencia, 2');
+  // Las que hacen algo (imprimir, leer, aleatorio) se quedan
+  igual(optDe('entero d = aleatorio(1, 6);'), 'param 1 / param 6 / call aleatorio, 2');
+});
+
+prueba('un valor que se pisa antes de usarse no se guarda', () => {
+  igual(optDe('entero a;\nleer(a);\nentero b = a + 1;\nb = a * 3;\nimprimirLn(b);'),
+    'leer a / b = a * 3 / param b / call imprimirLn, 1');
+  // Dentro de intentar si se guarda: si algo falla, capturar puede usarlo
+  const conIntentar = optDe('entero a;\nleer(a);\nentero b = 0;\nintentar { b = 1; b = 10 / a; } ' +
+    'capturar (Error e) { imprimirLn(b); }\nimprimirLn(b);');
+  verdadero(conIntentar.includes('b = 1'), conIntentar);
+  igual(mismaSalida(programaDe('entero a;\nleer(a);\nentero b = 0;\nintentar { b = 1; b = 10 / a; } ' +
+    'capturar (Error e) { imprimirLn(b); }\nimprimirLn(b);'), ['0']), '1\n1\n');
+});
+
+prueba('los textos iguales y convertir con valores fijos se calculan desde ahora', () => {
+  igual(optDe('logico l = "a" == "a";\nlogico m = "a" == "b";\nimprimirLn(l);\nimprimirLn(m);'),
+    'param verdadero / call imprimirLn, 1 / param falso / call imprimirLn, 1');
+  igual(optDe('imprimirLn(convertir("42", decimal));\nimprimirLn(convertir(3.9, entero));\nimprimirLn(convertir(" 7 ", entero));'),
+    'param 42.0 / call imprimirLn, 1 / param 3 / call imprimirLn, 1 / param 7 / call imprimirLn, 1');
+  // Un texto que no es numero se queda: debe fallar al ejecutarse
+  igual(optDe('cadena t = "hola";\nimprimirLn(convertir(t, entero));'), 't1 = (entero) "hola" / param t1 / call imprimirLn, 1');
+});
+
+prueba('una division entre un numero fijo distinto de cero ya no puede fallar: si nadie la usa se quita', () => {
+  // a / 2 se quita; a / a se queda, porque si a vale 0 debe fallar
+  igual(optDe('entero a;\nleer(a);\nentero b = a / 2;\nentero c = a / a;\nimprimirLn("fin");'),
+    'leer a / c = a / a / param "fin" / call imprimirLn, 1');
+});
+
+prueba('programas al azar imprimen lo mismo antes y despues de optimizar', () => {
+  // pruebas/programas-al-azar.js escribe programas correctos que siempre
+  // terminan, con ciclos, opcion, funciones, arreglos, intentar...
+  for (let semilla = 1; semilla <= 80; semilla++) {
+    const { fuente, entradas } = programaAlAzar(semilla);
+    try {
+      mismaSalida(fuente, entradas);
+    } catch (e) {
+      throw new Error(`con la semilla ${semilla}: ${e.message}`);
+    }
+  }
+});
+
+// =====================================================================
+grupo('Codigo objeto: Java (fase 6)');
+
+const { spawnSync } = require('child_process');
+const os = require('os');
+const { generarCodigoObjeto } = require('../src/core/06.objeto/GeneradorJava');
+
+const dirDeEjemplos = path.join(__dirname, '..', 'ejemplos');
+
+/** El resultado de la fase 6 para unas instrucciones dentro de clasePrincipal. */
+function objetoDe (codigo) {
+  return compilar(programaDe(codigo)).objeto;
+}
+
+/** Los renglones de un metodo de Java, sin sangria y juntos:  int n = 0; / for (...) { / ... */
+function metodoDe (codigo, encabezado = 'public static void main(') {
+  const o = objetoDe(codigo);
+  if (o.estado !== 'generado') throw new Error(`no se genero (${o.estado}): ${o.errores.map((e) => e.mensaje).join(' / ')}`);
+  const renglones = o.codigo.split('\n');
+  const inicio = renglones.findIndex((r) => r.includes(encabezado));
+  let fin = inicio + 1;
+  for (let abiertas = 1; fin < renglones.length; fin++) {
+    abiertas += (renglones[fin].match(/\{/g) || []).length - (renglones[fin].match(/\}/g) || []).length;
+    if (abiertas === 0) break;
+  }
+  return renglones.slice(inicio + 1, fin).map((r) => r.trim()).join(' / ');
+}
+
+prueba('el programa se traduce a una clase de Java con su main', () => {
+  const o = objetoDe('entero n;\nleer(n);\nimprimirLn(n);');
+  igual(o.estado, 'generado');
+  igual(`${o.clase} ${o.archivo} ${o.metodos}`, 'prueba prueba.java 1');
+  verdadero(o.codigo.startsWith('import java.util.Scanner;\n'), 'falta el import del Scanner');
+  verdadero(o.codigo.includes('public class prueba {'), 'falta la clase');
+  verdadero(o.codigo.includes(' * Compilar:  javac -encoding UTF-8 prueba.java'), 'falta como compilarlo');
+  verdadero(o.codigo.includes('static Scanner entrada = new Scanner(System.in);'), 'falta el Scanner');
+  igual(metodoDe('entero n;\nleer(n);\nimprimirLn(n);'), 'int n = entrada.nextInt(); / System.out.println(n);');
+  // Sin leer no hace falta el Scanner
+  verdadero(!objetoDe('imprimirLn("Hola");').codigo.includes('Scanner'), 'sobra el Scanner');
+  igual(o.instrucciones, compilar(programaDe('entero n;\nleer(n);\nimprimirLn(n);')).optimizacion.instrucciones.length);
+});
+
+prueba('los saltos se vuelven otra vez for, while y do-while', () => {
+  igual(metodoDe('entero n;\nleer(n);\nentero s = 0;\npara (entero i = 1; i <= n; i++) { s = s + i; }\nimprimirLn(s);'),
+    'int n = entrada.nextInt(); / int s = 0; / for (int i = 1; i <= n; i++) { / s = s + i; / } / System.out.println(s);');
+  // Ciclos anidados: cada variable se declara en su propio for
+  igual(metodoDe('entero n;\nleer(n);\npara (entero i = 1; i <= n; i++) { para (entero j = 1; j <= i; j++) { ' +
+    'imprimir(j); } imprimirLn(""); }'),
+  'int n = entrada.nextInt(); / for (int i = 1; i <= n; i++) { / for (int j = 1; j <= i; j++) { / ' +
+    'System.out.print(j); / } / System.out.println(""); / }');
+  igual(metodoDe('entero i;\nleer(i);\nmientras (i < 10) { i = i * 2; }\nimprimirLn(i);'),
+    'int i = entrada.nextInt(); / while (i < 10) { / i = i + i; / } / System.out.println(i);');
+  igual(metodoDe('entero x;\nleer(x);\nhacer { x = x - 3; } mientras (x > 0);\nimprimirLn(x);'),
+    'int x = entrada.nextInt(); / do { / x = x - 3; / } while (x > 0); / System.out.println(x);');
+  igual(metodoDe('entero a;\nleer(a);\nsi (a > 0) { imprimirLn("si"); } sino { imprimirLn("no"); }'),
+    'int a = entrada.nextInt(); / if (a > 0) { / System.out.println("si"); / } else { / System.out.println("no"); / }');
+});
+
+prueba('opcion se vuelve switch, e intentar un try-catch', () => {
+  igual(metodoDe('entero d;\nleer(d);\nopcion (d) { caso 1: imprimirLn("uno"); romper; caso 2: imprimirLn("dos"); romper; ' +
+    'porDefecto: imprimirLn("otro"); }'),
+  'int d = entrada.nextInt(); / switch (d) { / case 1: / System.out.println("uno"); / break; / ' +
+    'case 2: / System.out.println("dos"); / break; / default: / System.out.println("otro"); / }');
+  igual(metodoDe('entero a;\nleer(a);\nintentar { imprimirLn(10 / a); } capturar (Error e) { imprimirLn("error"); }'),
+    'int a = entrada.nextInt(); / try { / System.out.println(10 / a); / } catch (Exception e) { / System.out.println("error"); / }');
+});
+
+prueba('Y y O vuelven a ser && y ||, y x++ vuelve a ser x++', () => {
+  igual(metodoDe('entero a, b;\nleer(a);\nleer(b);\nsi (a > 0 Y b > 0 O a == b) { imprimirLn("si"); }'),
+    'int a = entrada.nextInt(); / int b = entrada.nextInt(); / if (a > 0 && b > 0 || a == b) { / System.out.println("si"); / }');
+  igual(metodoDe('entero x;\nleer(x);\nentero y = x++ + x;\nimprimirLn(y);'),
+    'int x = entrada.nextInt(); / int y = x++ + x; / System.out.println(y);');
+});
+
+prueba('los arreglos llevan su lista de valores y las matrices son renglones seguidos', () => {
+  igual(metodoDe('Arreglo entero d[] = {4, 5, 6};\nentero k;\nleer(k);\nd[1] = d[0] + k;\nimprimirLn(d[1]);'),
+    'int[] d = {4, 5, 6}; / int k = entrada.nextInt(); / d[1] = d[0] + k; / System.out.println(d[1]);');
+  igual(metodoDe('matriz entero m[2][3];\nentero i;\nleer(i);\nm[i][2] = 7;\nimprimirLn(m[i][2]);'),
+    'int[] m = new int[6];   // matriz de 3 columnas: m[i][j] es m[i * 3 + j] / int i = entrada.nextInt(); / ' +
+    'int t3 = i * 3 + 2; / m[t3] = 7; / System.out.println(m[t3]);');
+});
+
+prueba('los textos se comparan con equals y leer usa el Scanner segun el tipo', () => {
+  igual(metodoDe('cadena s;\nleer(s);\nsi (s == "hola") { imprimirLn("saludo"); }'),
+    'String s = entrada.next(); / if (s.equals("hola")) { / System.out.println("saludo"); / }');
+  igual(metodoDe('cadena t;\nleer(t);\nentero n = convertir(t, entero);\nimprimirLn(n * 2);'),
+    'String t = entrada.next(); / int n = Integer.parseInt(t.trim()); / System.out.println(n + n);');
+  verdadero(metodoDe('decimal r;\nleer(r);\nimprimirLn(r);').startsWith('double r = entrada.nextDouble();'), 'leer decimal');
+});
+
+prueba('las funciones se vuelven metodos static', () => {
+  const fuente = 'clase p {\n  funcion entero doble(entero n) { retornar n * 2; }\n' +
+    '  funcion vacio saluda(cadena q) { imprimirLn("Hola " + q); }\n' +
+    '  clasePrincipal { entero x; leer(x); saluda("Ana"); imprimirLn(doble(x)); }\n}';
+  igual(objetoDe(fuente).metodos, 3);
+  igual(metodoDe(fuente, 'static int doble(int n)'), 'return n + n;');
+  igual(metodoDe(fuente, 'static void saluda(String q)'), 'System.out.println("Hola " + q);');
+  igual(metodoDe(fuente), 'int x = entrada.nextInt(); / saluda("Ana"); / System.out.println(doble(x));');
+});
+
+prueba('lo que Java no trae tal cual va en funciones de apoyo', () => {
+  const o = objetoDe('entero n;\nleer(n);\nimprimirLn(aleatorio(1, n));\nesperar(10);\nimprimirLn(logaritmo(2, n));');
+  igual(o.apoyo.join(), 'aleatorio,esperar,logaritmo');
+  verdadero(o.codigo.includes('static int aleatorio(long minimo, long maximo) {'), 'falta aleatorio');
+  verdadero(o.codigo.includes('Thread.sleep(milisegundos);'), 'falta esperar');
+  verdadero(o.codigo.includes('return Math.log(numero) / Math.log(base);'), 'falta logaritmo');
+  igual(metodoDe('decimal r;\nleer(r);\nimprimirLn(area.circulo(r));\nimprimirLn(potencia(r, 2));\nimprimirLn(redondear(r));'),
+    'double r = entrada.nextDouble(); / System.out.println(area.circulo(r)); / System.out.println(Math.pow(r, 2)); / ' +
+    'System.out.println((int) Math.round(r));');
+  // Solo se escriben las figuras que se usan
+  const figuras = objetoDe('decimal r;\nleer(r);\nimprimirLn(area.circulo(r));').codigo;
+  verdadero(figuras.includes('static class area {') && figuras.includes('return Math.PI * radio * radio;'), 'falta area.circulo');
+  verdadero(!figuras.includes('static class volumen'), 'sobra volumen');
+  igual(objetoDe('imprimirLn("Hola");').apoyo.length, 0);
+});
+
+prueba('los nombres que en Java son palabras reservadas llevan _', () => {
+  igual(metodoDe('entero new;\nleer(new);\nimprimirLn(new * 3);'), 'int new_ = entrada.nextInt(); / System.out.println(new_ * 3);');
+});
+
+prueba('cada renglon de Java sabe de que linea del programa sale y lleva sus colores', () => {
+  const o = compilar('clase p {\n  clasePrincipal {\n    entero n;\n    leer(n);\n' +
+    '    para (entero i = 0; i < n; i++) {\n      imprimirLn("i: " + i);\n    }\n  }\n}').objeto;
+  const para = o.lineas.find((l) => l.texto.trim().startsWith('for ('));
+  igual(para.linea, 5);
+  verdadero(para.html.includes('<span class="j-control">for</span>'), para.html);
+  verdadero(para.html.includes('<span class="j-tipo">int</span>'), para.html);
+  const imprime = o.lineas.find((l) => l.texto.includes('println'));
+  igual(imprime.linea, 6);
+  verdadero(imprime.html.includes('<span class="j-cadena">&quot;i: &quot;</span>') ||
+    imprime.html.includes('<span class="j-cadena">"i: "</span>'), imprime.html);
+  igual(o.lineas.map((l) => l.texto).join('\n') + '\n', o.codigo);
+});
+
+prueba('sin un programa correcto no se genera', () => {
+  igual(compilar('').objeto.estado, 'vacio');
+  const sinClase = compilar('a = b + c').objeto;
+  igual(sinClase.estado, 'errores-previos');
+  verdadero(sinClase.errores[0].mensaje.startsWith('Falta la clase'), sinClase.errores[0].mensaje);
+  igual(objetoDe('entero x = "hola";').estado, 'errores-previos');
+});
+
+prueba('todos los ejemplos correctos se traducen', () => {
+  fs.readdirSync(dirDeEjemplos).filter((f) => !f.includes('error')).forEach((f) => {
+    const o = compilar(fs.readFileSync(path.join(dirDeEjemplos, f), 'utf8')).objeto;
+    igual(o.estado, 'generado', `${f}:`);
+    verdadero(o.codigo.includes(`public class ${o.clase} {`) && o.codigo.includes('public static void main(String[] args) {'),
+      `${f}: falta la clase o el main`);
+  });
+});
+
+/**
+ * Traduce los programas a Java, los compila con javac y los ejecuta (todos en
+ * una sola maquina virtual, con pruebas/EjecutarJava.java). Devuelve los que
+ * imprimieron algo distinto de lo que dice el interprete del codigo de tres
+ * direcciones.
+ */
+function compilarYEjecutarJava (programas) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'swordbyte-java-'));
+  try {
+    programas.forEach((p) => {
+      fs.writeFileSync(path.join(dir, p.objeto.archivo), p.objeto.codigo);
+      fs.writeFileSync(path.join(dir, p.objeto.clase + '.in'), p.entradas.join('\n') + '\n');
+    });
+    const javac = spawnSync('javac', ['-encoding', 'UTF-8', '-nowarn', '-d', dir,
+      path.join(__dirname, 'EjecutarJava.java'), ...programas.map((p) => path.join(dir, p.objeto.archivo))],
+    { encoding: 'utf8' });
+    if (javac.status !== 0) throw new Error('javac encontro errores:\n' + javac.stderr.split('\n').slice(0, 12).join('\n'));
+    const java = spawnSync('java', ['-cp', dir, 'EjecutarJava', ...programas.map((p) => p.objeto.clase)],
+      { cwd: dir, encoding: 'utf8', timeout: 120000 });
+    if (java.status !== 0) throw new Error('java no termino: ' + java.stderr);
+    return programas.filter((p) => fs.readFileSync(path.join(dir, p.objeto.clase + '.out'), 'utf8') !== p.esperado);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const hayJavac = !spawnSync('javac', ['-version'], { encoding: 'utf8' }).error;
+
+if (!hayJavac) {
+  console.log('  \x1b[33mOMITIDA\x1b[0m el Java compila con javac e imprime lo mismo (no se encontro javac)');
+} else {
+  prueba('el Java de los ejemplos y de 60 programas al azar compila con javac e imprime lo mismo', () => {
+    const programas = [];
+    const agregar = (fuente, entradas, nombre, sinOptimizar) => {
+      // Cada programa con su propia clase: todos se compilan juntos
+      const r = compilar(fuente.replace(/\bclase\s+\w+/, `clase ${nombre}`));
+      igual(r.intermedio.estado, 'generado', `${nombre}:`);
+      // La fase 6 no depende de la 5: tambien se traduce el codigo sin optimizar
+      const objeto = sinOptimizar
+        ? generarCodigoObjeto(Object.assign({}, r.optimizacion, { instrucciones: r.intermedio.instrucciones }))
+        : r.objeto;
+      igual(objeto.estado, 'generado', `${nombre}:`);
+      const esperado = ejecutarIntermedio(r.optimizacion.instrucciones, { entradas });
+      programas.push({ nombre, objeto, entradas, esperado });
+    };
+    fs.readdirSync(dirDeEjemplos).filter((f) => !f.includes('error')).forEach((f, k) =>
+      agregar(fs.readFileSync(path.join(dirDeEjemplos, f), 'utf8'), Array(20).fill('5'), `ejemplo${k + 1}`));
+    for (let semilla = 1; semilla <= 60; semilla++) {
+      const { fuente, entradas } = programaAlAzar(semilla);
+      agregar(fuente, entradas, `azar${semilla}`);
+      if (semilla <= 20) agregar(fuente, entradas, `sinOptimizar${semilla}`, true);
+    }
+    const distintos = compilarYEjecutarJava(programas);
+    igual(distintos.map((p) => p.nombre).join(', '), '', 'imprimieron algo distinto:');
+  });
+}
+
 // =====================================================================
 grupo('Reporte visual (HTML)');
 
@@ -1671,6 +1960,21 @@ prueba('los dos reportes traen el codigo optimizado', () => {
   // Se puede guardar desde la pestaña 5 y volver a ella
   igual(leerArchivoGuardado(contenidoParaGuardar(r, 'x.html', { pestana: 'optimizacion' }).contenido).pestana,
     'optimizacion');
+});
+
+prueba('los dos reportes traen el codigo Java', () => {
+  const r = compilar(fs.readFileSync(path.join(__dirname, '..', 'ejemplos', '03-control.bs'), 'utf8'));
+  const texto = contenidoParaGuardar(r, 'x.bs').contenido;
+  verdadero(texto.includes('7. CÓDIGO OBJETO (JAVA)'), 'falta la seccion 7');
+  verdadero(texto.includes(`control.java: ${r.objeto.lineas.length} renglones de Java y 1 método,`), 'falta el resumen');
+  verdadero(texto.includes('//  public class control {'), 'falta el codigo Java');
+  // El Java va en comentarios: el reporte sigue siendo un programa valido
+  igual(compilar(texto).errores.length, 0, 'el reporte sigue siendo un programa valido:');
+  const html = contenidoParaGuardar(r, 'x.html').contenido;
+  verdadero(html.includes('<h2><span>7</span> Código objeto (Java)</h2>'), 'falta la seccion 7 en el .html');
+  verdadero(html.includes('<span class="j-control">for</span>'), 'falta el Java con colores');
+  verdadero(html.includes('<b>control.java</b>'), 'falta la tarjeta del codigo objeto');
+  igual(leerArchivoGuardado(contenidoParaGuardar(r, 'x.html', { pestana: 'objeto' }).contenido).pestana, 'objeto');
 });
 
 prueba('el archivo se llama igual que la clase, como en Java', () => {

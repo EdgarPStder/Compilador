@@ -7,7 +7,7 @@
  *   - Ejecutar el compilador (que vive en src/core) y devolver el resultado
  *     a la interfaz por IPC.
  *   - Atender las operaciones de archivo: guardar el reporte (.html o .bs)
- *     y volver a abrirlo.
+ *     y volver a abrirlo, y guardar el programa Java (.java) de la fase 6.
  *
  * La interfaz corre con contextIsolation activado: no tiene acceso directo a
  * Node. Todo pasa por el puente definido en preload.js.
@@ -114,6 +114,7 @@ function construirMenu () {
       submenu: [
         { label: 'Abrir...', accelerator: 'CmdOrCtrl+O', click: () => enviar('menu:abrir') },
         { label: 'Guardar reporte...', accelerator: 'CmdOrCtrl+S', click: () => enviar('menu:guardar') },
+        { label: 'Guardar código Java (.java)...', accelerator: 'CmdOrCtrl+J', click: () => enviar('menu:guardarJava') },
         { type: 'separator' },
         { label: 'Limpiar', accelerator: 'CmdOrCtrl+L', click: () => enviar('menu:limpiar') },
         { type: 'separator' },
@@ -123,7 +124,7 @@ function construirMenu () {
     {
       label: 'Analizar',
       submenu: [
-        { label: 'Analizar (llena las cinco pestañas)', accelerator: 'F5', click: () => enviar('menu:analizar') }
+        { label: 'Analizar (llena las seis pestañas)', accelerator: 'F5', click: () => enviar('menu:analizar') }
       ]
     },
     {
@@ -138,6 +139,7 @@ function construirMenu () {
         { label: '3. Analizador Semántico', accelerator: 'CmdOrCtrl+3', click: () => enviar('menu:pestana', 'semantico') },
         { label: '4. Generador de Código Intermedio', accelerator: 'CmdOrCtrl+4', click: () => enviar('menu:pestana', 'intermedio') },
         { label: '5. Optimizador de Código Intermedio', accelerator: 'CmdOrCtrl+5', click: () => enviar('menu:pestana', 'optimizacion') },
+        { label: '6. Generador de Código Objeto (Java)', accelerator: 'CmdOrCtrl+6', click: () => enviar('menu:pestana', 'objeto') },
         { type: 'separator' },
         { role: 'reload', label: 'Recargar' },
         { role: 'toggleDevTools', label: 'Herramientas de desarrollo' },
@@ -161,7 +163,8 @@ function construirMenu () {
               type: 'info',
               title: 'Acerca de',
               message: 'Compilador SwordByte 1.0.0',
-              detail: 'Analizador léxico, léxico-sintáctico y semántico.\nEquipo SwordByte.'
+              detail: 'Las seis fases de un compilador: análisis léxico, sintáctico y semántico, ' +
+                'código intermedio, optimización y código objeto (Java).\nEquipo SwordByte.'
             });
           }
         }
@@ -197,7 +200,7 @@ async function abrirDocumentacion () {
       message: 'No se encontró la carpeta de documentación.',
       detail: `Se buscó en:\n${carpeta}\n\n` +
               'La documentación está en la carpeta docs/ del proyecto:\n' +
-              'README.md y los archivos 01 a 07.'
+              'README.md y los archivos 00 a 11.'
     });
     return;
   }
@@ -281,7 +284,7 @@ ipcMain.handle('archivo:leer', (evento, texto) => abrirGuardado(texto));
 
 /**
  * Guarda el reporte completo: datos del equipo y la materia, codigo fuente
- * y los tres analisis. El formato depende de la extension elegida:
+ * y lo que dio cada fase. El formato depende de la extension elegida:
  *   .html  el reporte visual (se ofrece primero)
  *   .bs    el reporte en texto, que sigue siendo un programa SwordByte
  *
@@ -333,6 +336,53 @@ ipcMain.handle('archivo:guardar', async (evento, fuente, pestana) => {
     fs.writeFileSync(ruta, archivo.contenido, 'utf8');
     ultimoReporte = archivo.formato === 'html' ? ruta : null;
     return { ok: true, ruta, formato: archivo.formato };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+/**
+ * Guarda el programa Java (el codigo objeto de la fase 6). Como en Java, el
+ * archivo se llama igual que la clase publica: public class ejemplo va en
+ * ejemplo.java (si se escribe otro nombre, javac no lo compila).
+ */
+ipcMain.handle('archivo:guardarJava', async (evento, fuente) => {
+  const resultado = compilar(fuente || '', {});
+  const objeto = resultado.objeto;
+  if (!objeto || objeto.estado !== 'generado') {
+    const motivo = objeto && objeto.estado === 'errores-previos'
+      ? 'El programa tiene errores: corrígelos primero (pestaña 3).'
+      : (objeto && objeto.errores.length > 0 ? objeto.errores[0].mensaje : 'No hay un programa que traducir.');
+    return { ok: false, error: motivo };
+  }
+
+  const r = await dialog.showSaveDialog(ventana, {
+    title: 'Guardar el código Java',
+    defaultPath: path.join(app.getPath('documents'), objeto.archivo),
+    filters: [{ name: 'Código Java', extensions: ['java'] }]
+  });
+  if (r.canceled || !r.filePath) return { ok: false, cancelado: true };
+
+  // El nombre lo decide la clase: se guarda en la carpeta elegida como clase.java
+  const ruta = path.join(path.dirname(r.filePath), objeto.archivo);
+  if (path.basename(r.filePath) !== objeto.archivo) {
+    const respuesta = await dialog.showMessageBox(ventana, {
+      type: 'question',
+      title: 'El archivo se llama como la clase',
+      message: `El archivo se guardará como ${objeto.archivo}`,
+      detail: `En Java, el archivo de una clase pública se llama igual que ella: la clase es «${objeto.clase}». ` +
+        'Con otro nombre, javac no lo compila.' +
+        (fs.existsSync(ruta) ? `\n\nYa existe ${objeto.archivo} en esa carpeta: se reemplazará.` : ''),
+      buttons: [`Guardar como ${objeto.archivo}`, 'Cancelar'],
+      defaultId: 0,
+      cancelId: 1
+    });
+    if (respuesta.response !== 0) return { ok: false, cancelado: true };
+  }
+
+  try {
+    fs.writeFileSync(ruta, objeto.codigo, 'utf8');
+    return { ok: true, ruta, archivo: objeto.archivo };
   } catch (e) {
     return { ok: false, error: e.message };
   }

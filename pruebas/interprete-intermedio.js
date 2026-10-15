@@ -13,11 +13,17 @@
  * 'cadena', 'caracter', 'logico', 'arreglo' o 'error'. Asi 5 y 5.0 no son
  * lo mismo:  5 / 2 da 2  y  5.0 / 2 da 2.5, igual que en Java.
  *
- * Las funciones del lenguaje que no se pueden repetir igual (aleatorio) dan
- * siempre la misma serie de numeros, y las de geometria solo multiplican sus
- * medidas: aqui no importa el resultado exacto, sino que antes y despues de
- * optimizar sea el mismo.
+ * Imprime EXACTAMENTE como el programa Java de la fase 6: los logicos como
+ * true y false, los decimales como Double.toString (3.0, 1.0E7), equipo con
+ * los nombres del equipo, y la geometria con las mismas formulas. Asi la
+ * salida de este interprete se puede comparar con la del programa Java.
+ *
+ * La unica funcion que no se puede repetir igual (aleatorio) da siempre la
+ * misma serie de numeros: ahi solo importa que antes y despues de optimizar
+ * sea la misma.
  */
+
+const { NOMBRE_EQUIPO, nombresCompletos } = require('../src/core/comun/Equipo');
 
 /** Un error que el programa puede capturar con intentar / capturar. */
 class ErrorDelPrograma extends Error {}
@@ -40,11 +46,35 @@ function literal (x) {
   return null;
 }
 
-/** Como se imprime un valor (un decimal siempre con punto, como en Java: 3.0). */
+/**
+ * Un decimal escrito como lo escribe Java (Double.toString): con punto
+ * siempre (3.0) y, si es muy grande o muy chico, en notacion cientifica
+ * (1.0E7, 1.5E-4). Los digitos son los mismos que da JavaScript: los menos
+ * que identifican al numero.
+ */
+function decimalDeJava (x) {
+  if (Number.isNaN(x)) return 'NaN';
+  if (!Number.isFinite(x)) return x > 0 ? 'Infinity' : '-Infinity';
+  if (x === 0) return Object.is(x, -0) ? '-0.0' : '0.0';
+  const signo = x < 0 ? '-' : '';
+  const [mantisa, exp] = Math.abs(x).toExponential().split('e');
+  const digitos = mantisa.replace('.', '');
+  const e = Number(exp);
+  if (Math.abs(x) >= 1e-3 && Math.abs(x) < 1e7) {
+    if (e >= 0) {
+      const entera = digitos.slice(0, e + 1).padEnd(e + 1, '0');
+      return `${signo}${entera}.${digitos.slice(e + 1) || '0'}`;
+    }
+    return `${signo}0.${'0'.repeat(-e - 1)}${digitos}`;
+  }
+  return `${signo}${digitos[0]}.${digitos.slice(1) || '0'}E${e}`;
+}
+
+/** Como imprime Java un valor:  3.0,  true,  A ... */
 function mostrar (v) {
   switch (v.tipo) {
-    case 'decimal': return Number.isInteger(v.valor) ? v.valor.toFixed(1) : String(v.valor);
-    case 'logico': return v.valor ? 'verdadero' : 'falso';
+    case 'decimal': return decimalDeJava(v.valor);
+    case 'logico': return v.valor ? 'true' : 'false';
     case 'arreglo': return '[arreglo]';
     default: return String(v.valor);
   }
@@ -86,7 +116,7 @@ function operar (op, a, b) {
       break;
     default: throw new Error(`operador desconocido: ${op}`);
   }
-  return { tipo: enteros ? 'entero' : 'decimal', valor: r };
+  return { tipo: enteros ? 'entero' : 'decimal', valor: enteros ? r + 0 : r };   // r + 0: sin -0
 }
 
 /** (tipo) v */
@@ -111,7 +141,7 @@ function convertir (v, tipo) {
       return { tipo: 'entero', valor: Math.trunc(v.valor) };
     }
     case 'cadena': return { tipo: 'cadena', valor: mostrar(v) };
-    case 'logico': return logico(v.tipo === 'logico' ? v.valor : v.valor === 'verdadero');
+    case 'logico': return logico(v.tipo === 'logico' ? v.valor : v.valor.trim() === 'verdadero');
     case 'caracter':
       return { tipo: 'caracter', valor: v.tipo === 'entero' ? String.fromCharCode(v.valor) : String(v.valor)[0] };
     default: throw new Error(`no se convertir a ${tipo}`);
@@ -126,9 +156,29 @@ function formatear (formato, valores) {
     if (letra === '%') return '%';
     const v = valores[k++];
     if (decimales !== undefined && esNumero(v)) return v.valor.toFixed(Number(decimales));
+    if (letra === 'x') return v.valor.toString(16);
+    if (letra === 'o') return v.valor.toString(8);
     return mostrar(v);
   });
 }
+
+/** Las formulas de geometria, en el mismo orden de operaciones que el programa Java. */
+const GEOMETRIA = {
+  'perimetro.circulo': (r) => 2 * Math.PI * r,
+  'perimetro.cuadrado': (l) => 4 * l,
+  'perimetro.rectangulo': (b, h) => 2 * (b + h),
+  'perimetro.triangulo': (a, b, c) => a + b + c,
+  'area.circulo': (r) => Math.PI * r * r,
+  'area.cuadrado': (l) => l * l,
+  'area.rectangulo': (b, h) => b * h,
+  'area.triangulo': (b, h) => b * h / 2,
+  'volumen.cubo': (l) => l * l * l,
+  'volumen.esfera': (r) => 4.0 / 3 * Math.PI * r * r * r,
+  'volumen.cilindro': (r, h) => Math.PI * r * r * h,
+  'volumen.cono': (r, h) => Math.PI * r * r * h / 3,
+  'volumen.prisma': (b, h) => b * h,
+  'volumen.piramide': (b, h) => b * h / 3
+};
 
 /**
  * Ejecuta el codigo de tres direcciones de un programa, desde clasePrincipal.
@@ -162,8 +212,8 @@ function ejecutarIntermedio (instrucciones, opciones = {}) {
       case 'imprimir': salida += mostrar(args[0]); return undefined;
       case 'imprimirLn': salida += (args[0] ? mostrar(args[0]) : '') + '\n'; return undefined;
       case 'imprimirF': salida += formatear(n(0), args.slice(1)); return undefined;
-      case 'equipo': salida += '[equipo]\n'; return undefined;
-      case 'limpiar': salida += '[limpiar]\n'; return undefined;
+      case 'equipo': salida += [`Equipo ${NOMBRE_EQUIPO}`].concat(nombresCompletos()).join('\n') + '\n'; return undefined;
+      case 'limpiar': salida += '\x1b[H\x1b[2J'; return undefined;
       case 'esperar': return undefined;
       case 'longitud': return { tipo: 'entero', valor: n(0).length };
       case 'aleatorio':
@@ -171,14 +221,13 @@ function ejecutarIntermedio (instrucciones, opciones = {}) {
         return { tipo: 'entero', valor: n(0) + (semilla % (n(1) - n(0) + 1)) };
       case 'potencia': return { tipo: 'decimal', valor: Math.pow(n(0), n(1)) };
       case 'redondear': return { tipo: 'entero', valor: Math.round(n(0)) };
-      case 'logaritmo': return { tipo: 'decimal', valor: Math.log(n(0)) / (args[1] ? Math.log(n(1)) : 1) };
+      // logaritmo(numero)  o  logaritmo(base, numero)
+      case 'logaritmo': return { tipo: 'decimal', valor: args[1] ? Math.log(n(1)) / Math.log(n(0)) : Math.log(n(0)) };
       case 'logaritmo10': return { tipo: 'decimal', valor: Math.log10(n(0)) };
       case 'seno': return { tipo: 'decimal', valor: Math.sin(n(0)) };
       case 'coseno': return { tipo: 'decimal', valor: Math.cos(n(0)) };
       default:
-        if (/^(area|perimetro|volumen)\./.test(nombre)) {
-          return { tipo: 'decimal', valor: args.reduce((p, a) => p * a.valor, 1) };
-        }
+        if (GEOMETRIA[nombre]) return { tipo: 'decimal', valor: GEOMETRIA[nombre](...args.map((a) => a.valor)) };
         throw new Error(`funcion desconocida: ${nombre}`);
     }
   }
@@ -212,8 +261,9 @@ function ejecutarIntermedio (instrucciones, opciones = {}) {
           case 'etiqueta': break;
           case '=': guardar(ins.resultado, valor(ins.arg1)); break;
           case 'menos': {
+            // (un entero nunca es -0, como en Java: 0 - x)
             const v = valor(ins.arg1);
-            guardar(ins.resultado, { tipo: v.tipo, valor: -v.valor });
+            guardar(ins.resultado, { tipo: v.tipo, valor: v.tipo === 'entero' ? 0 - v.valor : -v.valor });
             break;
           }
           case 'NO': guardar(ins.resultado, logico(!valor(ins.arg1).valor)); break;

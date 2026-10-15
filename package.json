@@ -1,7 +1,7 @@
 {
   "name": "swordbyte-compilador",
   "version": "1.0.0",
-  "description": "Compilador del lenguaje SwordByte: analizador lexico, lexico-sintactico y semantico en tres pestanas, con reporte visual. Proyecto del equipo SwordByte.",
+  "description": "Compilador del lenguaje SwordByte a Java: analisis lexico, sintactico y semantico, codigo intermedio, optimizacion y codigo objeto (Java) en seis pestanas, con reporte visual. Proyecto del equipo SwordByte.",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
@@ -19,6 +19,9 @@
     "analizador-lexico",
     "analizador-sintactico",
     "analizador-semantico",
+    "codigo-intermedio",
+    "optimizacion",
+    "java",
     "swordbyte"
   ],
   "author": "Equipo SwordByte",

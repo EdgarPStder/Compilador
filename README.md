@@ -4,13 +4,13 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white)
 ![Electron](https://img.shields.io/badge/Electron-47848F?style=flat-square&logo=electron&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-portable%20%2B%20instalador-0078D6?style=flat-square&logo=windows&logoColor=white)
-![Pruebas](https://img.shields.io/badge/pruebas-118%20pasando-2EA44F?style=flat-square)
+![Pruebas](https://img.shields.io/badge/pruebas-201%20pasando-2EA44F?style=flat-square)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)
 
 Compilador del lenguaje de programación **SwordByte**, un lenguaje propio con
 sintaxis en español que traduce a Java.
 
-La aplicación de escritorio tiene **cuatro pestañas**, una por fase del
+La aplicación de escritorio tiene **seis pestañas**, una por fase del
 compilador, que trabajan sobre el mismo código:
 
 | Pestaña | Qué muestra |
@@ -19,6 +19,8 @@ compilador, que trabajan sobre el mismo código:
 | **2 · Analizador Léxico-Sintáctico** | El código reescrito con los identificadores numerados (`id1 > id2`) y el árbol sintáctico dibujado |
 | **3 · Analizador Semántico** | Que el programa tenga sentido: sus errores semánticos (nombres sin declarar, tipos que no coinciden…) y la gramática del código |
 | **4 · Código Intermedio** | El programa traducido a código de tres direcciones (`t1 = c * d`, `ifFalse t1 goto L1`…) y su tabla de cuádruplos |
+| **5 · Optimización** | El código intermedio ya optimizado (plegado y propagación de constantes, código muerto, saltos…) y cada cambio que se le hizo |
+| **6 · Código Objeto** | El programa traducido a **Java**, listo para `javac`, junto al código optimizado del que sale |
 
 ![Compilador SwordByte](docs/capturas/lexico.png)
 
@@ -30,7 +32,7 @@ compilador, que trabajan sobre el mismo código:
 |---|---|
 | **Lenguaje** | SwordByte, archivos `.bs` |
 | **Destino** | Java |
-| **Analizadores** | 1. Léxico · 2. Léxico-sintáctico · 3. Semántico |
+| **Fases** | 1. Léxico · 2. Léxico-sintáctico · 3. Semántico · 4. Código intermedio · 5. Optimización · 6. Código objeto (Java) |
 | **Implementado en** | JavaScript (Node.js + Electron) |
 | **Entregable** | `.exe` portable e instalador para Windows |
 
@@ -145,9 +147,13 @@ npm start
 ### Correr las pruebas
 
 ```bash
-npm run pruebas       # 161 pruebas del compilador
-npm run pruebas:ui    # 142 comprobaciones sobre la aplicación
+npm run pruebas       # 201 pruebas del compilador
+npm run pruebas:ui    # 160 comprobaciones sobre la aplicación
 ```
+
+Si la computadora tiene `javac` (JDK 11 o más nuevo), `npm run pruebas`
+también compila y ejecuta el Java que genera la fase 6; si no, esa prueba se
+omite.
 
 ### Generar el ejecutable
 
@@ -159,8 +165,8 @@ npm run dist
 
 ## La ventana
 
-Hasta arriba van **las cuatro pestañas**. Se cambia con un clic, con `Ctrl+1` a
-`Ctrl+4` o con `Ctrl+Tab`.
+Hasta arriba van **las seis pestañas**. Se cambia con un clic, con `Ctrl+1` a
+`Ctrl+6` o con `Ctrl+Tab`.
 
 **Cada pestaña conserva su propio diseño**, con sus logos y sus botones donde
 los pide ese diseño. Lo que comparten es el estilo (los colores, los botones y
@@ -172,6 +178,8 @@ las cajas del analizador léxico-sintáctico):
 | **2 · Léxico-Sintáctico** | Los tres arriba (UAT, UAMM, ISC) | A la izquierda: Limpiar · Análisis Léxico · Análisis Sintáctico · Análisis Léxico-Sintáctico · Equipo · Salir |
 | **3 · Semántico** | Los tres en columna, a la izquierda | A la derecha: Limpieza · Analiza · Equipo · Termina |
 | **4 · Código Intermedio** | Como la 3: los tres en columna, a la izquierda | A la derecha: Limpieza · Genera · Equipo · Termina |
+| **5 · Optimización** | Como la 3 | A la derecha: Limpieza · Optimiza · Equipo · Termina |
+| **6 · Código Objeto** | Como la 3 | A la derecha: Limpieza · Genera · Guardar .java · Equipo · Termina |
 
 **Fuga**, **Salir** y **Termina** abren la misma ventana: el equipo con sus
 seis integrantes y la pregunta *¿Quieres salir del compilador?*
@@ -180,7 +188,7 @@ seis integrantes y la pregunta *¿Quieres salir del compilador?*
 
 ### Los cuadros de código
 
-Los tres cuadros donde se escribe llevan **números de renglón** y los
+Los cuadros donde se escribe llevan **números de renglón** y los
 **colores de Java** que usa VS Code (tema *Light+*), mientras se escribe: el
 control de flujo (`si`, `para`, `retornar`) en morado, los tipos y las clases
 (`entero`, `area`) en verde azulado, `clase`, `funcion` y `verdadero` en
@@ -197,14 +205,14 @@ anteriores.
 
 ![Subrayado rojo](docs/capturas/subrayado.png)
 
-### Las cuatro pestañas comparten el código
+### Las seis pestañas comparten el código
 
-- Lo que se escribe en una pestaña aparece al momento en las otras dos.
-- Al analizar en cualquiera, **se llenan las tres**: si analizas en la pestaña 1
-  y pasas a la 2, el árbol ya está dibujado.
+- Lo que se escribe en una pestaña aparece al momento en las demás.
+- Al analizar en cualquiera, **se llenan todas**: si analizas en la pestaña 1
+  y pasas a la 6, el Java ya está escrito.
 - **Cambiar de pestaña no borra nada**: la tabla, la fila marcada, la rama
   abierta del árbol y el zoom siguen ahí al regresar.
-- Sólo Borrar / Limpiar / Limpieza vacían el código, en las cuatro a la vez.
+- Sólo Borrar / Limpiar / Limpieza vacían el código, en las seis a la vez.
 
 El árbol de la pestaña 2 se puede **acercar y alejar** con los botones `−` /
 `+` de su encabezado, con **Ajustar** (lo encaja al ancho) o con
@@ -216,7 +224,7 @@ La aplicación **abre en blanco, en la pestaña 1**. Para empezar: escribe el
 código, elige uno del menú **Ejemplos**, abre un archivo con `Ctrl+O` o
 arrástralo a la ventana.
 
-Las cuatro pestañas trabajan con el mismo lenguaje y las mismas reglas. Como en
+Las seis pestañas trabajan con el mismo lenguaje y las mismas reglas. Como en
 Java, **el código va dentro de una clase** (`clase p { clasePrincipal { ... } }`):
 unas instrucciones sueltas son un error, *Falta la clase*. Para practicar la
 forma, las pestañas 1 y 2 aceptan también expresiones sueltas, una por renglón
@@ -263,7 +271,7 @@ let       → a-z
 ```
 
 La **tabla de símbolos** y el **manejo de errores** no son sólo del
-semántico: como en el esquema clásico de un compilador, los usan las tres
+semántico: como en el esquema clásico de un compilador, los comparten las
 fases (`src/core/comun/`).
 
 ![Errores semánticos](docs/capturas/semantico-errores.png)
@@ -291,6 +299,51 @@ argumento 2, resultado): `( *, c, d, t1 )`. Antes de cada grupo va, como
 comentario, el renglón del programa de donde sale. Detalles en
 [09 — Código intermedio](docs/09-codigo-intermedio.md).
 
+### La optimización
+
+![Optimización](docs/capturas/optimizacion.png)
+
+La pestaña 5 mejora el código intermedio **sin cambiar lo que hace el
+programa**: calcula desde ahora lo que ya se sabe, no calcula dos veces lo
+mismo y quita lo que sobra. Muestra el código que quedó (lo que cambió va en
+verde), la lista de cambios con su *antes* y *después*, y cuántas veces se usó
+cada optimización:
+
+```
+entero b = 2;              b = 2                    param 6
+entero a = b * 3;    ──►   t1 = b * 3         ──►   call imprimirLn, 1
+imprimirLn(a);             a = t1
+                           param a
+                           call imprimirLn, 1
+```
+
+Plegado y propagación de constantes, propagación de copias, subexpresiones
+comunes, simplificación algebraica, reducción de fuerza, código muerto, código
+inalcanzable y optimización de saltos. Lo que debe fallar al ejecutarse
+(`10 / 0`) se deja como está. Detalles en
+[10 — Optimización](docs/10-optimizacion.md).
+
+### El código objeto: Java
+
+![Código objeto](docs/capturas/objeto.png)
+
+La pestaña 6 escribe el programa en **Java** a partir del código optimizado.
+Como Java no tiene `goto`, vuelve a encontrar las estructuras con las
+herramientas de un descompilador (bloques básicos, dominadores y ciclos): los
+saltos se vuelven `if`, `while`, `do-while`, `for` y `switch`, y las
+instrucciones de tres direcciones se juntan otra vez en expresiones.
+
+**Guardar .java** (o `Ctrl+J`) lo guarda con el nombre de la clase, listo para:
+
+```bash
+javac -encoding UTF-8 bienvenida.java
+java bienvenida
+```
+
+La vista **Junto al optimizado** pone el código de tres direcciones a la
+izquierda y el Java a la derecha. Detalles en
+[11 — Código objeto](docs/11-codigo-objeto.md).
+
 ### Guardar
 
 **Guardar** (pestaña 1), `Ctrl+S` o **Archivo → Guardar reporte** guardan un
@@ -301,12 +354,13 @@ cualquier navegador. Como en Java, **el archivo se llama igual que la clase**:
 ![Reporte visual](docs/capturas/reporte.png)
 
 - Trae el encabezado (equipo, integrantes, materia, grado y grupo, fecha y
-  hora), el **código fuente**, la **tabla de tokens**, el **árbol dibujado** y
-  la **gramática generada**, con los mismos colores que la aplicación.
+  hora), el **código fuente**, la **tabla de tokens**, el **árbol dibujado**,
+  la **gramática generada**, el **código intermedio**, el **código optimizado**
+  y el **código Java**, con los mismos colores que la aplicación.
 - Es **un solo archivo**: los logos y los estilos van adentro. Se imprime o se
   pasa a PDF con `Ctrl+P` desde el navegador.
 - **Se puede volver a poner en el compilador**: ábrelo con `Ctrl+O` o
-  arrástralo a la ventana. Regresa el código a las cuatro pestañas y vuelve a la
+  arrástralo a la ventana. Regresa el código a las seis pestañas y vuelve a la
   pestaña desde la que se guardó.
 
 En el diálogo también se puede elegir el **reporte en texto** (`.bs`) de antes,
@@ -352,31 +406,36 @@ clase bienvenida {
 }
 ```
 
-Su equivalente en Java sería:
+Y este es el Java que escribe el compilador (pestaña 6), sin el comentario
+del principio:
 
 ```java
 public class bienvenida {
-    static int sumar(int a, int b) { return a + b; }
+
+    static int sumar(int a, int b) {
+        return a + b;
+    }
 
     public static void main(String[] args) {
-        // equipo(Null) genera los System.out.println del equipo
-        int edad = 20;
-        String nombre = "SwordByte";
-
-        if (edad >= 18 && edad < 100) {
-            System.out.println("Mayor de edad");
-        } else {
-            System.out.println("Menor de edad");
-        }
-
+        System.out.println("Equipo SwordByte");
+        System.out.println("Avalos Castillo Armando de Jesús");
+        System.out.println("Borjas Arias Ronaldo Antonio");
+        System.out.println("Pesina Santander Edgar Gael");
+        System.out.println("Ramos Antonio Saqueo");
+        System.out.println("Vazquez Romo Marco Antonio");
+        System.out.println("Verlage Aceves Axel Aram");
+        System.out.println("Mayor de edad");
         for (int i = 1; i <= 3; i++) {
             System.out.printf("Vuelta %d", i);
         }
-
         System.out.println(sumar(5, 3));
     }
 }
 ```
+
+La optimización (pestaña 5) ya hizo su trabajo: `edad` siempre vale 20, así
+que `edad >= 18 Y edad < 100` siempre es verdadero y sólo queda
+`"Mayor de edad"`; `nombre` no se usa, así que desaparece.
 
 ---
 
@@ -384,15 +443,18 @@ public class bienvenida {
 
 | Documento | Contenido |
 |---|---|
-| **[00 — Manual técnico](docs/00-manual-tecnico.md)** | **Empieza aquí.** El proyecto completo de lo general a lo particular: qué es un compilador, el lenguaje, la arquitectura, los tres analizadores por dentro, la aplicación y el mantenimiento |
+| **[00 — Manual técnico](docs/00-manual-tecnico.md)** | **Empieza aquí.** El proyecto completo de lo general a lo particular: qué es un compilador, el lenguaje, la arquitectura, las seis fases por dentro, la aplicación y el mantenimiento |
 | [01 — Especificación del lenguaje](docs/01-especificacion-del-lenguaje.md) | Alfabeto, palabras reservadas, tipos, todas las instrucciones y su equivalente en Java |
 | [02 — Analizador léxico](docs/02-analizador-lexico.md) | El AFD, sus 19 estados, las categorías de token, la salida `id1 > id2` y los errores léxicos |
 | [03 — Analizador sintáctico](docs/03-analizador-sintactico.md) | Descenso recursivo, los tres modos de análisis, precedencia, recuperación de errores y el árbol |
 | [04 — Gramática EBNF](docs/04-gramatica-ebnf.md) | La gramática formal completa |
 | [05 — Arquitectura](docs/05-arquitectura.md) | Estructura de carpetas y decisiones de diseño |
-| [06 — Manual de usuario](docs/06-manual-de-usuario.md) | Cómo usar la aplicación: las cuatro pestañas, guardar y volver a abrir |
+| [06 — Manual de usuario](docs/06-manual-de-usuario.md) | Cómo usar la aplicación: las seis pestañas, guardar y volver a abrir |
 | [07 — Mantenimiento](docs/07-mantenimiento.md) | Cómo agregar instrucciones, cambiar datos y empaquetar |
 | [08 — Analizador semántico](docs/08-analizador-semantico.md) | Cómo se genera la gramática del código |
+| [09 — Código intermedio](docs/09-codigo-intermedio.md) | El código de tres direcciones y los cuádruplos de cada instrucción |
+| [10 — Optimización](docs/10-optimizacion.md) | Las optimizaciones, los bloques básicos y lo que no se optimiza a propósito |
+| [11 — Código objeto](docs/11-codigo-objeto.md) | Cómo se escribe el Java: de saltos a `if`/`while`/`for`, los tipos, las funciones y las pruebas con `javac` |
 
 ---
 
@@ -405,12 +467,15 @@ Compilador/
 │   ├── 02.sintactico/    Fase 2 — gramática, parser y árbol
 │   ├── 03.semantico/     Fase 3 — nombres, tipos y la gramática
 │   ├── 04.intermedio/    Fase 4 — código de tres direcciones y cuádruplos
+│   ├── 05.optimizacion/  Fase 5 — optimización del código intermedio
+│   ├── 06.objeto/        Fase 6 — código objeto: el programa en Java
+│   ├── Compilador.js     Une las seis fases en una sola llamada
 │   ├── ReporteHTML.js    El reporte visual que se guarda y se vuelve a abrir
-│   └── comun/            Lo que usan las 3 fases: tabla de símbolos, errores, tokens y datos del equipo
-├── src/ui/           Interfaz gráfica: las cuatro pestañas (incluye img/ con los logos)
+│   └── comun/            Lo que comparten las fases: tabla de símbolos, errores, tokens y datos del equipo
+├── src/ui/           Interfaz gráfica: las seis pestañas (incluye img/ con los logos)
 ├── electron/         Aplicación de escritorio
 ├── ejemplos/         Programas .bs de demostración
-├── pruebas/          Pruebas automáticas
+├── pruebas/          Pruebas automáticas (con un intérprete del código intermedio y programas al azar)
 ├── herramientas/     Scripts para regenerar el icono y la gramática
 ├── build/            Icono de la aplicación para el empaquetado
 └── docs/             Documentación (incluye capturas/ y referencia/)
@@ -439,11 +504,11 @@ Se abren con `Ctrl+O` desde la aplicación.
 | Comando | Qué hace |
 |---|---|
 | `npm start` | Abre la aplicación |
-| `npm run pruebas` | Pruebas del compilador |
+| `npm run pruebas` | Pruebas del compilador (con `javac`, también compila y ejecuta el Java generado) |
 | `npm run pruebas:ui` | Comprobaciones sobre la aplicación |
 | `npm run dist` | Genera los ejecutables en `dist/` |
 | `npm run icono` | Regenera el icono de la aplicación |
-| `npm run capturas` | Regenera las capturas de la documentación (las cuatro pestañas, Fuga y el reporte) |
+| `npm run capturas` | Regenera las capturas de la documentación (las seis pestañas, Fuga y el reporte) |
 | `npm run gramatica` | Regenera `docs/04-gramatica-ebnf.md` desde `Gramatica.js` |
 
 ---

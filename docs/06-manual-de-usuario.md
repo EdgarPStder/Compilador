@@ -30,7 +30,7 @@ npm start
 
 ## 2. La ventana
 
-Hasta arriba están **las cuatro pestañas**, una por fase. Debajo, la
+Hasta arriba están **las seis pestañas**, una por fase. Debajo, la
 pestaña que se está viendo, **cada una con su propio diseño**: sus logos, sus
 botones y sus cuadros van donde los pide su diseño.
 
@@ -40,11 +40,13 @@ botones y sus cuadros van donde los pide su diseño.
 | **2 · Analizador Léxico-Sintáctico** | El anterior | Los tres (UAT, UAMM, ISC) arriba | A la izquierda |
 | **3 · Analizador Semántico** | El del pizarrón | Los tres en columna, a la izquierda | A la derecha |
 | **4 · Código Intermedio** | El de la pestaña 3 | Los tres en columna, a la izquierda | A la derecha |
+| **5 · Optimización** | El de la pestaña 3 | Los tres en columna, a la izquierda | A la derecha |
+| **6 · Código Objeto** | El de la pestaña 3 | Los tres en columna, a la izquierda | A la derecha |
 
-Lo que comparten las cuatro es el **estilo**: los colores, los botones, las cajas
+Lo que comparten las seis es el **estilo**: los colores, los botones, las cajas
 y los tipos de letra son los del analizador léxico-sintáctico.
 
-Para cambiar de pestaña: un clic en ella, `Ctrl+1` a `Ctrl+4`, o
+Para cambiar de pestaña: un clic en ella, `Ctrl+1` a `Ctrl+6`, o
 `Ctrl+Tab` para pasar a la siguiente (`Ctrl+Shift+Tab` regresa).
 
 > Lo que aparece dentro de los cuadros en los diseños (`a = b + c * 24`,
@@ -107,20 +109,21 @@ empezar:
 
 ---
 
-## 3. Las cuatro pestañas trabajan juntas
+## 3. Las seis pestañas trabajan juntas
 
-Las cuatro pestañas comparten **el mismo código**:
+Las seis pestañas comparten **el mismo código**:
 
-- Lo que escribes en una pestaña aparece al momento en las otras dos.
+- Lo que escribes en una pestaña aparece al momento en las demás.
 - Al analizar desde cualquier pestaña se analiza todo de una vez. Si analizas
   en la pestaña 1 y pasas a la 2, el árbol **ya está dibujado**; si pasas a la
-  3, la gramática **ya está generada**.
+  3, la gramática **ya está generada**; si pasas a la 6, el Java **ya está
+  escrito**.
 - **Cambiar de pestaña no borra nada.** Al regresar sigue ahí la tabla, la fila
   que marcaste, la rama del árbol que abriste y el zoom.
 - Sólo **Borrar**, **Limpiar** o **Limpieza** vacían el código, y lo vacían en
-  las cuatro pestañas.
+  las seis pestañas.
 
-Las tres trabajan con **el mismo lenguaje (SwordByte) y las mismas reglas**: lo
+Todas trabajan con **el mismo lenguaje (SwordByte) y las mismas reglas**: lo
 que es correcto en una es correcto en las otras.
 
 ---
@@ -136,9 +139,9 @@ Grupo: 9° F*.
 
 | Botón | Qué hace |
 |---|---|
-| **Realizar Análisis** | Analiza el código y llena la tabla (y las otras dos pestañas) |
+| **Realizar Análisis** | Analiza el código y llena la tabla (y las demás pestañas) |
 | **Guardar** | Guarda el reporte, igual que `Ctrl+S` (ver la sección 12) |
-| **Borrar** | Vacía el código y los resultados de las cuatro pestañas |
+| **Borrar** | Vacía el código y los resultados de las seis pestañas |
 | **Fuga** | Muestra al equipo y pregunta si quieres salir (sección 11) |
 
 La tabla **Resultados Análisis** tiene un renglón por token, en el orden en que
@@ -188,7 +191,7 @@ botones a la izquierda.
 
 | Botón | Qué hace |
 |---|---|
-| **Limpiar** | Vacía el código y los resultados de las cuatro pestañas |
+| **Limpiar** | Vacía el código y los resultados de las seis pestañas |
 | **Análisis Léxico** | Llena sólo el cuadro de análisis léxico |
 | **Análisis Sintáctico** | Dibuja sólo el árbol |
 | **Análisis Léxico-Sintáctico** | Llena los dos cuadros |
@@ -469,8 +472,8 @@ dado** y los botones a la derecha.
 
 | Botón | Qué hace |
 |---|---|
-| **Limpieza** | Vacía el código y los resultados de las cuatro pestañas |
-| **Analiza** | Hace el análisis semántico (y llena las pestañas 1 y 2) |
+| **Limpieza** | Vacía el código y los resultados de las seis pestañas |
+| **Analiza** | Hace el análisis semántico (y llena las demás pestañas) |
 | **Equipo** | Abre la ventana con los integrantes |
 | **Termina** | Muestra al equipo y pregunta si quieres salir |
 
@@ -578,8 +581,8 @@ intermedio** y los botones a la derecha.
 
 | Botón | Qué hace |
 |---|---|
-| **Limpieza** | Vacía el código y los resultados de las cuatro pestañas |
-| **Genera** | Genera el código intermedio (y llena las pestañas 1, 2 y 3) |
+| **Limpieza** | Vacía el código y los resultados de las seis pestañas |
+| **Genera** | Genera el código intermedio (y llena las demás pestañas) |
 | **Equipo** | Abre la ventana con los integrantes |
 | **Termina** | Muestra al equipo y pregunta si quieres salir |
 
@@ -613,9 +616,107 @@ genera para un programa correcto. Cómo se traduce cada instrucción está en
 
 ---
 
+## 10 ter. Pestaña 5 — Optimizador de Código Intermedio
+
+![Optimización](capturas/optimizacion.png)
+
+Mismo estilo que las pestañas 3 y 4: arriba *Programación de Sistemas de Base
+II — Optimizador de Código Intermedio “SwordByte”*, el cuadro **Programa para
+optimizar**, el cuadro **Código optimizado** y los botones a la derecha.
+
+| Botón | Qué hace |
+|---|---|
+| **Limpieza** | Vacía el código y los resultados de las seis pestañas |
+| **Optimiza** | Optimiza el código intermedio (y llena las demás pestañas) |
+| **Equipo** | Abre la ventana con los integrantes |
+| **Termina** | Muestra al equipo y pregunta si quieres salir |
+
+Escribe un programa sin errores y presiona **Optimiza**. Se toma el código de
+tres direcciones de la pestaña 4 y se mejora **sin cambiar lo que hace el
+programa**: se calcula desde ahora lo que ya se sabe (`2 * 3` → `6`), no se
+calcula dos veces lo mismo y se quita lo que sobra.
+
+```
+entero b = 2;              Pestaña 4                Pestaña 5
+entero a = b * 3;          b = 2                    param 6
+imprimirLn(a);             t1 = b * 3               call imprimirLn, 1
+                           a = t1
+                           param a
+                           call imprimirLn, 1
+```
+
+Arriba del resultado, un **resumen**: de cuántas instrucciones a cuántas, y una
+ficha por cada optimización con cuántas veces se usó. Al pasar el mouse sobre
+una ficha se ve qué hace.
+
+| Vista | Qué muestra |
+|---|---|
+| **Optimizado** | El código que quedó. Las instrucciones que cambiaron van en verde, con lo que se les hizo a la derecha. Al pasar el mouse se ve de qué renglón sale y qué número tenía en la pestaña 4 |
+| **Cambios** | Cada cambio en el orden en que se hizo: la optimización, el *antes*, el *después* y el renglón del programa |
+| **Cuádruplos** | La tabla del código optimizado |
+
+![Cambios](capturas/optimizacion-cambios.png)
+
+Cada optimización y lo que no se optimiza a propósito (por ejemplo, `10 / 0`
+se deja, porque debe fallar al ejecutarse) están en
+[10 — Optimización](10-optimizacion.md).
+
+---
+
+## 10 cuater. Pestaña 6 — Generador de Código Objeto (Java)
+
+![Código objeto](capturas/objeto.png)
+
+Mismo estilo: arriba *Programación de Sistemas de Base II — Generador de Código
+Objeto “SwordByte”*, el cuadro **Programa para traducir a Java**, el cuadro
+**Código objeto (Java)** y los botones a la derecha.
+
+| Botón | Qué hace |
+|---|---|
+| **Limpieza** | Vacía el código y los resultados de las seis pestañas |
+| **Genera** | Escribe el programa en Java (y llena las demás pestañas) |
+| **Guardar .java** | Guarda el programa Java (ver abajo) |
+| **Equipo** | Abre la ventana con los integrantes |
+| **Termina** | Muestra al equipo y pregunta si quieres salir |
+
+Escribe un programa sin errores y presiona **Genera**. El código optimizado de
+la pestaña 5 se escribe en **Java**, el lenguaje destino de SwordByte: los
+saltos (`goto`, `ifFalse … goto`) se vuelven `if`, `while`, `for` y `switch`,
+y las instrucciones de tres direcciones se juntan otra vez en expresiones.
+
+Arriba, un resumen: el archivo (`figuras.java`), cuántos renglones y métodos
+tiene, y las **funciones de apoyo** que lleva (lo que SwordByte tiene y Java no
+trae tal cual, como `aleatorio` o `esperar`).
+
+| Vista | Qué muestra |
+|---|---|
+| **Java** | El programa, con sus números de renglón y los colores de Java. Al pasar el mouse sobre un renglón se ve de qué línea del programa SwordByte sale |
+| **Junto al optimizado** | A la izquierda el código de tres direcciones optimizado y a la derecha el Java, para compararlos |
+
+![Junto al optimizado](capturas/objeto-lado.png)
+
+### Guardar y ejecutar el Java
+
+**Guardar .java**, **Archivo → Guardar código Java** o `Ctrl+J` guardan el
+programa. Java exige que el archivo se llame igual que la clase
+(`public class figuras` → `figuras.java`), así que el diálogo propone ese
+nombre; si escribes otro, la aplicación avisa y lo guarda con el de la clase.
+
+Luego, en una terminal, en la carpeta donde lo guardaste (hace falta tener el
+JDK de Java instalado):
+
+```bash
+javac -encoding UTF-8 figuras.java
+java figuras
+```
+
+Cómo se traduce cada cosa está en [11 — Código objeto](11-codigo-objeto.md).
+
+---
+
 ## 11. La ventana del equipo y la ventana de salida
 
-El botón **Equipo** (pestañas 2 y 3) abre una ventana con el nombre del equipo
+El botón **Equipo** (pestañas 2 a 6) abre una ventana con el nombre del equipo
 y los integrantes en orden alfabético por apellidos.
 
 ![Equipo](capturas/equipo.png)
@@ -623,8 +724,8 @@ y los integrantes en orden alfabético por apellidos.
 Se cierra con el botón *Aceptar*, con la **×**, con la tecla **Esc** o haciendo
 clic fuera de ella.
 
-Los botones **Fuga** (pestaña 1), **Salir** (pestaña 2), **Termina** (pestaña 3)
-y **Archivo → Salir** (`Ctrl+Q`) abren la **ventana de salida**: muestra al
+Los botones **Fuga** (pestaña 1), **Salir** (pestaña 2), **Termina** (pestañas 3
+a 6) y **Archivo → Salir** (`Ctrl+Q`) abren la **ventana de salida**: muestra al
 equipo y pregunta *¿Quieres salir del compilador?*
 
 ![Ventana de salida](capturas/fuga.png)
@@ -654,7 +755,7 @@ El diálogo ofrece dos formatos:
 
 | Formato | Cómo se ve | Para qué |
 |---|---|---|
-| **Reporte visual** (`.html`, el que sale primero) | Una página web con colores, la tabla de tokens, el árbol dibujado y el análisis semántico | Revisarlo, entregarlo, imprimirlo o pasarlo a PDF |
+| **Reporte visual** (`.html`, el que sale primero) | Una página web con colores, la tabla de tokens, el árbol dibujado, el análisis semántico, el código intermedio, el optimizado y el Java | Revisarlo, entregarlo, imprimirlo o pasarlo a PDF |
 | **Reporte en texto** (`.bs`) | Texto con comentarios `//` | Quien prefiera un archivo de texto |
 
 Los dos se pueden **volver a abrir en el compilador**.
@@ -669,7 +770,7 @@ trae:
 - **El encabezado**: los logos, la materia, el equipo y el grupo, de qué pestaña
   se guardó, y una ficha con el programa, los seis integrantes, la carrera, la
   institución, la unidad y la fecha y hora. A la derecha, un resumen de las
-  cuatro fases.
+  seis fases.
 - **1. Código fuente**, con los renglones numerados.
 - **2. Análisis léxico**: la salida `id1 > id2` en colores, la lista de
   identificadores y la tabla de tokens.
@@ -679,6 +780,8 @@ trae:
   gramática generada del código, con los terminales subrayados como en la
   pestaña 3.
 - **5. Código intermedio**: el código de tres direcciones y los cuádruplos.
+- **6. Código optimizado**: el código que quedó y la lista de cambios.
+- **7. Código objeto (Java)**: el programa en Java, con sus colores.
 
 Al terminar de guardar aparece un aviso con el botón **Abrir reporte**, que lo
 abre en el navegador.
@@ -695,7 +798,7 @@ Hay dos formas:
 2. **Arrastrar** el `.html` desde el explorador de archivos y soltarlo sobre la
    ventana del compilador.
 
-El código regresa a las cuatro pestañas, la aplicación **cambia a la pestaña desde
+El código regresa a las seis pestañas, la aplicación **cambia a la pestaña desde
 la que se guardó** y lo analiza de nuevo.
 
 Esto funciona porque el reporte guarda, escondido, un bloque con el código tal
@@ -712,7 +815,7 @@ siempre: todo lo que no es código va en comentarios `//`, así que el archivo
 ```
 // ==========================================================================
 //  C O M P I L A D O R   S W O R D B Y T E
-//  Reporte de análisis léxico, sintáctico y semántico
+//  Reporte de las seis fases: del código SwordByte al código Java
 // ==========================================================================
 //  Programa .......... analisis.bs
 //  Equipo ............ SwordByte
@@ -728,6 +831,8 @@ a = b + c > 9 AND d > e OR f <= 30
 //  3. ANÁLISIS SINTÁCTICO   (el árbol con sangría:  OR  ├── AND ...)
 //  4. ANÁLISIS SEMÁNTICO    (errores, advertencias y gramática)
 //  5. CÓDIGO INTERMEDIO     (el código de tres direcciones, comentado)
+//  6. CÓDIGO INTERMEDIO OPTIMIZADO  (el código que quedó y cada cambio)
+//  7. CÓDIGO OBJETO (JAVA)  (el programa en Java, comentado)
 ```
 
 Al abrirlo se recupera sólo el código, usando las marcas
@@ -752,21 +857,22 @@ texto, escribe su nombre en la constante `AUTOR` de ese mismo archivo.
 
 | Menú | Contiene |
 |---|---|
-| **Archivo** | Abrir, Guardar reporte, Limpiar, Salir |
-| **Analizar** | Analizar (llena las cuatro pestañas) |
+| **Archivo** | Abrir, Guardar reporte, Guardar código Java, Limpiar, Salir |
+| **Analizar** | Analizar (llena las seis pestañas) |
 | **Ejemplos** | Los programas incluidos; al elegir uno se carga y se analiza |
-| **Ver** | Las cuatro pestañas, recargar, herramientas de desarrollo, zoom, pantalla completa |
+| **Ver** | Las seis pestañas, recargar, herramientas de desarrollo, zoom, pantalla completa |
 | **Ayuda** | Equipo, Documentación del proyecto, Acerca de |
 
 ### Atajos
 
 | Atajo | Acción |
 |---|---|
-| `Ctrl+1` … `Ctrl+4` | Ir a la pestaña 1, 2, 3 o 4 |
+| `Ctrl+1` … `Ctrl+6` | Ir a la pestaña 1 a 6 |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Pestaña siguiente / anterior |
-| `F5` | Analizar (llena las cuatro pestañas) |
+| `F5` | Analizar (llena las seis pestañas) |
 | `Ctrl+O` | Abrir un reporte `.html`, un `.bs` o un `.txt` |
 | `Ctrl+S` | Guardar reporte |
+| `Ctrl+J` | Guardar el código Java (`.java`) |
 | `Ctrl+L` | Limpiar |
 | `Ctrl+Q` | Salir (pregunta antes) |
 | `Tab` | Inserta 4 espacios en el cuadro de código |
@@ -813,4 +919,7 @@ Después de cambiar un logo hay que volver a generar el ejecutable
 | Marca *'a > b' no es una instrucción del lenguaje* | Con punto y coma sólo valen las instrucciones del lenguaje. Guarda el resultado (`x = a > b;`), úsalo en una condición (`si (a > b) { … }`) o quítale el `;` para analizarla suelta. |
 | Marca *Falta la clase* | Como en Java, el código va dentro de una clase: `clase ejemplo { clasePrincipal { ... } }`. Sólo las expresiones sueltas (sin `;`) se aceptan sin clase, en las pestañas 1 y 2. |
 | Marca *'&&' no se usa en SwordByte* (o `^`, `√`, `raiz`…) en la pestaña 3 | En el lenguaje la lógica es `Y`, `O`, `NO` y las potencias y raíces se sacan con `potencia(base, exponente)`. La sugerencia dice cómo escribirlo. |
-| Al guardar, el archivo se llama distinto de lo que escribí | Como en Java, el archivo se llama igual que la clase (`clase ejemplo` → `ejemplo.html`). Para otro nombre, cambia el de la clase. |
+| Al guardar, el archivo se llama distinto de lo que escribí | Como en Java, el archivo se llama igual que la clase (`clase ejemplo` → `ejemplo.html`, `ejemplo.java`). Para otro nombre, cambia el de la clase. |
+| `javac` no se encuentra | Hace falta el JDK de Java (versión 11 o más nueva) y que su carpeta `bin` esté en el `PATH`. Se comprueba con `javac -version`. |
+| `javac` marca *class figuras is public, should be declared in a file named figuras.java* | El archivo debe llamarse igual que la clase: guárdalo con **Guardar .java**, que pone el nombre correcto. |
+| El Java imprime acentos raros | Compílalo con `javac -encoding UTF-8`. En la consola de Windows puede hacer falta `chcp 65001`. |

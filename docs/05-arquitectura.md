@@ -2,10 +2,10 @@
 
 ---
 
-## 1. Los tres analizadores
+## 1. Las seis fases
 
 ```
-  Código fuente (el mismo en las cuatro pestañas)
+  Código fuente (el mismo en las seis pestañas)
          │
          ▼
   ┌──────────────────────┐
@@ -20,13 +20,26 @@
   └──────────────────────┘    └──────────────────────┘
     AST, árbol y errores        la gramática del código
     sintácticos                 (prop → id = exp, ...)
-         │                              │
-         └──────────────┬───────────────┘
-                        ▼
-     Las cuatro pestañas y el reporte (.html o .bs)
+                                        │ AST (sin errores)
+                                        ▼
+                              ┌──────────────────────┐
+                              │ 4. Código intermedio │  código de tres direcciones
+                              └──────────────────────┘  y cuádruplos
+                                        │
+                                        ▼
+                              ┌──────────────────────┐
+                              │ 5. Optimización      │  el mismo código, más corto,
+                              └──────────────────────┘  y la lista de cambios
+                                        │
+                                        ▼
+                              ┌──────────────────────┐
+                              │ 6. Código objeto     │  el programa en Java
+                              └──────────────────────┘  (archivo .java)
+
+     Todo llena las seis pestañas y el reporte (.html o .bs)
 ```
 
-Los tres trabajan con el mismo lenguaje (SwordByte) y las mismas reglas. El
+Los tres analizadores trabajan con el mismo lenguaje (SwordByte) y las mismas reglas. El
 semántico no lee el código por su cuenta: recorre el árbol (AST) que armó el
 sintáctico, revisa que tenga sentido (nombres y tipos) y escribe la gramática
 que produce ese código. Si el léxico o el sintáctico encontraron errores, el
@@ -34,12 +47,18 @@ semántico no revisa nada. Como en Java, el código va dentro de una clase; las
 expresiones sueltas (`a = b + c`, sin `;`) sólo se aceptan en las pestañas 1
 y 2.
 
-Las tres fases comparten dos piezas de `src/core/comun/`, como en el esquema
+Las fases 4, 5 y 6 son la **síntesis**: sólo trabajan con un programa sin
+errores. La 4 recorre el árbol y escribe código de tres direcciones; la 5 lo
+mejora sin cambiar lo que hace; la 6 lo vuelve a escribir en Java, el lenguaje
+destino. Cada una recibe sólo lo que entregó la anterior.
+
+Las tres fases de análisis comparten dos piezas de `src/core/comun/`, como en el esquema
 clásico de un compilador: la **tabla de símbolos** (`TablaSimbolos.js`: el
 léxico anota cada identificador, el sintáctico usa sus etiquetas en el árbol y
 el semántico le agrega su tipo y su ámbito) y el **manejo de errores**
 (`ErrorCompilacion.js`: todas reportan con el mismo formato). `Compilador.js`
-crea una tabla por cada código y se la pasa a las tres.
+crea una tabla por cada código y se la pasa a las tres. Las fases de síntesis
+reportan sus problemas con el mismo `ErrorCompilacion`.
 
 ---
 
@@ -61,11 +80,14 @@ Compilador/
 │   ├── 06-manual-de-usuario.md
 │   ├── 07-mantenimiento.md
 │   ├── 08-analizador-semantico.md
+│   ├── 09-codigo-intermedio.md
+│   ├── 10-optimizacion.md
+│   ├── 11-codigo-objeto.md
 │   └── capturas/                     Imágenes de la aplicación
 │
 ├── src/
 │   ├── core/                    EL COMPILADOR (JavaScript puro, sin dependencias)
-│   │   ├── Compilador.js             Une las cuatro fases en una llamada
+│   │   ├── Compilador.js             Une las seis fases en una llamada
 │   │   │
 │   │   ├── ReporteHTML.js            El reporte visual (.html) y su lectura
 │   │   ├── Reporte.js                El reporte en texto (.bs)
@@ -75,8 +97,8 @@ Compilador/
 │   │   │   ├── Token.js                  estructura de un token
 │   │   │   ├── TiposToken.js             catálogo de categorías léxicas
 │   │   │   ├── Equipo.js                 datos del equipo y de la materia
-│   │   │   ├── ErrorCompilacion.js       manejo de errores: el formato de las 3 fases
-│   │   │   └── TablaSimbolos.js          tabla de símbolos: la usan las 3 fases
+│   │   │   ├── ErrorCompilacion.js       manejo de errores: el formato de todas las fases
+│   │   │   └── TablaSimbolos.js          tabla de símbolos: la usan las 3 fases de análisis
 │   │   │
 │   │   ├── 01.lexico/           FASE 1
 │   │   │   ├── AnalizadorLexico.js       recorre el fuente y produce tokens
@@ -96,13 +118,28 @@ Compilador/
 │   │   │   ├── GeneradorGramatica.js     genera la gramática del código
 │   │   │   └── TextoDeNodo.js            vuelve a escribir un nodo como código
 │   │   │
-│   │   └── 04.intermedio/       FASE 4
-│   │       ├── Instrucciones.js          las formas del código de tres direcciones
-│   │       └── GeneradorIntermedio.js    traduce el árbol a tres direcciones
+│   │   ├── 04.intermedio/       FASE 4
+│   │   │   ├── Instrucciones.js          las formas del código de tres direcciones
+│   │   │   └── GeneradorIntermedio.js    traduce el árbol a tres direcciones
+│   │   │
+│   │   ├── 05.optimizacion/     FASE 5
+│   │   │   ├── Optimizador.js            bloques básicos y las optimizaciones
+│   │   │   └── Literales.js              cálculos con valores fijos, como en Java
+│   │   │
+│   │   └── 06.objeto/           FASE 6
+│   │       ├── GeneradorJava.js          punto de entrada: arma la clase y declara las variables
+│   │       ├── Sentencias.js             paso 1: tres direcciones -> sentencias, tipo de los temporales
+│   │       ├── Expresiones.js            expresiones, sus tipos y sus efectos
+│   │       ├── Estructurador.js          paso 2: saltos -> if, while, switch, try (dominadores y ciclos)
+│   │       ├── Limpieza.js               paso 3: while (c), do-while, for, else if...
+│   │       ├── EscritorJava.js           paso 5: el texto de Java, con sus paréntesis
+│   │       ├── TiposJava.js              los tipos de SwordByte en Java
+│   │       ├── ConstantesJava.js         las condiciones que Java considera constantes
+│   │       └── ResaltadoJava.js          los colores del Java
 │   │
 │   └── ui/                      INTERFAZ GRÁFICA (proceso de renderizado)
-│       ├── index.html                encabezado, pestañas y los cuatro paneles
-│       ├── css/estilos.css           una sola paleta para las cuatro pestañas
+│       ├── index.html                encabezado, pestañas y los seis paneles
+│       ├── css/estilos.css           una sola paleta para las seis pestañas
 │       ├── img/                      logos UAT, UAMM e ISC (reemplazables)
 │       └── js/
 │           ├── dom.js                ayudas para crear errores, notas e insignias
@@ -114,7 +151,10 @@ Compilador/
 │           ├── panel-lexico.js       pinta la pestaña 1 (tabla de tokens)
 │           ├── panel-sintactico.js   pinta la pestaña 2 (id1 > id2 y el árbol)
 │           ├── panel-semantico.js    pinta la pestaña 3 (errores y gramática)
+│           ├── vista-intermedio.js   dibuja código de tres direcciones y cuádruplos (pestañas 4, 5 y 6)
 │           ├── panel-intermedio.js   pinta la pestaña 4 (tres direcciones y cuádruplos)
+│           ├── panel-optimizacion.js pinta la pestaña 5 (código optimizado y cambios)
+│           ├── panel-objeto.js       pinta la pestaña 6 (el Java, solo o junto al optimizado)
 │           └── app.js                el código compartido, botones, menú y archivos
 │
 ├── electron/                    APLICACIÓN DE ESCRITORIO
@@ -124,13 +164,16 @@ Compilador/
 │
 ├── ejemplos/                    Programas .bs de demostración
 ├── pruebas/
-│   ├── ejecutar.js                   161 pruebas del compilador
-│   └── verificar-ui.js               142 comprobaciones sobre la ventana real
+│   ├── ejecutar.js                   201 pruebas del compilador
+│   ├── interprete-intermedio.js      ejecuta código de tres direcciones (imprime como Java)
+│   ├── programas-al-azar.js          escribe programas SwordByte correctos al azar
+│   ├── EjecutarJava.java             corre muchos programas Java en una sola máquina virtual
+│   └── verificar-ui.js               160 comprobaciones sobre la ventana real
 ├── herramientas/
 │   ├── generar-icono.js              genera el icono de la app
 │   └── generar-gramatica.js          regenera docs/04 desde Gramatica.js
 ├── build/icono.png              Icono
-├── salida/                      Reportes generados
+├── salida/                      Reportes y .java generados
 └── dist/                        Ejecutables (.exe)
 ```
 
@@ -192,7 +235,7 @@ que saber nada de operadores.
 │  electron/main.js           │        │  src/ui/  (sin acceso a Node)│
 │   ├── ventana y menú        │  IPC   │   ├── botones y editor       │
 │   ├── sistema de archivos   │ <────► │   ├── salida léxica           │
-│   └── src/core/ (compilador)│        │   └── los cuatro paneles      │
+│   └── src/core/ (compilador)│        │   └── los seis paneles        │
 └─────────────────────────────┘        └──────────────────────────────┘
                     ▲
                     │ contextBridge
@@ -205,12 +248,13 @@ puede tocar el disco por su cuenta. Sólo dispone de las funciones que
 
 | Función | Qué hace |
 |---|---|
-| `analizar(fuente, opciones)` | ejecuta las cuatro fases |
+| `analizar(fuente, opciones)` | ejecuta las seis fases |
 | `equipo()` | datos del equipo y de la materia |
 | `resaltar(texto)` | el código con los colores de Java; corre en el mismo `preload.js` (sin IPC) porque se llama en cada tecla |
 | `abrirArchivo()` | diálogo Abrir; devuelve el código (y la pestaña, si es un reporte `.html`) |
 | `leerArchivo(texto)` | lo mismo, para un archivo que se soltó sobre la ventana |
 | `guardarReporte(fuente, pestana)` | diálogo Guardar; escribe el reporte `.html` o `.bs` |
+| `guardarJava(fuente)` | diálogo Guardar; escribe el programa Java como `clase.java` |
 | `verReporte()` | abre en el navegador el último reporte `.html` guardado |
 | `salir()` | cierra la aplicación (la interfaz ya preguntó con su ventana) |
 | `alMenu(manejador)` | recibe las órdenes del menú, con sus datos |
@@ -236,14 +280,14 @@ pantalla y el reporte muestran igual de bien un error léxico, uno sintáctico o
 uno semántico, con el mismo formato, y el editor los subraya igual mientras se
 escribe (`erroresDe()` en `Compilador.js` junta los de cada pestaña).
 
-### 3.6 Tres pestañas, un solo código y un solo resultado
+### 3.6 Seis pestañas, un solo código y un solo resultado
 
-Cada pestaña tiene su propio cuadro de código, pero los tres llevan siempre lo
-mismo: al escribir en uno, `app.js` copia el texto a los otros dos.
+Cada pestaña tiene su propio cuadro de código, pero todos llevan siempre lo
+mismo: al escribir en uno, `app.js` copia el texto a los demás.
 
-Al analizar, `compilar()` corre **las cuatro fases de una vez** y el mismo
-resultado se reparte a los cuatro paneles (`panel-lexico.js`,
-`panel-sintactico.js` y `panel-semantico.js`). Por eso al cambiar de pestaña
+Al analizar, `compilar()` corre **las seis fases de una vez** y el mismo
+resultado se reparte a los seis paneles (`panel-lexico.js` …
+`panel-objeto.js`). Por eso al cambiar de pestaña
 el análisis ya está hecho, y nunca puede pasar que una pestaña muestre un
 análisis de un código distinto al de otra.
 
@@ -269,7 +313,7 @@ bloque antes de tiempo.
 
 ```
 1. El usuario escribe el código y presiona un botón en cualquier pestaña
-2. app.js copia el código a los otros dos cuadros y llama a
+2. app.js copia el código a los demás cuadros y llama a
    window.api.analizar(fuente, opciones)
 3. preload.js reenvía por IPC a electron/main.js
 4. main.js llama a Compilador.compilar(fuente, opciones)
@@ -278,11 +322,14 @@ bloque antes de tiempo.
        ├── construirTablaLexica(tokens)    → Lexema | Token | Descripción
        ├── analizarSintactico(tokens)      → ast, modo, errores
        ├── aArbolCompacto(ast, mapa)       → árbol listo para dibujar
-       └── analizarSemantico(sintactico)   → errores, advertencias, tabla de
-                                              símbolos y gramática del código
+       ├── analizarSemantico(sintactico)   → errores, advertencias, tabla de
+       │                                      símbolos y gramática del código
+       ├── generarCodigoIntermedio(...)    → instrucciones de tres direcciones
+       ├── optimizarCodigo(intermedio)     → instrucciones optimizadas y cambios
+       └── generarCodigoObjeto(optimizado) → el programa Java, renglón por renglón
 5. main.js devuelve el resultado completo a la interfaz
-6. app.js se lo pasa a los cuatro paneles: la tabla, la salida y el árbol, el
-   análisis semántico y el código intermedio
+6. app.js se lo pasa a los seis paneles: la tabla, la salida y el árbol, el
+   análisis semántico, el código intermedio, el optimizado y el Java
 ```
 
 Los botones *Análisis Léxico* y *Análisis Sintáctico* de la pestaña 2 sólo
@@ -290,7 +337,7 @@ deciden qué cuadros de esa pestaña se llenan; el análisis se hace completo.
 `compilar()` sigue aceptando `soloLexico: true` para quien lo use desde
 código y sólo quiera la fase 1.
 
-Tiempo típico para un programa de 30 líneas: **2 a 5 ms**.
+Tiempo típico para un programa de 30 líneas, con las seis fases: **5 a 15 ms**.
 
 ---
 
@@ -298,8 +345,18 @@ Tiempo típico para un programa de 30 líneas: **2 a 5 ms**.
 
 | Comando | Qué comprueba |
 |---|---|
-| `npm run pruebas` | 161 pruebas del compilador: léxico, tabla de tokens, salida `id1` / `num()`, jerarquía de operadores, sintáctico, fragmentos y la falta de clase, el análisis semántico (declaraciones, tipos, ámbitos, funciones, arreglos, geometría, Y/O/NO y `potencia`, advertencias y la tabla de símbolos compartida), la gramática generada, el código intermedio (cada forma de instrucción, los saltos de cada estructura, el corto circuito, arreglos y matrices), los errores subrayados, los dos reportes, el nombre del archivo, ejemplos y robustez |
-| `npm run pruebas:ui` | 142 comprobaciones sobre la aplicación real: las pestañas con sus logos y botones donde los pide cada diseño, el código compartido, la tabla de tokens, el análisis semántico (errores, advertencias y gramática; la falta de clase), el código intermedio en sus dos vistas, que los cuadros de código no se estiren con mucho código, el subrayado rojo de los errores, el zoom con un árbol ancho, la ventana de Fuga, guardar y volver a abrir el reporte (también soltándolo), los logos, los botones, la salida de `a > b`, los colores, la jerarquía del árbol y el orden del equipo |
+| `npm run pruebas` | 201 pruebas del compilador: léxico, tabla de tokens, salida `id1` / `num()`, jerarquía de operadores, sintáctico, fragmentos y la falta de clase, el análisis semántico (declaraciones, tipos, ámbitos, funciones, arreglos, geometría, Y/O/NO y `potencia`, advertencias y la tabla de símbolos compartida), la gramática generada, el código intermedio (cada forma de instrucción, los saltos de cada estructura, el corto circuito, arreglos y matrices), la optimización (cada optimización, lo que no se optimiza, y que los ejemplos y 80 programas al azar impriman lo mismo antes y después), el código Java (cada estructura, tipos, funciones de apoyo y, si hay `javac`, que compile e imprima lo mismo), los errores subrayados, los dos reportes, el nombre del archivo, ejemplos y robustez |
+| `npm run pruebas:ui` | 160 comprobaciones sobre la aplicación real: las pestañas con sus logos y botones donde los pide cada diseño, el código compartido, la tabla de tokens, el análisis semántico (errores, advertencias y gramática; la falta de clase), el código intermedio en sus dos vistas, el optimizado con sus cambios, el Java solo y junto al optimizado y el botón Guardar .java, que los cuadros de código no se estiren con mucho código, el subrayado rojo de los errores, el zoom con un árbol ancho, la ventana de Fuga, guardar y volver a abrir el reporte (también soltándolo), los logos, los botones, la salida de `a > b`, los colores, la jerarquía del árbol y el orden del equipo |
 
 Las pruebas no usan ninguna librería externa: son JavaScript plano, así que
-funcionan sin instalar nada extra.
+funcionan sin instalar nada extra. La única excepción es opcional: si hay un
+JDK (`javac` y `java`), se compila y se ejecuta el Java generado; si no, esa
+prueba se omite.
+
+Para saber que la optimización y el Java **no cambian lo que hace el
+programa**, las pruebas no comparan textos: ejecutan. El intérprete
+[`interprete-intermedio.js`](../pruebas/interprete-intermedio.js) corre el
+código de tres direcciones antes y después de optimizar (y escribe los valores
+igual que Java), y [`programas-al-azar.js`](../pruebas/programas-al-azar.js)
+escribe programas correctos distintos con cada semilla, con ciclos, `opcion`,
+funciones, arreglos e `intentar`.
