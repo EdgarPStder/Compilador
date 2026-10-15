@@ -26,6 +26,11 @@
  * Y las conversiones que Java hace solo se escriben (ver seEnsancha):
  *   decimal x = 5;                   x = (decimal) 5
  *
+ * Dentro de una funcion, cada nombre del codigo intermedio tiene un solo
+ * tipo. Si dos bloques distintos declaran el mismo nombre con distinto tipo
+ * (un  entero x  en el si y un  cadena x  en el sino), el segundo se renombra:
+ * x_2 (ver declarar). Asi la fase 6 sabe siempre de que tipo es cada nombre.
+ *
  * Solo se genera para un programa sin errores: si alguna de las tres fases
  * anteriores encontro uno, primero hay que corregirlo.
  */
@@ -59,6 +64,24 @@ function seEnsancha (desde, hacia) {
 
 /** Una instruccion sin el ; del final:  entero i = 1;  ->  entero i = 1 */
 const sinPuntoYComa = (texto) => texto.replace(/;$/, '');
+
+/** Las secuencias de escape de un texto entre comillas:  salto de linea -> \n */
+const ESCAPES = { '\n': '\\n', '\t': '\\t', '\r': '\\r', '\0': '\\0', '\\': '\\\\' };
+
+/**
+ * Como se escribe un valor fijo en el codigo intermedio. Los numeros, tal
+ * cual. Los textos y los caracteres se vuelven a escribir con las comillas
+ * normales, aunque en el programa se hayan escrito con las de Word:
+ *   “Hola”  ->  "Hola"        ‘A’  ->  'A'
+ * Asi un texto siempre empieza con " y la fase 5 lo reconoce.
+ */
+function valorFijo (n) {
+  const escribir = (valor, comilla) => comilla +
+    Array.from(String(valor), (c) => ESCAPES[c] || (c === comilla ? '\\' + c : c)).join('') + comilla;
+  if (n.tipoDato === 'LIT_CADENA') return escribir(n.valor, '"');
+  if (n.tipoDato === 'LIT_CARACTER') return escribir(n.valor, "'");
+  return n.lexema;
+}
 
 /**
  * Como se lee el renglon de codigo del que sale cada grupo de instrucciones.
@@ -115,6 +138,20 @@ class GeneradorIntermedio {
     this.temporales = 0;
     this.etiquetas = 0;
 
+    /** Los nombres del programa y los que se inventaron (x_2), para no repetirlos. */
+    this.ocupados = new Set(nombres);
+    /** Los ambitos abiertos (bloques { }): cada uno, nombre -> como se llama aqui. */
+    this.ambitos = [];
+    /** En la funcion que se traduce: nombre -> (tipo -> como se llama). Ver declarar. */
+    this.elegidos = new Map();
+    /**
+     * Lo que la fase 6 necesita de cada funcion: su tipo de retorno, sus
+     * parametros y el tipo de cada nombre del codigo intermedio.
+     * [{ nombre, tipoRetorno, parametros: [nombre], variables: { nombre: tipo },
+     *    columnas: { matriz: cuantas columnas tiene } }]
+     */
+    this.simbolos = [];
+
     /** matriz -> cuantas columnas tiene, para encontrar t[i][j] (ver posicion) */
     this.columnas = new Map();
     /** Las funciones del programa (para saber el tipo de sus parametros). */
@@ -123,6 +160,8 @@ class GeneradorIntermedio {
     this.tipoRetorno = 'vacio';
     /** A donde salta romper: la salida del ciclo u opcion mas de adentro. */
     this.salidas = [];
+    /** Cuantos intentar rodean a la instruccion que se traduce. */
+    this.intentos = 0;
 
     /** Linea del codigo que se esta traduciendo. */
     this.linea = 0;
@@ -158,6 +197,54 @@ class GeneradorIntermedio {
   /** Lo que se escribira como comentario antes de la siguiente instruccion. */
   comentar (texto) {
     this.comentarios.push(texto);
+  }
+
+  // ==================================================================
+  // Los nombres y sus ambitos
+  // ==================================================================
+
+  /** Traduce un bloque { } en su propio ambito: lo que declara se olvida al salir. */
+  enAmbito (traducir) {
+    this.ambitos.push(new Map());
+    const r = traducir();
+    this.ambitos.pop();
+    return r;
+  }
+
+  /**
+   * Declara un nombre en el ambito actual y devuelve como se llama en el
+   * codigo intermedio. Casi siempre es el mismo nombre. Pero dentro de una
+   * funcion cada nombre tiene un solo tipo, asi que si un bloque declara un
+   * nombre que otro bloque ya uso con OTRO tipo, este se renombra:
+   *
+   *   si (a > 0) { entero x = 1; }   ->   x = 1
+   *   sino { cadena x = "uno"; }     ->   x_2 = "uno"
+   *
+   * (Dos bloques que declaran el mismo nombre con el mismo tipo, como dos
+   * para (entero i ...), usan el mismo: nunca estan vivos a la vez.)
+   */
+  declarar (nombre, tipo) {
+    if (!this.elegidos.has(nombre)) this.elegidos.set(nombre, new Map());
+    const porTipo = this.elegidos.get(nombre);
+    if (!porTipo.has(tipo)) {
+      let elegido = nombre;
+      for (let k = 2; porTipo.size > 0 && (elegido === nombre || this.ocupados.has(elegido)); k++) {
+        elegido = `${nombre}_${k}`;
+      }
+      this.ocupados.add(elegido);
+      porTipo.set(tipo, elegido);
+    }
+    this.ambitos[this.ambitos.length - 1].set(nombre, porTipo.get(tipo));
+    this.simbolos[this.simbolos.length - 1].variables[porTipo.get(tipo)] = tipo;
+    return porTipo.get(tipo);
+  }
+
+  /** Como se llama en el codigo intermedio una variable del programa (ver declarar). */
+  nombre (nombre) {
+    for (let i = this.ambitos.length - 1; i >= 0; i--) {
+      if (this.ambitos[i].has(nombre)) return this.ambitos[i].get(nombre);
+    }
+    return nombre;
   }
 
   // ==================================================================
@@ -197,10 +284,10 @@ class GeneradorIntermedio {
 
   traducir (n) {
     switch (n.tipo) {
-      case 'Funcion': return this.funcion(n.nombre, n.parametros.map((p) => p.nombre), n.cuerpo, n.tipoRetorno);
+      case 'Funcion': return this.funcion(n.nombre, n.parametros, n.cuerpo, n.tipoRetorno);
       case 'ClasePrincipal': return this.funcion('clasePrincipal', [], n.cuerpo, 'vacio');
       case 'Declaracion': return this.declaracion(n);
-      case 'Constante': return this.asignarA(n.nombre, n.valor, n.tipoDato);
+      case 'Constante': return this.asignarA(this.declarar(n.nombre, n.tipoDato), n.valor, n.tipoDato);
       case 'Arreglo':
       case 'Matriz': return this.arreglo(n);
       case 'Asignacion': return this.asignacion(n);
@@ -226,16 +313,24 @@ class GeneradorIntermedio {
   /** funcion nombre(parametros) ... fin nombre */
   funcion (nombre, parametros, cuerpo, tipoRetorno) {
     this.columnas = new Map();   // cada funcion tiene sus propias matrices
+    this.elegidos = new Map();   // y sus propios nombres
     this.tipoRetorno = tipoRetorno;
-    this.emitir(I.funcion(nombre, parametros));
-    this.lista(cuerpo.instrucciones);
-    this.emitir(I.fin(nombre));
+    const simbolos = { nombre, tipoRetorno, parametros: [], variables: {}, columnas: {} };
+    this.simbolos.push(simbolos);
+    this.enAmbito(() => {
+      const nombres = parametros.map((p) => this.declarar(p.nombre, p.tipoDato));
+      simbolos.parametros = nombres;
+      this.emitir(I.funcion(nombre, nombres));
+      this.lista(cuerpo.instrucciones);
+      this.emitir(I.fin(nombre));
+    });
   }
 
   /** entero a = 5, b;   ->   a = 5   (b no lleva valor: no genera nada) */
   declaracion (n) {
     n.declaradores.forEach((d) => {
-      if (d.valor) this.asignarA(d.nombre, d.valor, n.tipoDato);
+      const nombre = this.declarar(d.nombre, n.tipoDato);
+      if (d.valor) this.asignarA(nombre, d.valor, n.tipoDato);
     });
   }
 
@@ -272,11 +367,11 @@ class GeneradorIntermedio {
   asignacion (n) {
     // El semantico dejo en la asignacion el tipo del lugar que recibe el valor.
     const destino = n.destino;
-    if (destino.tipo === 'Variable') return this.asignarA(destino.nombre, n.valor, n.tipoCalculado);
+    if (destino.tipo === 'Variable') return this.asignarA(this.nombre(destino.nombre), n.valor, n.tipoCalculado);
 
     const lugar = this.posicion(destino);
     const v = this.valorPara(n.valor, n.tipoCalculado);
-    this.emitir(I.escribirArreglo(v, destino.nombre, lugar));
+    this.emitir(I.escribirArreglo(v, this.nombre(destino.nombre), lugar));
     return v;
   }
 
@@ -287,37 +382,39 @@ class GeneradorIntermedio {
    */
   incremento (destino, operador, seUsaElValor) {
     const signo = operador === '++' ? '+' : '-';
+    const nombre = this.nombre(destino.nombre);
 
     if (destino.tipo === 'Variable') {
-      let antes = destino.nombre;
+      let antes = nombre;
       if (seUsaElValor) {
         antes = this.nuevoTemporal();
-        this.emitir(I.copia(destino.nombre, antes));
+        this.emitir(I.copia(nombre, antes));
       }
-      this.emitir(I.operacion(signo, destino.nombre, '1', destino.nombre));
+      this.emitir(I.operacion(signo, nombre, '1', nombre));
       return antes;
     }
 
     // datos[i]++  ->  t1 = datos[i]   t2 = t1 + 1   datos[i] = t2
     const lugar = this.posicion(destino);
     const antes = this.nuevoTemporal();
-    this.emitir(I.leerArreglo(destino.nombre, lugar, antes));
+    this.emitir(I.leerArreglo(nombre, lugar, antes));
     const despues = this.nuevoTemporal();
     this.emitir(I.operacion(signo, antes, '1', despues));
-    this.emitir(I.escribirArreglo(despues, destino.nombre, lugar));
+    this.emitir(I.escribirArreglo(despues, nombre, lugar));
     return antes;
   }
 
   /** leer(x);  ->  leer x      leer(datos[i]);  ->  leer t1   datos[i] = t1 */
   leer (destino) {
+    const nombre = this.nombre(destino.nombre);
     if (destino.tipo === 'Variable') {
-      this.emitir(I.leer(destino.nombre));
+      this.emitir(I.leer(nombre));
       return;
     }
     const lugar = this.posicion(destino);
     const t = this.nuevoTemporal();
     this.emitir(I.leer(t));
-    this.emitir(I.escribirArreglo(t, destino.nombre, lugar));
+    this.emitir(I.escribirArreglo(t, nombre, lugar));
   }
 
   /**
@@ -361,21 +458,23 @@ class GeneradorIntermedio {
     const escritos = n.dimensiones.length === n.numDimensiones;
     const tamano = (k, segunLosValores) =>
       (escritos ? this.expresion(n.dimensiones[k]) : String(segunLosValores));
+    const nombre = this.declarar(n.nombre, n.tipoDato + '[]'.repeat(n.numDimensiones));
 
     if (n.numDimensiones === 1) {
-      this.emitir(I.reservar(n.nombre, tamano(0, valores.length)));
-      valores.forEach((v, k) => this.emitir(I.escribirArreglo(this.valorPara(v, n.tipoDato), n.nombre, String(k))));
+      this.emitir(I.reservar(nombre, tamano(0, valores.length)));
+      valores.forEach((v, k) => this.emitir(I.escribirArreglo(this.valorPara(v, n.tipoDato), nombre, String(k))));
       return;
     }
 
     const renglones = tamano(0, valores.length);
     const masLargo = Math.max(0, ...valores.map((r) => (r.elementos ? r.elementos.length : 0)));
     const columnas = tamano(1, masLargo);
-    this.columnas.set(n.nombre, columnas);
+    this.columnas.set(nombre, columnas);
+    this.simbolos[this.simbolos.length - 1].columnas[nombre] = columnas;
 
     const total = this.nuevoTemporal();
     this.emitir(I.operacion('*', renglones, columnas, total));
-    this.emitir(I.reservar(n.nombre, total));
+    this.emitir(I.reservar(nombre, total));
 
     valores.forEach((renglon, i) => (renglon.elementos || []).forEach((v, j) => {
       const valor = this.valorPara(v, n.tipoDato);
@@ -383,7 +482,7 @@ class GeneradorIntermedio {
       const lugar = /^\d+$/.test(columnas)
         ? String(i * Number(columnas) + j)
         : this.lugarEnMatriz(String(i), String(j), columnas);
-      this.emitir(I.escribirArreglo(valor, n.nombre, lugar));
+      this.emitir(I.escribirArreglo(valor, nombre, lugar));
     }));
   }
 
@@ -401,7 +500,7 @@ class GeneradorIntermedio {
     if (n.indices.length === 1) return this.expresion(n.indices[0]);
     const i = this.expresion(n.indices[0]);
     const j = this.expresion(n.indices[1]);
-    return this.lugarEnMatriz(i, j, this.columnas.get(n.nombre));
+    return this.lugarEnMatriz(i, j, this.columnas.get(this.nombre(n.nombre)));
   }
 
   // ==================================================================
@@ -435,16 +534,21 @@ class GeneradorIntermedio {
       const t = this.expresion(rama.condicion);
       const siguiente = this.nuevaEtiqueta();
       this.emitir(I.siFalso(t, siguiente));
-      this.lista(rama.cuerpo.instrucciones);
+      this.bloque(rama.cuerpo);
       if (hayMasDeUnCamino) this.emitir(I.salto(fin));
       this.emitir(I.etiqueta(siguiente));
     });
 
     if (n.sino) {
       this.comentar('sino');
-      this.lista(n.sino.cuerpo.instrucciones);
+      this.bloque(n.sino.cuerpo);
     }
     if (hayMasDeUnCamino) this.emitir(I.etiqueta(fin));
+  }
+
+  /** Las instrucciones de un bloque { }, en su propio ambito. */
+  bloque (b) {
+    this.enAmbito(() => this.lista(b.instrucciones));
   }
 
   /**
@@ -463,7 +567,7 @@ class GeneradorIntermedio {
     this.emitir(I.etiqueta(inicio));
     const t = this.expresion(n.condicion);
     this.emitir(I.siFalso(t, salida));
-    this.dentroDe(salida, () => this.lista(n.cuerpo.instrucciones));
+    this.dentroDe(salida, () => this.bloque(n.cuerpo));
     this.emitir(I.salto(inicio));
     this.emitir(I.etiqueta(salida));
   }
@@ -480,7 +584,7 @@ class GeneradorIntermedio {
     const inicio = this.nuevaEtiqueta();
     const salida = this.nuevaEtiqueta();
     this.emitir(I.etiqueta(inicio));
-    const huboRomper = this.dentroDe(salida, () => this.lista(n.cuerpo.instrucciones));
+    const huboRomper = this.dentroDe(salida, () => this.bloque(n.cuerpo));
     this.comentar(`mientras (${textoExpresion(n.condicion)})`);
     const t = this.expresion(n.condicion);
     this.emitir(I.siVerdadero(t, inicio));
@@ -500,22 +604,25 @@ class GeneradorIntermedio {
    *   L2:
    */
   para (n) {
-    if (n.inicializacion.tipo === 'Declaracion') this.declaracion(n.inicializacion);
-    else this.asignacion(n.inicializacion);
+    // El contador solo existe dentro del ciclo: el ambito se abre antes.
+    this.enAmbito(() => {
+      if (n.inicializacion.tipo === 'Declaracion') this.declaracion(n.inicializacion);
+      else this.asignacion(n.inicializacion);
 
-    const inicio = this.nuevaEtiqueta();
-    const salida = this.nuevaEtiqueta();
-    this.emitir(I.etiqueta(inicio));
-    const t = this.expresion(n.condicion);
-    this.emitir(I.siFalso(t, salida));
-    this.dentroDe(salida, () => this.lista(n.cuerpo.instrucciones));
+      const inicio = this.nuevaEtiqueta();
+      const salida = this.nuevaEtiqueta();
+      this.emitir(I.etiqueta(inicio));
+      const t = this.expresion(n.condicion);
+      this.emitir(I.siFalso(t, salida));
+      this.dentroDe(salida, () => this.lista(n.cuerpo.instrucciones));
 
-    const paso = n.actualizacion;
-    if (paso.tipo === 'IncrementoStmt') this.incremento(paso.destino, paso.operador, false);
-    else this.asignacion(paso);
+      const paso = n.actualizacion;
+      if (paso.tipo === 'IncrementoStmt') this.incremento(paso.destino, paso.operador, false);
+      else this.asignacion(paso);
 
-    this.emitir(I.salto(inicio));
-    this.emitir(I.etiqueta(salida));
+      this.emitir(I.salto(inicio));
+      this.emitir(I.etiqueta(salida));
+    });
   }
 
   /**
@@ -541,7 +648,8 @@ class GeneradorIntermedio {
     const defecto = n.porDefecto ? this.nuevaEtiqueta() : salida;
     this.emitir(I.salto(defecto));
 
-    this.dentroDe(salida, () => {
+    // Todos los casos comparten un ambito, igual que en el switch de Java.
+    this.dentroDe(salida, () => this.enAmbito(() => {
       n.casos.forEach((c, k) => {
         this.comentar(`caso ${textoExpresion(c.valor)}:`);
         this.emitir(I.etiqueta(destinos[k]));
@@ -552,7 +660,7 @@ class GeneradorIntermedio {
         this.emitir(I.etiqueta(defecto));
         this.lista(n.porDefecto.cuerpo.instrucciones);
       }
-    });
+    }));
     this.emitir(I.etiqueta(salida));
   }
 
@@ -572,20 +680,30 @@ class GeneradorIntermedio {
     const captura = this.nuevaEtiqueta();
     const fin = this.nuevaEtiqueta();
     this.emitir(I.intentar(captura));
-    this.lista(n.cuerpo.instrucciones);
+    this.intentos++;
+    this.bloque(n.cuerpo);
+    this.intentos--;
     this.emitir(I.finIntentar());
     this.emitir(I.salto(fin));
     this.comentar(`capturar (Error ${n.variableError})`);
     this.emitir(I.etiqueta(captura));
-    this.emitir(I.capturar(n.variableError));
-    this.lista(n.manejo.instrucciones);
+    this.enAmbito(() => {
+      this.emitir(I.capturar(this.declarar(n.variableError, 'Error')));
+      this.lista(n.manejo.instrucciones);
+    });
     this.emitir(I.etiqueta(fin));
   }
 
-  /** romper;  ->  goto (la salida del ciclo u opcion de adentro) */
+  /**
+   * romper;  ->  goto (la salida del ciclo u opcion de adentro)
+   * Si el romper esta dentro de un intentar que esta dentro del ciclo, al
+   * salir del ciclo tambien se sale del intentar: antes del goto va un
+   * finIntentar por cada intentar que se deja.
+   */
   romper () {
     const salida = this.salidas[this.salidas.length - 1];
     salida.usada = true;
+    for (let k = salida.intentos; k < this.intentos; k++) this.emitir(I.finIntentar());
     this.emitir(I.salto(salida.etiqueta));
   }
 
@@ -594,7 +712,7 @@ class GeneradorIntermedio {
    * donde salta romper. Devuelve true si algun romper la uso.
    */
   dentroDe (etiqueta, traducirCuerpo) {
-    this.salidas.push({ etiqueta, usada: false });
+    this.salidas.push({ etiqueta, usada: false, intentos: this.intentos });
     traducirCuerpo();
     return this.salidas.pop().usada;
   }
@@ -611,12 +729,12 @@ class GeneradorIntermedio {
    */
   expresion (n) {
     switch (n.tipo) {
-      case 'Literal': return n.lexema;
-      case 'Variable': return n.nombre;
+      case 'Literal': return valorFijo(n);
+      case 'Variable': return this.nombre(n.nombre);
       case 'Indexacion': {
         const lugar = this.posicion(n);
         const t = this.nuevoTemporal();
-        this.emitir(I.leerArreglo(n.nombre, lugar, t));
+        this.emitir(I.leerArreglo(this.nombre(n.nombre), lugar, t));
         return t;
       }
       case 'Binaria': return this.binaria(n);
@@ -723,7 +841,9 @@ class GeneradorIntermedio {
  *                             temporales y las etiquetas no choquen con ellos).
  * @returns {object} { estado: 'vacio' | 'errores-previos' | 'generado', errores,
  *                     instrucciones: [{ numero, op, arg1, arg2, resultado, texto,
- *                     linea, comentarios }], temporales, etiquetas, prefijos }
+ *                     linea, comentarios }], temporales, etiquetas, prefijos,
+ *                     clase (el nombre de la clase) y simbolos (el tipo de cada
+ *                     nombre de cada funcion, para la fase 6) }
  */
 function generarCodigoIntermedio (ast, previos, nombres = []) {
   const resultado = {
@@ -733,7 +853,9 @@ function generarCodigoIntermedio (ast, previos, nombres = []) {
     temporales: 0,
     etiquetas: 0,
     // Como empiezan los temporales y las etiquetas (t1, L1; tt1 si el programa ya usa t1)
-    prefijos: { temporal: 't', etiqueta: 'L' }
+    prefijos: { temporal: 't', etiqueta: 'L' },
+    clase: '',
+    simbolos: []
   };
 
   if (!ast && previos.length === 0) {
@@ -753,6 +875,8 @@ function generarCodigoIntermedio (ast, previos, nombres = []) {
   resultado.temporales = generador.temporales;
   resultado.etiquetas = generador.etiquetas;
   resultado.prefijos = { temporal: generador.prefijoTemporal, etiqueta: generador.prefijoEtiqueta };
+  resultado.clase = ast.nombre;
+  resultado.simbolos = generador.simbolos;
   return resultado;
 }
 
