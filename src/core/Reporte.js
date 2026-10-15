@@ -213,7 +213,7 @@ function objetoATexto (o) {
     return ['No se generó: primero hay que corregir los errores del programa.'];
   }
   if (o.estado !== 'generado') return o.errores.map((e) => e.mensaje);
-  return [`${o.archivo}: ${o.lineas.length} renglones de Java y ${o.metodos} método(s),`,
+  return [`${o.archivo}: ${o.lineas.length} renglones de Java y ${o.metodos} ${o.metodos === 1 ? 'método' : 'métodos'},`,
     `escritos a partir del código optimizado. Se compila con  javac -encoding UTF-8 ${o.archivo}`, '']
     .concat(o.lineas.map((l) => l.texto));
 }
