@@ -5,7 +5,8 @@
  *
  * Por que una pagina web y no un .txt:
  *   - Se ve como en la aplicacion: los colores, la tabla de tokens, el arbol
- *     dibujado y el analisis semantico.
+ *     dibujado, el analisis semantico, el codigo intermedio (antes y despues
+ *     de optimizar) y el programa en Java.
  *   - Es UN solo archivo: los logos y los estilos van adentro, asi que se
  *     puede mandar por correo o copiar a una USB sin que se rompa.
  *   - Se puede imprimir o guardar como PDF desde el navegador (Ctrl+P).
@@ -40,7 +41,8 @@ const PESTANAS = {
   sintactico: 'Analizador Léxico-Sintáctico',
   semantico: 'Analizador Semántico',
   intermedio: 'Generador de Código Intermedio',
-  optimizacion: 'Optimizador de Código Intermedio'
+  optimizacion: 'Optimizador de Código Intermedio',
+  objeto: 'Generador de Código Objeto'
 };
 
 /** Nombre completo de cada institucion, para el texto alterno de su logo. */
@@ -164,6 +166,16 @@ function tarjetaOptimizacion (o, tarjeta) {
     menos > 0 ? `${menos} menos que el código intermedio` : 'ya no se podía mejorar', true);
 }
 
+/** La tarjeta del codigo objeto (Java) en la ficha. */
+function tarjetaObjeto (o, tarjeta) {
+  if (!o || o.estado !== 'generado') {
+    return tarjeta('Código objeto (Java)', 'no se generó',
+      o && o.estado === 'errores-previos' ? 'el programa tiene errores' : 'no hay código', false);
+  }
+  return tarjeta('Código objeto (Java)', o.archivo,
+    `${cuantos(o.lineas.length, 'renglón', 'renglones')} · ${cuantos(o.metodos, 'método', 'métodos')}`, true);
+}
+
 function ficha (opciones, fecha, resultado) {
   const nombres = nombresCompletos().map((n) => `<li>${esc(n)}</li>`).join('');
   const lex = resultado.lexico;
@@ -186,7 +198,8 @@ function ficha (opciones, fecha, resultado) {
       !!sin && sin.errores.length === 0 && !!sin.arbol),
     tarjetaSemantica(sem, tarjeta),
     tarjetaIntermedio(resultado.intermedio, tarjeta),
-    tarjetaOptimizacion(resultado.optimizacion, tarjeta)
+    tarjetaOptimizacion(resultado.optimizacion, tarjeta),
+    tarjetaObjeto(resultado.objeto, tarjeta)
   ].join('');
 
   return `
@@ -468,6 +481,37 @@ function seccionOptimizacion (o) {
 </section>`;
 }
 
+/**
+ * El codigo objeto: el programa en Java, con sus numeros de renglon y los
+ * colores de Java (ya escapados por ResaltadoJava.js).
+ */
+function seccionObjeto (o) {
+  let cuerpo;
+  if (!o || o.estado === 'vacio') {
+    cuerpo = '<p class="vacio">No hay código que traducir.</p>';
+  } else if (o.estado !== 'generado') {
+    cuerpo = `<div class="veredicto mal"><b>✕ No se pudo generar el código objeto</b>
+      <p>${o.estado === 'errores-previos'
+        ? 'Primero hay que corregir los errores del programa (léxicos, sintácticos o semánticos).'
+        : esc(o.errores.map((e) => e.mensaje).join(' '))}</p></div>`;
+  } else {
+    const filas = o.lineas.map((l, k) =>
+      `<tr${l.linea ? ` title="Sale de la línea ${l.linea} del programa"` : ''}><td class="num">${k + 1}</td>` +
+      `<td>${l.html || ' '}</td></tr>`).join('');
+    cuerpo = `
+  <p class="estadisticas">El código objeto de SwordByte es Java. Se escribió a partir del código optimizado:
+    ${cuantos(o.lineas.length, 'renglón', 'renglones')}, ${cuantos(o.metodos, 'método', 'métodos')}.
+    Se guarda como <b>${esc(o.archivo)}</b> y se compila con <kbd>javac -encoding UTF-8 ${esc(o.archivo)}</kbd>.</p>
+  <table class="codigo"><tbody>${filas}</tbody></table>`;
+  }
+
+  return `
+<section id="objeto" class="seccion">
+  <h2><span>7</span> Código objeto (Java)</h2>
+  ${cuerpo}
+</section>`;
+}
+
 // ====================================================================
 // La pagina completa
 // ====================================================================
@@ -517,6 +561,7 @@ ${ficha(opciones, fecha, resultado)}
   <a href="#semantico">4 · Análisis semántico</a>
   <a href="#intermedio">5 · Código intermedio</a>
   <a href="#optimizacion">6 · Código optimizado</a>
+  <a href="#objeto">7 · Código objeto (Java)</a>
 </nav>
 ${seccionCodigo(fuente, erroresDe(resultado, 'semantico'))}
 ${seccionLexico(resultado.lexico)}
@@ -524,6 +569,7 @@ ${seccionSintactico(resultado.sintactico)}
 ${seccionSemantico(resultado.semantico)}
 ${seccionIntermedio(resultado.intermedio)}
 ${seccionOptimizacion(resultado.optimizacion)}
+${seccionObjeto(resultado.objeto)}
 <footer class="pie">
   <b>¿Quieres volver a trabajar con este código?</b>
   Ábrelo en el Compilador ${esc(NOMBRE_EQUIPO)} con <kbd>Archivo → Abrir</kbd> (<kbd>Ctrl+O</kbd>)

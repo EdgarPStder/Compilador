@@ -1,13 +1,13 @@
 /**
  * app.js
- * Conecta las cinco pestañas con el compilador.
+ * Conecta las seis pestañas con el compilador.
  *
- * La regla principal: las cinco pestañas trabajan sobre el MISMO código.
+ * La regla principal: las seis pestañas trabajan sobre el MISMO código.
  *   - Lo que se escribe en una pestaña se copia al momento a las demás.
  *   - Al analizar desde cualquier pestaña se analiza todo de una vez y se
- *     llenan los cinco paneles. Al cambiar de pestaña el resultado ya está ahí.
+ *     llenan los seis paneles. Al cambiar de pestaña el resultado ya está ahí.
  *   - Cambiar de pestaña no borra nada. Solo Borrar / Limpiar / Limpieza
- *     vacían el código, y lo vacían en las cinco.
+ *     vacían el código, y lo vacían en las seis.
  *
  * Botones de cada pestaña:
  *   1. Léxico            Realizar Análisis · Guardar · Borrar · Fuga
@@ -16,13 +16,15 @@
  *   3. Semántico         Limpieza · Analiza · Equipo · Termina
  *   4. Código intermedio Limpieza · Genera · Equipo · Termina
  *   5. Optimización      Limpieza · Optimiza · Equipo · Termina
+ *   6. Código objeto     Limpieza · Genera · Guardar .java · Equipo · Termina
  *
  * Fuga, Salir y Termina abren la misma ventana: el equipo y la pregunta
  * "¿Quieres salir del compilador?".
  */
 
 /* global window, document, VentanaEquipo, VentanaSalir, Pestanas, EditorCodigo,
-          PanelLexico, PanelLexicoSintactico, PanelSemantico, PanelIntermedio, PanelOptimizacion */
+          PanelLexico, PanelLexicoSintactico, PanelSemantico, PanelIntermedio, PanelOptimizacion,
+          PanelObjeto */
 
 /** Nombre completo de cada institución, para el alt de su logo. */
 const INSTITUCIONES = {
@@ -36,13 +38,14 @@ const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024;
 
 class Aplicacion {
   constructor () {
-    // El cuadro de código de cada pestaña. Los cinco llevan siempre lo mismo.
+    // El cuadro de código de cada pestaña. Los seis llevan siempre lo mismo.
     this.editores = {
       lexico: document.getElementById('lex-codigo'),
       sintactico: document.getElementById('codigo'),
       semantico: document.getElementById('sem-codigo'),
       intermedio: document.getElementById('int-codigo'),
-      optimizacion: document.getElementById('opt-codigo')
+      optimizacion: document.getElementById('opt-codigo'),
+      objeto: document.getElementById('obj-codigo')
     };
     // A cada cuadro se le ponen sus números de renglón y los colores de Java.
     this.cuadros = Object.values(this.editores).map((ta) => new EditorCodigo(ta));
@@ -52,6 +55,7 @@ class Aplicacion {
     this.panelSemantico = new PanelSemantico();
     this.panelIntermedio = new PanelIntermedio();
     this.panelOptimizacion = new PanelOptimizacion();
+    this.panelObjeto = new PanelObjeto();
 
     this.ventanaEquipo = new VentanaEquipo();
     this.ventanaSalir = new VentanaSalir();
@@ -157,6 +161,13 @@ class Aplicacion {
     boton('opt-equipo', () => this.ventanaEquipo.abrir());
     boton('opt-termina', () => this.salir());
 
+    // Pestaña 6: Generador de Código Objeto
+    boton('obj-limpieza', () => this.limpiar());
+    boton('obj-genera', () => this.analizar('objeto'));
+    boton('obj-guardar', () => this.guardarJava());
+    boton('obj-equipo', () => this.ventanaEquipo.abrir());
+    boton('obj-termina', () => this.salir());
+
     // El botón del aviso (por ejemplo "Abrir reporte")
     boton('aviso-accion', () => {
       if (this._accionAviso) this._accionAviso();
@@ -169,6 +180,7 @@ class Aplicacion {
       else if (orden === 'equipo') this.ventanaEquipo.abrir();
       else if (orden === 'abrir') this.abrirArchivo();
       else if (orden === 'guardar') this.guardarReporte();
+      else if (orden === 'guardarJava') this.guardarJava();
       else if (orden === 'salir') this.salir();
       else if (orden === 'ejemplo') this.cargarEjemplo(datos);
       else if (orden === 'pestana') this.pestanas.mostrar(datos);
@@ -187,7 +199,7 @@ class Aplicacion {
     });
   }
 
-  /** Los cinco cuadros de código: se copian entre sí y crecen con el texto. */
+  /** Los seis cuadros de código: se copian entre sí y crecen con el texto. */
   _conectarEditores () {
     Object.values(this.editores).forEach((editor) => {
       editor.addEventListener('input', () => this._copiarCodigoDesde(editor));
@@ -234,7 +246,7 @@ class Aplicacion {
   // El código compartido
   // ------------------------------------------------------------------
 
-  /** El código de la pestaña que se está viendo (es el mismo en las cinco). */
+  /** El código de la pestaña que se está viendo (es el mismo en las seis). */
   codigo () {
     return this.editores[this.pestanas.activa].value;
   }
@@ -247,7 +259,7 @@ class Aplicacion {
     this._acomodarEditores();
   }
 
-  /** Pone el mismo texto en los cinco cuadros. */
+  /** Pone el mismo texto en los seis cuadros. */
   _ponerCodigo (texto) {
     Object.values(this.editores).forEach((editor) => { editor.value = texto; });
     this._acomodarEditores();
@@ -263,7 +275,7 @@ class Aplicacion {
   // Acciones
   // ------------------------------------------------------------------
 
-  /** Borra el código y los resultados de las cinco pestañas. */
+  /** Borra el código y los resultados de las seis pestañas. */
   limpiar () {
     this._ponerCodigo('');
     this.nombreArchivo = null;
@@ -272,11 +284,12 @@ class Aplicacion {
     this.panelSemantico.limpiar();
     this.panelIntermedio.limpiar();
     this.panelOptimizacion.limpiar();
+    this.panelObjeto.limpiar();
     if (this.pestanas.activa) this.editores[this.pestanas.activa].focus();
   }
 
   /**
-   * Analiza el código y llena las cinco pestañas.
+   * Analiza el código y llena las seis pestañas.
    *
    * @param {string} desde Pestaña cuyo botón se presionó. Su código es el
    *                       que se analiza (y se copia a las demás).
@@ -296,6 +309,7 @@ class Aplicacion {
       this.panelSemantico.limpiar(aviso);
       this.panelIntermedio.limpiar(aviso);
       this.panelOptimizacion.limpiar(aviso);
+      this.panelObjeto.limpiar(aviso);
       return;
     }
 
@@ -311,6 +325,7 @@ class Aplicacion {
     this.panelSemantico.pintar(r);
     this.panelIntermedio.pintar(r);
     this.panelOptimizacion.pintar(r);
+    this.panelObjeto.pintar(r);
   }
 
   /** Fuga, Salir y Termina: pregunta antes de cerrar. */
@@ -384,14 +399,32 @@ class Aplicacion {
     }
   }
 
+  /**
+   * Guarda el programa Java (el código objeto) en un archivo .java. Como en
+   * Java, se llama igual que su clase: clase ejemplo -> ejemplo.java.
+   */
+  async guardarJava () {
+    const fuente = this.codigo();
+    if (fuente.trim() === '') {
+      this._avisar('Nada que guardar', 'Escribe primero un programa.');
+      return;
+    }
+    const r = await window.api.guardarJava(fuente);
+    if (r.ok) {
+      this._avisar('Código Java guardado', `Se guardó en:\n${r.ruta}\nCompílalo con:  javac -encoding UTF-8 ${r.archivo}`);
+    } else if (!r.cancelado) {
+      this._avisar('No se pudo guardar el código Java', r.error || 'Error desconocido.', true);
+    }
+  }
+
   // ------------------------------------------------------------------
   // Utilidades
   // ------------------------------------------------------------------
 
   /**
-   * Deja los cinco cuadros de código al día con su texto:
+   * Deja los seis cuadros de código al día con su texto:
    *   - el alto, según lo que se escribió, entre un mínimo y un máximo
-   *     (pasado el máximo el cuadro se desplaza). Los de las pestañas 3, 4 y 5
+   *     (pasado el máximo el cuadro se desplaza). Los de las pestañas 3 a 6
    *     empiezan más bajos (data-alto-minimo), para dejar lugar al resultado;
    *   - los números de renglón y los colores (ver editor.js).
    */

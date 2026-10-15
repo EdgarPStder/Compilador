@@ -42,6 +42,7 @@ const { EscritorJava, SANGRIA } = require('./EscritorJava');
 const { tipoJava } = require('./TiposJava');
 const { cuentaUsos } = require('./Expresiones');
 const { NOMBRE_EQUIPO } = require('../comun/Equipo');
+const { resaltarRenglonJava } = require('./ResaltadoJava');
 
 /**
  * Las palabras de Java que no pueden ser nombres, y los nombres que el
@@ -305,9 +306,10 @@ function nombresDelCodigo (instrucciones) {
  * @param {object} optimizacion El resultado de la fase 5.
  * @returns {object} { estado: 'vacio' | 'errores-previos' | 'generado' | 'error',
  *   errores, clase, archivo (clase.java), codigo (el texto), lineas
- *   ([{ texto, linea }]: linea es el renglon del programa SwordByte de donde
- *   sale, si se sabe), metodos (cuantos), apoyo (las funciones de apoyo que
- *   se usaron), instrucciones (cuantas tenia el codigo optimizado) }
+ *   ([{ texto, linea, html }]: linea es el renglon del programa SwordByte de
+ *   donde sale, si se sabe, y html el renglon con colores), metodos
+ *   (cuantos), apoyo (las funciones de apoyo que se usaron), instrucciones
+ *   (cuantas tenia el codigo optimizado) }
  */
 function generarCodigoObjeto (optimizacion) {
   const resultado = {
@@ -461,7 +463,7 @@ function escribirPrograma (optimizacion, resultado) {
 
   resultado.clase = clase;
   resultado.archivo = `${clase}.java`;
-  resultado.lineas = L;
+  resultado.lineas = L.map((l) => Object.assign(l, { html: resaltarRenglonJava(l.texto) }));
   resultado.codigo = L.map((l) => l.texto).join('\n') + '\n';
   resultado.metodos = metodos.length;
   resultado.apoyo = apoyo;

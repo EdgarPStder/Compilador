@@ -1,8 +1,8 @@
 /**
  * Reporte.js
  * Arma el reporte en texto (.bs): encabezado, codigo fuente, analisis lexico,
- * analisis sintactico, analisis semantico, codigo intermedio y codigo
- * optimizado.
+ * analisis sintactico, analisis semantico, codigo intermedio, codigo
+ * optimizado y codigo objeto (Java).
  *
  * Es la forma "clasica" de guardar. La que se ofrece primero es el reporte
  * visual en HTML (ver ReporteHTML.js); esta se conserva para quien quiera un
@@ -206,6 +206,18 @@ function optimizacionATexto (o) {
   return lineas;
 }
 
+/** El codigo objeto en texto: el programa Java, renglon por renglon. */
+function objetoATexto (o) {
+  if (!o || o.estado === 'vacio') return ['No hay código que traducir.'];
+  if (o.estado === 'errores-previos') {
+    return ['No se generó: primero hay que corregir los errores del programa.'];
+  }
+  if (o.estado !== 'generado') return o.errores.map((e) => e.mensaje);
+  return [`${o.archivo}: ${o.lineas.length} renglones de Java y ${o.metodos} método(s),`,
+    `escritos a partir del código optimizado. Se compila con  javac -encoding UTF-8 ${o.archivo}`, '']
+    .concat(o.lineas.map((l) => l.texto));
+}
+
 // ====================================================================
 // Construccion del reporte
 // ====================================================================
@@ -230,7 +242,7 @@ function construirReporte (resultado, opciones = {}) {
   // ---------------- Encabezado ----------------
   L.push(regla('='));
   L.push(linea('C O M P I L A D O R   S W O R D B Y T E'));
-  L.push(linea('Reporte de análisis léxico, sintáctico y semántico'));
+  L.push(linea('Reporte de las seis fases: del código SwordByte al código Java'));
   L.push(regla('='));
   L.push(campo('Programa', nombrePrograma));
   L.push(campo('Equipo', NOMBRE_EQUIPO));
@@ -341,6 +353,12 @@ function construirReporte (resultado, opciones = {}) {
   // ---------------- 6. Código optimizado ----------------
   L.push(...seccion(6, 'CÓDIGO INTERMEDIO OPTIMIZADO'));
   L.push(...optimizacionATexto(resultado.optimizacion).map((l) => linea(l)));
+  L.push('');
+  L.push('');
+
+  // ---------------- 7. Código objeto ----------------
+  L.push(...seccion(7, 'CÓDIGO OBJETO (JAVA)'));
+  L.push(...objetoATexto(resultado.objeto).map((l) => linea(l)));
 
   L.push('');
   L.push(regla('='));
@@ -374,5 +392,6 @@ module.exports = {
   arbolATexto,
   semanticoATexto,
   intermedioATexto,
-  optimizacionATexto
+  optimizacionATexto,
+  objetoATexto
 };

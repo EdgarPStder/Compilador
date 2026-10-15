@@ -5,20 +5,21 @@
  *   const { compilar } = require('./src/core/Compilador');
  *   const resultado = compilar('a > b');
  *
- * El proyecto tiene cinco fases, una por pestaña de la aplicacion:
+ * El proyecto tiene seis fases, una por pestaña de la aplicacion:
  *   1. Analisis lexico           -> 01.lexico/AnalizadorLexico.js
  *   2. Analisis sintactico       -> 02.sintactico/AnalizadorSintactico.js
  *   3. Analisis semantico        -> 03.semantico/AnalizadorSemantico.js
  *   4. Codigo intermedio         -> 04.intermedio/GeneradorIntermedio.js
  *   5. Optimizacion              -> 05.optimizacion/Optimizador.js
+ *   6. Codigo objeto (Java)      -> 06.objeto/GeneradorJava.js
  *
- * Los tres trabajan sobre el mismo lenguaje (SwordByte) y con las mismas
+ * Todas trabajan sobre el mismo lenguaje (SwordByte) y con las mismas
  * reglas. Como en Java, el codigo va dentro de una clase:
  *   clase nombre { clasePrincipal { ... } }
  * La unica excepcion son las expresiones sueltas (a = b + c), que el lexico
  * y el sintactico aceptan para practicar; el semantico no.
  *
- * Las tres fases comparten dos piezas de comun/, como en el esquema clasico
+ * Las fases comparten dos piezas de comun/, como en el esquema clasico
  * de un compilador:
  *   - la TABLA DE SIMBOLOS (TablaSimbolos.js): el lexico anota cada
  *     identificador, el sintactico usa sus etiquetas (id1, id2) en el arbol
@@ -37,6 +38,7 @@ const { TiposToken } = require('./comun/TiposToken');
 const { TablaSimbolos } = require('./comun/TablaSimbolos');
 const { generarCodigoIntermedio } = require('./04.intermedio/GeneradorIntermedio');
 const { optimizarCodigo } = require('./05.optimizacion/Optimizador');
+const { generarCodigoObjeto } = require('./06.objeto/GeneradorJava');
 
 /**
  * Compila un programa fuente.
@@ -45,8 +47,9 @@ const { optimizarCodigo } = require('./05.optimizacion/Optimizador');
  * @param {object} [opciones]
  * @param {string}  [opciones.modo='auto']      'auto' | 'programa' | 'expresion' | 'instrucciones'
  * @param {boolean} [opciones.soloLexico=false] true para detenerse en la fase 1.
- * @returns {object} Resultado con los tres analisis y la lista de errores
- *                   (lexicos y sintacticos) del lenguaje SwordByte.
+ * @returns {object} Resultado con lo que dio cada fase (lexico, sintactico,
+ *                   semantico, intermedio, optimizacion, objeto) y la lista de
+ *                   errores lexicos y sintacticos.
  */
 function compilar (fuente, opciones = {}) {
   const inicio = Date.now();
@@ -80,6 +83,7 @@ function compilar (fuente, opciones = {}) {
     semantico: null,
     intermedio: null,
     optimizacion: null,
+    objeto: null,
     errores: [],
     tiempoMs: 0
   };
@@ -136,6 +140,12 @@ function compilar (fuente, opciones = {}) {
   resultado.optimizacion = optimizarCodigo(resultado.intermedio);
   resultado.optimizacion.tiempoMs = Date.now() - t4;
 
+  // ---------- FASE 6: codigo objeto (Java) ----------
+  // Escribe en Java el codigo ya optimizado (si se genero).
+  const t5 = Date.now();
+  resultado.objeto = generarCodigoObjeto(resultado.optimizacion);
+  resultado.objeto.tiempoMs = Date.now() - t5;
+
   resultado.ok = resultado.errores.length === 0;
   resultado.tiempoMs = Date.now() - inicio;
   return resultado;
@@ -151,13 +161,15 @@ function compilar (fuente, opciones = {}) {
  *                 cuando no hay ninguno       (pestaña 4)
  *   'optimizacion' los mismos que la 3: se optimiza el codigo de la 4
  *                 (pestaña 5)
+ *   'objeto'      los mismos que la 3: se escribe en Java el codigo de la 5
+ *                 (pestaña 6)
  *
  * @param {object} r       Resultado de compilar().
  * @returns {Array} [{ fase, mensaje, linea, columna, sugerencia, ... }]
  */
 function erroresDe (r, pestana) {
   let errores = r.lexico.errores;
-  const hastaSemantico = ['semantico', 'intermedio', 'optimizacion'].indexOf(pestana) !== -1;
+  const hastaSemantico = ['semantico', 'intermedio', 'optimizacion', 'objeto'].indexOf(pestana) !== -1;
   if ((pestana === 'sintactico' || hastaSemantico) && r.sintactico) {
     errores = errores.concat(r.sintactico.errores);
   }

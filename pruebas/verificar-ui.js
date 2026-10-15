@@ -38,6 +38,15 @@ const EJEMPLO_OPTIMIZACION = enClase('entero base = 4;', 'entero altura = base *
   'entero doble = lado * 2 + lado * 2;', 'si (superficie > 10) {', '    imprimirLn("Grande: " + superficie);',
   '} sino {', '    imprimirLn("Chico");', '}', 'imprimirLn(doble * 1);');
 
+/** Un programa con un ciclo, una decision y un opcion, para la pestaña 6 (Java). */
+const EJEMPLO_OBJETO = enClase('entero n;', 'leer(n);', 'entero suma = 0;', 'para (entero i = 1; i <= n; i++) {',
+  '    suma = suma + i;', '}', 'si (suma > 10) {', '    imprimirLn("Grande: " + suma);', '} sino {',
+  '    imprimirLn("Chico");', '}', 'opcion (n % 3) {', '    caso 0: imprimirLn("cero"); romper;',
+  '    caso 1: imprimirLn("uno"); romper;', '    porDefecto: imprimirLn("dos");', '}');
+
+/** Donde la prueba guarda el programa Java (el boton Guardar .java). */
+const JAVA_PRUEBA = path.join(RAIZ, 'salida', 'figuras.java');
+
 /** Un programa de geometria correcto, para la pestaña 3. */
 const EJEMPLO_SEMANTICO = enClase('decimal radio = 2.5;', 'decimal a = area.circulo(radio);', 'imprimirLn(a);');
 
@@ -113,7 +122,7 @@ app.whenReady().then(async () => {
       columnasTabla: qq('#panel-lexico .tabla-tokens th').map((th) => th.textContent).join(' | '),
       ordenLexico:   qq('#panel-lexico .cuerpo > *').map((e) => e.tagName).join(','),
       ordenSintactico: qq('#panel-sintactico .cuerpo > *').map((e) => e.tagName).join(','),
-      codigos:       ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
+      codigos:       ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo', 'obj-codigo'].map((id) => document.getElementById(id).value),
       filasTabla:    qq('#lex-tabla tr').length,
       nodos:         qq('#salida-sintactico .arbol-nodo').length,
       notaSemantico: q('#sem-salida').textContent,
@@ -125,13 +134,17 @@ app.whenReady().then(async () => {
       notaOptimizacion: q('#opt-salida').textContent,
       tituloOptimizacion: q('#panel-optimizacion .titulo-semantico').textContent.replace(/\\s+/g, ' ').trim(),
       logosOptimizacion: qq('#panel-optimizacion .logos-columna .logo').map((e) => e.dataset.logo).join(','),
+      botonesObjeto: textos('#panel-objeto .btn'),
+      notaObjeto: q('#obj-salida').textContent,
+      tituloObjeto: q('#panel-objeto .titulo-semantico').textContent.replace(/\\s+/g, ' ').trim(),
+      logosObjeto: qq('#panel-objeto .logos-columna .logo').map((e) => e.dataset.logo).join(','),
       ordenSemantico: qq('#panel-semantico .cuerpo > *').map((e) => e.tagName).join(',')
     };
   })()`);
 
   // ---------- Pestaña 1: la tabla de tokens ----------
   await escribir('lex-codigo', 'a = b + c * 24');
-  const compartido = await js(`['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo']
+  const compartido = await js(`['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo', 'obj-codigo']
     .map((id) => document.getElementById(id).value)`);
   await clic('#lex-analizar');
   await esperar(400);
@@ -191,6 +204,15 @@ app.whenReady().then(async () => {
     visible:  document.getElementById('panel-optimizacion').offsetParent !== null,
     codigo:   document.getElementById('opt-codigo').value,
     insignia: document.getElementById('opt-estado').textContent
+  })`);
+
+  // En la pestaña 6 tampoco: no hay codigo optimizado que escribir en Java
+  await pestana('objeto');
+  await esperar(300);
+  const enObjeto = await js(`({
+    visible:  document.getElementById('panel-objeto').offsetParent !== null,
+    codigo:   document.getElementById('obj-codigo').value,
+    insignia: document.getElementById('obj-estado').textContent
   })`);
 
   // Ctrl+Tab desde la ultima pestaña vuelve a la primera; la tabla sigue ahi
@@ -384,6 +406,57 @@ app.whenReady().then(async () => {
     errores: document.querySelectorAll('#opt-salida .error-linea').length
   })`);
 
+  // ---------- Pestaña 6: el codigo objeto (Java) ----------
+  await pestana('objeto');
+  await escribir('obj-codigo', EJEMPLO_OBJETO);
+  await clic('#obj-genera');
+  await esperar(400);
+  const objeto = await js(`(function () {
+    const qq = (s) => Array.from(document.querySelectorAll(s));
+    const renglones = qq('#obj-salida .codigo-java td.java').map((td) => td.textContent.trim());
+    return {
+      insignia: document.getElementById('obj-estado').textContent,
+      resumen: document.querySelector('#obj-salida .resumen-gramatica').textContent,
+      renglones,
+      numeros: qq('#obj-salida .codigo-java td.num').length,
+      clases: {
+        control: qq('#obj-salida .codigo-java .j-control').map((e) => e.textContent),
+        tipo: qq('#obj-salida .codigo-java .j-tipo').map((e) => e.textContent),
+        cadena: qq('#obj-salida .codigo-java .j-cadena').length
+      },
+      origen: (qq('#obj-salida .codigo-java tr').find((tr) => /for \\(/.test(tr.textContent)) || {}).title || '',
+      vistaActiva: document.querySelector('#panel-objeto .btn-vista.activa').id
+    };
+  })()`);
+  await clic('#obj-ver-lado');
+  await esperar(150);
+  Object.assign(objeto, await js(`({
+    lados: Array.from(document.querySelectorAll('#obj-salida .lado-a-lado .titulo-lado')).map((p) => p.textContent),
+    tresDirecciones: document.querySelectorAll('#obj-salida .lado-a-lado .codigo-intermedio tr:not(.comentario)').length,
+    javaAlLado: document.querySelectorAll('#obj-salida .lado-a-lado .codigo-java tr').length,
+    vistaLado: document.querySelector('#panel-objeto .btn-vista.activa').id
+  })`));
+  await clic('#obj-ver-java');
+
+  // Guardar .java: el archivo se llama como la clase
+  if (fs.existsSync(JAVA_PRUEBA)) fs.unlinkSync(JAVA_PRUEBA);
+  await clic('#obj-guardar');
+  await esperar(500);
+  objeto.aviso = await js("document.getElementById('aviso-texto').textContent");
+  objeto.archivo = fs.existsSync(JAVA_PRUEBA) ? fs.readFileSync(JAVA_PRUEBA, 'utf8') : '';
+  if (fs.existsSync(JAVA_PRUEBA)) fs.unlinkSync(JAVA_PRUEBA);
+
+  // Con errores no se genera
+  await escribir('obj-codigo', 'a = b + c');
+  await clic('#obj-genera');
+  await esperar(400);
+  const objetoMal = await js(`({
+    insignia: document.getElementById('obj-estado').textContent,
+    titulo: document.querySelector('#obj-salida .veredicto.mal b')
+              ? document.querySelector('#obj-salida .veredicto.mal b').textContent : '',
+    errores: document.querySelectorAll('#obj-salida .error-linea').length
+  })`);
+
   // ---------- Fuga: el equipo y la pregunta de salida ----------
   await pestana('lexico');
   await clic('#lex-fuga');
@@ -435,7 +508,7 @@ app.whenReady().then(async () => {
   await esperar(600);
   const reabierto = await js(`({
     activa: document.querySelector('.pestana.activa').dataset.pestana,
-    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
+    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo', 'obj-codigo'].map((id) => document.getElementById(id).value),
     insignia: document.getElementById('sem-estado').textContent
   })`);
 
@@ -497,7 +570,7 @@ app.whenReady().then(async () => {
     const color = (s) => caja.querySelector(s) ? getComputedStyle(caja.querySelector(s)).color : '';
     const filas = Array.from(document.querySelectorAll('#salida-lexico .linea-salida'));
     return {
-      enLosTres: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].every((id) => {
+      enLosTres: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo', 'obj-codigo'].every((id) => {
         const c = document.getElementById(id).closest('.editor-codigo');
         return !!c && !!c.querySelector('.editor-numeros') && !!c.querySelector('.editor-colores');
       }),
@@ -674,7 +747,7 @@ app.whenReady().then(async () => {
   await clic('#btn-limpiar');
   await esperar(300);
   const trasLimpiar = await js(`({
-    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
+    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo', 'obj-codigo'].map((id) => document.getElementById(id).value),
     nodos:  document.querySelectorAll('#salida-sintactico .arbol-nodo').length,
     filas:  document.querySelectorAll('#lex-tabla tr').length,
     gramatica: document.querySelectorAll('#sem-salida .gramatica').length
@@ -743,7 +816,7 @@ app.whenReady().then(async () => {
   await js(`window.app.cargarEjemplo({ nombre: '99-prueba.bs', contenido: 'x = a * 2' }); true`);
   await esperar(450);
   const ejemplo = await js(`({
-    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
+    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo', 'obj-codigo'].map((id) => document.getElementById(id).value),
     nombre: window.app.nombreArchivo,
     lexica: document.querySelector('#salida-lexico .linea-salida .codigo-linea').textContent.trim(),
     nodos:  document.querySelectorAll('#salida-sintactico .arbol-nodo').length,
@@ -973,6 +1046,25 @@ app.whenReady().then(async () => {
     await capturar('optimizacion-cambios');
     await clic('#opt-ver-optimizado');
 
+    // Pestaña 6: el programa en Java, solo y junto al codigo optimizado. La
+    // caja se desplaza hasta la clase, para que se vea el main y no solo el
+    // comentario del principio.
+    const verClaseJava = () => js(`(function () {
+      const caja = document.getElementById('obj-salida');
+      const tablas = caja.querySelectorAll('table.codigo-java');
+      const tabla = tablas[tablas.length - 1];
+      const fila = Array.from(tabla.rows).find((f) => /public class/.test(f.textContent));
+      caja.scrollTop += fila.getBoundingClientRect().top - caja.getBoundingClientRect().top - 10;
+      return true;
+    })()`);
+    await analizarEn('objeto', 'obj-codigo', '#obj-genera', EJEMPLO_OBJETO);
+    await verClaseJava();
+    await capturar('objeto');
+    await clic('#obj-ver-lado');
+    await verClaseJava();
+    await capturar('objeto-lado');
+    await clic('#obj-ver-java');
+
     // El reporte visual, abierto como lo veria un navegador. Se carga en la
     // misma ventana (ya no se necesita la aplicacion): una segunda ventana
     // puede quedar tapada, y Windows no pinta una ventana tapada.
@@ -986,7 +1078,7 @@ app.whenReady().then(async () => {
   if (fs.existsSync(REPORTE_PRUEBA)) fs.unlinkSync(REPORTE_PRUEBA);
 
   informar({ arranque, compartido, lexico, enSintactico, enSemantico, enIntermedio, intermedio, intermedioMal, deRegreso,
-    enOptimizacion, optimizacion, optimizacionMal,
+    enOptimizacion, optimizacion, optimizacionMal, enObjeto, objeto, objetoMal,
     semantico, semanticoErrores, semanticoSi, semanticoVarias, semanticoMal, fuga, guardado, reabierto,
     soltado, inicial, equipo, trasLimpiar, soloLexico, soloSintactico, expresion, potencias, ejemplo, zoom,
     rama, conError, editor, alineado, largo, zoomGrande, subrayado });
@@ -1066,12 +1158,22 @@ function registrarIPC () {
   });
   ipcMain.handle('archivo:leer', (e, texto) => abrir(texto));
   ipcMain.handle('archivo:verReporte', () => ({ ok: true }));
+  // Guardar .java escribe de verdad, en salida/, con el nombre de la clase
+  ipcMain.handle('archivo:guardarJava', (e, fuente) => {
+    const objeto = compilar(fuente || '', {}).objeto;
+    if (objeto.estado !== 'generado') return { ok: false, error: 'El programa tiene errores.' };
+    const ruta = path.join(path.dirname(JAVA_PRUEBA), objeto.archivo);
+    fs.mkdirSync(path.dirname(ruta), { recursive: true });
+    fs.writeFileSync(ruta, objeto.codigo, 'utf8');
+    return { ok: true, ruta, archivo: objeto.archivo };
+  });
 }
 
 function informar (d) {
   const { arranque: ar, compartido: co, lexico: lx, enSintactico: es, enSemantico: em,
     enIntermedio: ei, intermedio: ci, intermedioMal: cm, deRegreso: dr,
-    enOptimizacion: eo, optimizacion: op, optimizacionMal: om, semantico: se, semanticoErrores: sx, semanticoSi: ss2, semanticoVarias: sv,
+    enOptimizacion: eo, optimizacion: op, optimizacionMal: om, enObjeto: eb, objeto: ob, objetoMal: obm,
+    semantico: se, semanticoErrores: sx, semanticoSi: ss2, semanticoVarias: sv,
     semanticoMal: sm, fuga: fu, guardado: g, reabierto: ra,
     soltado: so, inicial: i, equipo: eq, trasLimpiar: tl, soloLexico: sl,
     soloSintactico: ss, expresion: ex, potencias: po, ejemplo: ej2, zoom: z, rama: rm,
@@ -1095,7 +1197,8 @@ function informar (d) {
     ['pestaña 2: los tres logos arriba (UAT, UAMM, ISC)', ar.logosSintactico === 'uat,uamm,isc'],
     ['pestaña 3: los tres logos en columna a la izquierda', ar.logosSemantico === 'uat,uamm,isc'],
     ['pestaña 5: los tres logos en columna a la izquierda', ar.logosOptimizacion === 'uat,uamm,isc'],
-    ['los catorce logos cargaron su imagen', ar.logosCargados === 14],
+    ['pestaña 6: los tres logos en columna a la izquierda', ar.logosObjeto === 'uat,uamm,isc'],
+    ['los diecisiete logos cargaron su imagen', ar.logosCargados === 17],
 
     // Encabezados y disposición de cada pestaña
     ['pestaña 1: el encabezado dice la carrera, el analizador, el grupo y el equipo',
@@ -1111,9 +1214,9 @@ function informar (d) {
       ar.tituloSemantico === 'Programación de Sistemas de Base II Analizador Semántico “SwordByte”'],
 
     // Pestañas
-    ['hay cinco pestañas, en el orden de las fases',
+    ['hay seis pestañas, en el orden de las fases',
       ar.pestanas === 'Analizador Léxico | Analizador Léxico-Sintáctico | Analizador Semántico | ' +
-      'Código Intermedio | Optimización'],
+      'Código Intermedio | Optimización | Código Objeto'],
     ['la aplicacion abre en la pestaña del analizador lexico',
       ar.activa === 'lexico' && ar.panelesVisibles === 'panel-lexico'],
     ['la pestaña 1 tiene sus cuatro botones',
@@ -1127,16 +1230,20 @@ function informar (d) {
       ar.tituloOptimizacion === 'Programación de Sistemas de Base II Optimizador de Código Intermedio “SwordByte”' &&
       ar.botonesOptimizacion === 'Limpieza | Optimiza | Equipo | Termina' &&
       /ya optimizado/.test(ar.notaOptimizacion)],
+    ['la pestaña 6 tiene su título, sus botones (con Guardar .java) y explica lo que ahi saldra',
+      ar.tituloObjeto === 'Programación de Sistemas de Base II Generador de Código Objeto “SwordByte”' &&
+      ar.botonesObjeto === 'Limpieza | Genera | Guardar .java | Equipo | Termina' &&
+      /traducido a Java/.test(ar.notaObjeto)],
 
     // Arranque limpio
-    ['la aplicacion abre con el codigo vacio en las cinco pestañas',
+    ['la aplicacion abre con el codigo vacio en las seis pestañas',
       ar.codigos.every((c) => c === '')],
     ['y sin tabla ni arbol', ar.filasTabla === 0 && ar.nodos === 0],
     ['la pestaña semantica explica lo que ahi saldra',
       /errores semánticos/.test(ar.notaSemantico) && /gramática/.test(ar.notaSemantico)],
 
     // Codigo compartido
-    ['lo que se escribe en una pestaña aparece en las otras cuatro',
+    ['lo que se escribe en una pestaña aparece en las otras cinco',
       co.every((c) => c === 'a = b + c * 24')],
 
     // Pestaña 1
@@ -1163,6 +1270,8 @@ function informar (d) {
       ei.visible && ei.codigo === 'a = b + c * 24' && ei.insignia === 'corrige primero'],
     ['la pestaña 5 tambien tiene el codigo, y sin la clase pide corregir primero',
       eo.visible && eo.codigo === 'a = b + c * 24' && eo.insignia === 'corrige primero'],
+    ['la pestaña 6 tambien tiene el codigo, y sin la clase pide corregir primero',
+      eb.visible && eb.codigo === 'a = b + c * 24' && eb.insignia === 'corrige primero'],
     ['Ctrl+Tab cambia de pestaña (de la ultima vuelve a la primera)', dr.activa === 'lexico'],
 
     // Pestaña 4: el codigo intermedio
@@ -1201,6 +1310,27 @@ function informar (d) {
       op.cuadruplos === 9 && op.segundo.join('|') === '3|+|lado|lado|t4'],
     ['con errores no se optimiza y se dice por que',
       om.insignia === 'corrige primero' && om.titulo === '✕ No se pudo optimizar el código intermedio' && om.errores === 1],
+    // Pestaña 6: el codigo objeto (Java)
+    ['el programa se traduce a Java: la clase, el main, el for, el if y el switch',
+      ob.insignia === 'figuras.java' && /^✓ figuras\.java · \d+ renglones de Java · 1 método/.test(ob.resumen) &&
+      ob.renglones.includes('public class figuras {') &&
+      ob.renglones.includes('public static void main(String[] args) {') &&
+      ob.renglones.includes('for (int i = 1; i <= n; i++) {') &&
+      ob.renglones.includes('if (suma > 10) {') && ob.renglones.includes('switch (n % 3) {')],
+    ['leer usa un Scanner y los renglones van numerados',
+      ob.renglones.includes('import java.util.Scanner;') && ob.renglones.includes('int n = entrada.nextInt();') &&
+      ob.numeros === ob.renglones.length],
+    ['el Java lleva sus colores y cada renglon dice de donde sale',
+      ob.clases.control.includes('for') && ob.clases.control.includes('switch') && ob.clases.tipo.includes('int') &&
+      ob.clases.cadena > 0 && /^Sale de la línea 6 del programa$/.test(ob.origen) && ob.vistaActiva === 'obj-ver-java'],
+    ['la otra vista pone el codigo optimizado junto al Java',
+      ob.vistaLado === 'obj-ver-lado' && ob.lados.join(' | ') === 'Código optimizado (pestaña 5) | Java: figuras.java (pestaña 6)' &&
+      ob.tresDirecciones > 0 && ob.javaAlLado === ob.renglones.length],
+    ['Guardar .java guarda el programa con el nombre de la clase',
+      /Código Java guardado/.test(ob.aviso) && /figuras\.java/.test(ob.aviso) &&
+      ob.archivo.includes('public class figuras {')],
+    ['con errores no se genera el Java y se dice por que',
+      obm.insignia === 'corrige primero' && obm.titulo === '✕ No se pudo generar el código objeto' && obm.errores === 1],
     ['al regresar nada se borro: la tabla y la fila marcada siguen',
       dr.filas === 7 && dr.seleccionada === 1],
 
@@ -1254,12 +1384,12 @@ function informar (d) {
       g.contenido.startsWith('<!DOCTYPE html>') && g.contenido.includes('Programación de Sistemas de Base II')],
     ['el reporte lleva los tres logos adentro',
       g.contenido.split('src="data:image/jpeg;base64,').length - 1 === 3],
-    ['el reporte trae las cuatro secciones',
-      ['Código fuente', 'Análisis léxico', 'Análisis sintáctico', 'Análisis semántico']
-        .every((t) => g.contenido.includes(t))],
+    ['el reporte trae las siete secciones',
+      ['Código fuente', 'Análisis léxico', 'Análisis sintáctico', 'Análisis semántico', 'Código intermedio',
+        'Código optimizado', 'Código objeto (Java)'].every((t) => g.contenido.includes(t))],
     ['el reporte guarda el codigo para volver a abrirlo',
       g.contenido.includes('id="datos-swordbyte"') && g.contenido.includes('"pestana":"semantico"')],
-    ['al abrirlo regresa el codigo a las cinco pestañas',
+    ['al abrirlo regresa el codigo a las seis pestañas',
       ra.codigos.every((c) => c === EJEMPLO_SEMANTICO)],
     ['y regresa a la pestaña desde la que se guardo',
       ra.activa === 'semantico' && ra.insignia === 'sin errores'],
@@ -1294,7 +1424,7 @@ function informar (d) {
       JSON.stringify(eq.apellidos) === JSON.stringify(ORDEN_ESPERADO)],
 
     // Botones
-    ['Limpiar vacia el codigo y los resultados de las cinco pestañas',
+    ['Limpiar vacia el codigo y los resultados de las seis pestañas',
       tl.codigos.every((c) => c === '') && tl.nodos === 0 && tl.filas === 0 && tl.gramatica === 0],
     ['Analisis Lexico solo llena la caja lexica',
       sl.lexica.includes('id1 = id2 + id3 * num(2)') && sl.nodos === 0],
@@ -1320,7 +1450,7 @@ function informar (d) {
     ['y la suma todavia mas abajo', ex.niveles[4].join() === 'id1,+'],
 
     // Cargar un ejemplo
-    ['un ejemplo del menu se carga en las cuatro pestañas y se analiza',
+    ['un ejemplo del menu se carga en las seis pestañas y se analiza',
       ej2.codigos.every((c) => c === 'x = a * 2') && ej2.lexica === 'id1 = id2 * num(2)' &&
       ej2.nodos > 0 && ej2.filas === 5],
     ['y queda registrado su nombre', ej2.nombre === '99-prueba.bs'],
@@ -1369,7 +1499,7 @@ function informar (d) {
     ['en la tabla lexica el error sale en rojo', ce.filaError === 1],
 
     // Numeros de renglon y colores de Java
-    ['los tres cuadros de codigo llevan numeros y colores', ed.enLosTres === true],
+    ['los seis cuadros de codigo llevan numeros y colores', ed.enLosTres === true],
     ['hay un numero por renglon, del 1 al 5', ed.numeros === '1\n2\n3\n4\n5'],
     ['cada palabra se pinta mientras se escribe, segun lo que es (como Java)',
       ed.clases.tipo === 'entero' && ed.clases.control === 'si' && ed.clases.operador === 'Y' &&
