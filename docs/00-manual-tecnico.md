@@ -62,8 +62,15 @@ Integrantes (orden alfabético por apellidos):
 **[Parte V ter — El código intermedio](#parte-v-ter--el-código-intermedio)**
 20 sexies. [Código de tres direcciones y cuádruplos](#20-sexies-código-de-tres-direcciones-y-cuádruplos)
 
+**[Parte V quater — La optimización](#parte-v-quater--la-optimización)**
+20 septies. [Mejorar el código sin cambiar lo que hace](#20-septies-mejorar-el-código-sin-cambiar-lo-que-hace)
+
+**[Parte V quinquies — El código objeto (Java)](#parte-v-quinquies--el-código-objeto-java)**
+20 octies. [De saltos a estructuras: un descompilador](#20-octies-de-saltos-a-estructuras-un-descompilador)
+20 nonies. [Cómo se escribe el Java](#20-nonies-cómo-se-escribe-el-java)
+
 **[Parte VI — La aplicación](#parte-vi--la-aplicación)**
-21. [La ventana y sus cuatro pestañas](#21-la-ventana-y-sus-cuatro-pestañas)
+21. [La ventana y sus seis pestañas](#21-la-ventana-y-sus-seis-pestañas)
 22. [El dibujo del árbol](#22-el-dibujo-del-árbol)
 23. [El zoom y la vista por ramas](#23-el-zoom-y-la-vista-por-ramas)
 24. [El reporte visual (.html)](#24-el-reporte-visual-html)
@@ -96,6 +103,7 @@ partes I y II. Si vas a modificar el código, lee todo.
 | **IV. Análisis léxico** | La fase 1, por dentro | Quien vaya a modificarla |
 | **V. Análisis sintáctico** | La fase 2, por dentro | Quien vaya a modificarla |
 | **V bis. Análisis semántico** | La pestaña 3, por dentro | Quien vaya a modificarla |
+| **V ter, quater y quinquies. Síntesis** | Las pestañas 4, 5 y 6: código intermedio, optimización y Java | Quien vaya a modificarlas |
 | **VI. La aplicación** | Las pestañas, el árbol, los reportes | Quien toque la interfaz |
 | **VII. Operación** | Pruebas, empaquetado, cómo extender | Mantenimiento |
 | **Apéndices** | Tablas de consulta rápida | Consulta |
@@ -115,22 +123,23 @@ Es un **compilador** para un lenguaje de programación propio llamado
 **SwordByte**, escrito en JavaScript y entregado como una aplicación de
 escritorio para Windows.
 
-En una frase: **le das código y te dice si está bien escrito, mostrándote el
-proceso paso a paso.** La aplicación tiene cuatro pestañas, una por fase, que
-trabajan sobre el mismo código.
+En una frase: **le das código SwordByte, te dice si está bien escrito y lo
+traduce a Java, mostrándote el proceso paso a paso.** La aplicación tiene seis
+pestañas, una por fase, que trabajan sobre el mismo código.
 
 | | |
 |---|---|
 | **Lenguaje que compila** | SwordByte (archivos `.bs`) |
 | **Lenguaje destino** | Java |
 | **Lenguaje en que está escrito** | JavaScript (Node.js + Electron) |
-| **Analizadores (pestañas)** | 1. Léxico · 2. Léxico-sintáctico · 3. Semántico |
-| **Qué hace cada uno** | 1, la tabla de tokens; 2, la salida `id1 > id2` y el árbol; 3, la gramática del código. Los tres con el mismo lenguaje y las mismas reglas |
+| **Fases (pestañas)** | 1. Léxico · 2. Léxico-sintáctico · 3. Semántico · 4. Código intermedio · 5. Optimización · 6. Código objeto |
+| **Qué hace cada una** | 1, la tabla de tokens; 2, la salida `id1 > id2` y el árbol; 3, los errores semánticos y la gramática del código; 4, el código de tres direcciones y los cuádruplos; 5, el código optimizado y cada cambio; 6, el programa en Java. Todas con el mismo lenguaje y las mismas reglas |
 | **Entregable** | `.exe` portable e instalador para Windows |
 | **Dependencias del compilador** | Ninguna. JavaScript puro |
 
 Esa última fila es importante: **el compilador no usa ninguna librería**. Ni
-para el léxico, ni para la gramática, ni para dibujar el árbol. Todo está
+para el léxico, ni para la gramática, ni para dibujar el árbol, ni para
+optimizar o escribir el Java. Todo está
 escrito a mano, que es justo lo que pide la materia.
 
 ---
@@ -164,25 +173,34 @@ jalón: lo hace en **fases**, y cada fase recibe lo que produjo la anterior.
  └──────────────────┘
         │  t1 = c * d ...
         ▼
- ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─┐
- │ 5. OPTIMIZACIÓN  │  ┐
- ├ ─ ─ ─ ─ ─ ─ ─ ─ ─┤  ├─ fuera del alcance de esta entrega
- │ 6. GENERACIÓN    │  ┘
- └ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
+ ┌──────────────────┐
+ │ 5. OPTIMIZACIÓN  │  lo mejora sin cambiar lo que hace
+ └──────────────────┘
+        │  el mismo código, más corto
+        ▼
+ ┌──────────────────┐
+ │ 6. CÓDIGO OBJETO │  lo escribe en el lenguaje destino
+ └──────────────────┘
         │
         ▼
-    Código Java
+    Código Java (.java)
 ```
 
-**Este proyecto implementa las fases 1, 2, 3 y 4 para el lenguaje SwordByte.**
+**Este proyecto implementa las seis fases para el lenguaje SwordByte.**
 El **analizador semántico** revisa que el código tenga sentido (nombres
 declarados, tipos que coinciden) y además **genera su gramática**: las reglas
 que producen exactamente ese código (ver la
 [Parte V bis](#parte-v-bis--el-analizador-semántico)). El **generador de
 código intermedio** traduce el programa a código de tres direcciones y
-cuádruplos (ver la [Parte V ter](#parte-v-ter--el-código-intermedio)). Las
-fases 5 y 6 no están: ni el código ni las carpetas, porque código vacío que
-nadie usa sólo estorba al leer.
+cuádruplos (ver la [Parte V ter](#parte-v-ter--el-código-intermedio)). El
+**optimizador** lo mejora sin cambiar lo que hace (ver la
+[Parte V quater](#parte-v-quater--la-optimización)) y el **generador de código
+objeto** lo escribe en **Java**, listo para `javac` (ver la
+[Parte V quinquies](#parte-v-quinquies--el-código-objeto-java)).
+
+Las fases 1 a 3 son el **análisis** (entender el programa y encontrar sus
+errores); las 4 a 6, la **síntesis** (traducirlo). La síntesis sólo trabaja con
+un programa sin errores.
 
 ### Las dos piezas que comparten todas las fases
 
@@ -192,10 +210,12 @@ no son de una fase: los usan todas. Por eso viven en `src/core/comun/`:
 | Pieza | Archivo | Qué hace cada fase con ella |
 |---|---|---|
 | Tabla de símbolos | [`TablaSimbolos.js`](../src/core/comun/TablaSimbolos.js) | El léxico anota cada identificador y le da su etiqueta (`edad → id1`); el sintáctico usa esas etiquetas en el árbol; el semántico completa cada nombre con su tipo y su ámbito |
-| Manejo de errores | [`ErrorCompilacion.js`](../src/core/comun/ErrorCompilacion.js) | Las tres reportan sus errores con el mismo formato (fase, mensaje, línea, columna, sugerencia); `Compilador.js` los junta y la interfaz los muestra y los subraya igual |
+| Manejo de errores | [`ErrorCompilacion.js`](../src/core/comun/ErrorCompilacion.js) | Todas reportan sus errores con el mismo formato (fase, mensaje, línea, columna, sugerencia); `Compilador.js` los junta y la interfaz los muestra y los subraya igual |
 
 [`Compilador.js`](../src/core/Compilador.js) crea **una** tabla de símbolos
-por cada código que se analiza y se la pasa a las tres fases.
+por cada código que se analiza y se la pasa a las tres fases de análisis. La
+fase 4 deja anotados, para la 6, el tipo de cada variable de cada función
+(`simbolos`).
 
 ### La diferencia entre las fases, con una analogía
 
@@ -272,9 +292,9 @@ recibe los tokens y verifica que formen algo válido. Como lo logra, construye e
      id1     id2
 ```
 
-### Paso 5 — Se muestra en las cuatro pestañas
+### Paso 5 — Se muestra en las seis pestañas
 
-Con el mismo resultado se llenan las cuatro pestañas a la vez:
+Con el mismo resultado se llenan las seis pestañas a la vez:
 
 - **Pestaña 1:** la tabla de tokens (`a` → identificador, `>` → operador mayor
   que, `b` → identificador).
@@ -284,8 +304,10 @@ Con el mismo resultado se llenan las cuatro pestañas a la vez:
   sólo revisa programas, `clase nombre { clasePrincipal { ... } }` (ver la
   [Parte V bis](#parte-v-bis--el-analizador-semántico)). Las expresiones
   sueltas como `a > b` son para practicar en las pestañas 1 y 2.
-- **Pestaña 4:** tampoco genera código intermedio: sin un programa correcto
-  pide corregir primero.
+- **Pestañas 4, 5 y 6:** tampoco generan código intermedio, ni lo optimizan,
+  ni escriben Java: sin un programa correcto piden corregir primero. Con un
+  programa (`clase p { clasePrincipal { ... } }`) llegarían hasta el archivo
+  `p.java`.
 
 ### El mismo recorrido, en una sola llamada
 
@@ -300,12 +322,15 @@ resultado.lexico.salida       // 'id1 > id2'
 resultado.lexico.tabla        // [{ lexema: 'a', token: 'identificador', ... }, ...]
 resultado.sintactico.arbol    // { etiqueta: '>', hijos: [...] }
 resultado.semantico.estado    // 'sin-clase' (con un programa: 'analizado')
+resultado.intermedio.estado   // 'errores-previos' (con un programa: 'generado')
+resultado.optimizacion.estado // 'errores-previos' (con un programa: 'optimizado')
+resultado.objeto.estado       // 'errores-previos' (con un programa: 'generado', y objeto.codigo es el Java)
 resultado.errores             // []  (sólo errores de SwordByte)
 ```
 
 Esa función está en [`Compilador.js`](../src/core/Compilador.js) y es **el único
 punto de entrada** al compilador. Nada fuera de `src/core/` llama directamente
-al léxico, al sintáctico o al semántico.
+a una fase.
 
 ---
 ---
@@ -557,11 +582,14 @@ Compilador/
 │   ├── 06-manual-de-usuario.md
 │   ├── 07-mantenimiento.md
 │   ├── 08-analizador-semantico.md
+│   ├── 09-codigo-intermedio.md
+│   ├── 10-optimizacion.md
+│   ├── 11-codigo-objeto.md
 │   └── capturas/                    Imágenes de la aplicación
 │
 ├── src/
 │   ├── core/                    EL COMPILADOR (JavaScript puro)
-│   │   ├── Compilador.js             Une las cuatro fases en una llamada
+│   │   ├── Compilador.js             Une las seis fases en una llamada
 │   │   ├── ReporteHTML.js            El reporte visual (.html) y su lectura
 │   │   ├── Reporte.js                El reporte en texto (.bs)
 │   │   ├── ArchivoGuardado.js        Elige el formato al guardar y lee al abrir
@@ -570,8 +598,8 @@ Compilador/
 │   │   │   ├── Token.js                  estructura de un token
 │   │   │   ├── TiposToken.js             catálogo de categorías léxicas
 │   │   │   ├── Equipo.js                 datos del equipo y de la materia
-│   │   │   ├── ErrorCompilacion.js       manejo de errores: el formato de las 3 fases
-│   │   │   └── TablaSimbolos.js          tabla de símbolos: la usan las 3 fases
+│   │   │   ├── ErrorCompilacion.js       manejo de errores: el formato de todas las fases
+│   │   │   └── TablaSimbolos.js          tabla de símbolos: la usan las 3 fases de análisis
 │   │   │
 │   │   ├── 01.lexico/           FASE 1
 │   │   │   ├── AnalizadorLexico.js       recorre el fuente y produce tokens
@@ -590,13 +618,28 @@ Compilador/
 │   │   │   ├── GeneradorGramatica.js     genera la gramática del código
 │   │   │   └── TextoDeNodo.js            vuelve a escribir un nodo como código
 │   │   │
-│   │   └── 04.intermedio/       FASE 4
-│   │       ├── Instrucciones.js          las formas del código de tres direcciones
-│   │       └── GeneradorIntermedio.js    traduce el árbol a tres direcciones
+│   │   ├── 04.intermedio/       FASE 4
+│   │   │   ├── Instrucciones.js          las formas del código de tres direcciones
+│   │   │   └── GeneradorIntermedio.js    traduce el árbol a tres direcciones
+│   │   │
+│   │   ├── 05.optimizacion/     FASE 5
+│   │   │   ├── Optimizador.js            bloques básicos y las optimizaciones
+│   │   │   └── Literales.js              cálculos con valores fijos, como en Java
+│   │   │
+│   │   └── 06.objeto/           FASE 6
+│   │       ├── GeneradorJava.js          punto de entrada: la clase, las declaraciones, el apoyo
+│   │       ├── Sentencias.js             tres direcciones -> sentencias; tipo de los temporales
+│   │       ├── Expresiones.js            expresiones, sus tipos y sus efectos
+│   │       ├── Estructurador.js          saltos -> if, while, switch, try (dominadores y ciclos)
+│   │       ├── Limpieza.js               while (c), do-while, for, else if...
+│   │       ├── EscritorJava.js           el texto de Java, con sus paréntesis
+│   │       ├── TiposJava.js              los tipos de SwordByte en Java
+│   │       ├── ConstantesJava.js         las condiciones que Java considera constantes
+│   │       └── ResaltadoJava.js          los colores del Java
 │   │
 │   └── ui/                      INTERFAZ GRÁFICA
-│       ├── index.html                encabezado, pestañas y los cuatro paneles
-│       ├── css/estilos.css           una sola paleta para las cuatro pestañas
+│       ├── index.html                encabezado, pestañas y los seis paneles
+│       ├── css/estilos.css           una sola paleta para las seis pestañas
 │       ├── img/                      logos UAT, UAMM e ISC
 │       └── js/
 │           ├── dom.js                ayudas: errores, notas, insignias
@@ -608,7 +651,10 @@ Compilador/
 │           ├── panel-lexico.js       pinta la pestaña 1
 │           ├── panel-sintactico.js   pinta la pestaña 2
 │           ├── panel-semantico.js    pinta la pestaña 3
+│           ├── vista-intermedio.js   dibuja tres direcciones y cuádruplos (pestañas 4 a 6)
 │           ├── panel-intermedio.js   pinta la pestaña 4
+│           ├── panel-optimizacion.js pinta la pestaña 5
+│           ├── panel-objeto.js       pinta la pestaña 6
 │           └── app.js                código compartido, botones, menú, archivos
 │
 ├── electron/                    APLICACIÓN DE ESCRITORIO
@@ -618,12 +664,15 @@ Compilador/
 │
 ├── ejemplos/                    7 programas .bs de demostración
 ├── pruebas/
-│   ├── ejecutar.js                   161 pruebas del compilador
-│   └── verificar-ui.js               142 comprobaciones sobre la ventana real
+│   ├── ejecutar.js                   201 pruebas del compilador
+│   ├── interprete-intermedio.js      ejecuta código de tres direcciones (imprime como Java)
+│   ├── programas-al-azar.js          escribe programas SwordByte correctos al azar
+│   ├── EjecutarJava.java             corre muchos programas Java en una sola máquina virtual
+│   └── verificar-ui.js               160 comprobaciones sobre la ventana real
 ├── herramientas/
 │   ├── generar-icono.js              genera el icono de la app
 │   └── generar-gramatica.js          regenera docs/04 desde Gramatica.js
-├── salida/                      Donde caen los reportes guardados
+├── salida/                      Donde caen los reportes y los .java guardados
 └── dist/                        Los .exe generados
 ```
 
@@ -635,8 +684,8 @@ Es JavaScript puro, sin `require('electron')`, sin `document`, sin `window`. Se
 puede usar desde Node, desde una prueba o desde otra aplicación. Eso tiene dos
 consecuencias prácticas:
 
-1. Las **161 pruebas del compilador corren sin abrir ninguna ventana**, en menos
-   de un segundo.
+1. Las **201 pruebas del compilador corren sin abrir ninguna ventana**, en un
+   par de segundos (unos cinco si además compilan el Java con `javac`).
 2. Si algún día se quisiera una versión web o de línea de comandos, `src/core/`
    se reusa tal cual.
 
@@ -673,11 +722,12 @@ ni una más:
 
 | Función expuesta | Qué hace |
 |---|---|
-| `window.api.analizar(fuente, opciones)` | Compila y devuelve el resultado de las cuatro fases |
+| `window.api.analizar(fuente, opciones)` | Compila y devuelve el resultado de las seis fases |
 | `window.api.equipo()` | Devuelve los datos del equipo |
 | `window.api.abrirArchivo()` | Abre el diálogo de abrir; devuelve el código y, si es un reporte `.html`, su pestaña |
 | `window.api.leerArchivo(texto)` | Lo mismo, para un archivo soltado sobre la ventana |
 | `window.api.guardarReporte(fuente, pestana)` | Abre el diálogo de guardar (`.html` o `.bs`) |
+| `window.api.guardarJava(fuente)` | Abre el diálogo de guardar el programa Java (`clase.java`) |
 | `window.api.verReporte()` | Abre en el navegador el último reporte `.html` |
 | `window.api.salir()` | Cierra la aplicación (la interfaz ya preguntó) |
 
@@ -687,19 +737,23 @@ Más `window.api.alMenu(manejador)`, que recibe las órdenes del menú superior.
 
 ```
 1. app.js            botón → this.analizar('sintactico', 'ambos')
-                     copia el código de la pestaña 2 a las otras dos
+                     copia el código de la pestaña 2 a las demás
 2. preload.js        window.api.analizar(fuente, {})
 3. IPC               canal 'compilador:analizar'
 4. main.js           compilar(fuente, opciones)
-5. Compilador.js     léxico → tabla → sintáctico → semántico
+5. Compilador.js     léxico → tabla → sintáctico → semántico →
+                     intermedio → optimización → Java
 6.                   devuelve un objeto plano
 7. IPC (de regreso)  el objeto viaja serializado como JSON
 8. app.js            panelLexico.pintar(r)            → pestaña 1
                      panelSintactico.pintar(r, que)   → pestaña 2
                      panelSemantico.pintar(r)         → pestaña 3
+                     panelIntermedio.pintar(r)        → pestaña 4
+                     panelOptimizacion.pintar(r)      → pestaña 5
+                     panelObjeto.pintar(r)            → pestaña 6
 ```
 
-El paso 8 llena **las cuatro pestañas** con el mismo resultado. Por eso, al
+El paso 8 llena **las seis pestañas** con el mismo resultado. Por eso, al
 cambiar de pestaña, el análisis ya está ahí.
 
 > **Por qué el resultado debe ser un objeto plano:** lo que viaja por IPC se
@@ -1810,13 +1864,158 @@ línea. Las formas, con su cuádruplo, están en
 [`Instrucciones.js`](../src/core/04.intermedio/Instrucciones.js) y el detalle
 de cada traducción en [09 — Código intermedio](09-codigo-intermedio.md).
 
+Dos detalles más que necesitan las fases 5 y 6: si dos variables con el mismo
+nombre y **distinto tipo** viven en bloques distintos, la segunda se renombra
+(`x_2`), porque en el código intermedio y en Java cada nombre tiene un solo
+tipo; y un `romper` dentro de un `intentar` emite primero un `finIntentar`.
+
+---
+
+# PARTE V quater — LA OPTIMIZACIÓN
+
+## 20 septies. Mejorar el código sin cambiar lo que hace
+
+La fase 5 ([`src/core/05.optimizacion/`](../src/core/05.optimizacion/)) recibe
+el código de tres direcciones de la fase 4 y entrega **el mismo tipo de
+código, más corto**. La regla de oro: el programa debe hacer **exactamente lo
+mismo**, también cuando falla.
+
+```
+entero b = 2;              Fase 4                   Fase 5
+entero a = b * 3;          b = 2                    param 6
+imprimirLn(a);             t1 = b * 3               call imprimirLn, 1
+                           a = t1
+                           param a
+                           call imprimirLn, 1
+```
+
+Se propagó el `2`, se plegó `2 * 3` en `6`, se propagó el `6` hasta el
+`param`, y entonces `b`, `t1` y `a` ya no las usaba nadie: se quitaron.
+
+**Las optimizaciones** son las clásicas (Aho et al., cap. 8.5 y 9):
+
+| Optimización | Ejemplo |
+|---|---|
+| Plegado de constantes | `t1 = 2 * 3` → `t1 = 6` |
+| Propagación de constantes | `b = 2` … `t1 = b * 3` → `t1 = 2 * 3` |
+| Propagación de copias | `t1 = b * c` `a = t1` → `a = b * c` |
+| Subexpresiones comunes | `t2 = a * b` (otra vez) → `t2 = t1` |
+| Simplificación algebraica | `x * 1`, `x - 0` → `x` |
+| Reducción de fuerza | `x * 2` → `x + x` |
+| Código muerto | un valor que nadie usa, un valor que se pisa antes de usarse, una `potencia(…)` sin usar |
+| Código inalcanzable | lo que va después de un `goto` o un `return` |
+| Optimización de saltos | `ifFalse verdadero goto L1`, un `goto` a la instrucción de abajo o a otro `goto`, etiquetas que nadie usa |
+
+**Cómo se aplican.** [`Optimizador.js`](../src/core/05.optimizacion/Optimizador.js)
+parte cada función en **bloques básicos** (pedazos que siempre se ejecutan
+completos: empiezan en una etiqueta y terminan en un salto). Lo que se sabe de
+una variable («`b` vale 2») sólo se usa dentro de su bloque, porque a una
+etiqueta se puede llegar desde otro lado (la vuelta de un ciclo). Las
+optimizaciones se repiten **hasta que ninguna cambia nada**, porque una le
+abre paso a la otra.
+
+**Lo que no se toca.** Una división entre cero o un convertir de un texto que
+no es número deben fallar al ejecutarse (y `capturar` puede estarlo
+esperando), así que no se calculan ni se quitan. Tampoco un entero que se sale
+de su rango, una llamada que imprime o lee, ni un valor que se pisa dentro de
+un `intentar`. Los cálculos con valores fijos se hacen **como Java**
+(división entera, rango de `int`) en
+[`Literales.js`](../src/core/05.optimizacion/Literales.js).
+
+Cada cambio queda anotado con su *antes* y su *después*, y cada instrucción
+recuerda su número en la fase 4. Eso es lo que muestra la pestaña 5. Detalles
+en [10 — Optimización](10-optimizacion.md).
+
+---
+
+# PARTE V quinquies — EL CÓDIGO OBJETO (JAVA)
+
+## 20 octies. De saltos a estructuras: un descompilador
+
+La fase 6 ([`src/core/06.objeto/`](../src/core/06.objeto/)) escribe el código
+optimizado en **Java**, el lenguaje destino. El problema es que el código de
+tres direcciones decide y repite con **saltos**, y Java no tiene `goto`: hay
+que **volver a encontrar** los `if`, `while` y `for` que la fase 4 deshizo. Es
+el trabajo de un *descompilador*:
+
+```
+    i = 1                          for (int i = 1; i <= n; i++) {
+  L1:                                  suma = suma + i;
+    t1 = i <= n                    }
+    ifFalse t1 goto L2
+    suma = suma + i        ──►
+    i = i + 1
+    goto L1
+  L2:
+```
+
+Se hace en pasos, uno por archivo:
+
+1. **Bajar a sentencias** ([`Sentencias.js`](../src/core/06.objeto/Sentencias.js)).
+   Cada instrucción se vuelve una sentencia con expresiones (`param` y `call`
+   se juntan en una llamada) y se calcula el **tipo de cada temporal**, que el
+   código intermedio no dice pero sale de su operación (`t1 = a > b` es
+   lógico).
+2. **Estructurar** ([`Estructurador.js`](../src/core/06.objeto/Estructurador.js)).
+   Primero se juntan los temporales que se usan una vez en **expresiones**
+   (`t1 = c * d` · `a = b + t1` → `a = b + c * d`), sólo si no cambia el orden
+   de lo que hace el programa, y se reconocen los `Y`/`O` con corto circuito,
+   los `x++` y las `opcion`. Luego, con las herramientas del análisis de flujo:
+   - el **grafo de flujo** de los bloques básicos;
+   - los **dominadores** (A domina a B si para llegar a B siempre se pasa por
+     A), con el algoritmo de Cooper, Harvey y Kennedy;
+   - los **ciclos**: un salto hacia atrás a un bloque que lo domina es la
+     vuelta de un ciclo;
+   - y se recorre el árbol de dominadores (Ramsey, *Beyond Relooper*, 2022):
+     una cabecera de ciclo se vuelve `while (true)`, un bloque al que llegan
+     dos caminos va **después** y se llega a él con `break`, un salto hacia
+     atrás es `continue`.
+
+   Un `intentar` es una **región** (de `intentar L` a la etiqueta `L`) que se
+   estructura aparte, como si fuera otra función, para que nada de afuera
+   quede dentro del `try` por accidente.
+3. **Limpiar** ([`Limpieza.js`](../src/core/06.objeto/Limpieza.js)). Lo
+   anterior siempre funciona, pero sale tosco (`while (true)` con `break`,
+   bloques con etiqueta). Pequeñas reglas, que no cambian lo que hace el
+   programa, lo dejan como lo escribiría una persona: quitar saltos que llevan
+   a donde de todos modos se iba a llegar, `while (true) { if (!c) break; … }`
+   → `while (c)`, el `do-while`, el `for`, el `else if`… Se repiten hasta que
+   nada cambia.
+
+## 20 nonies. Cómo se escribe el Java
+
+4. **Declarar las variables** ([`GeneradorJava.js`](../src/core/06.objeto/GeneradorJava.js)).
+   Cada variable se declara donde recibe su primer valor, lo más adentro
+   posible (`int suma = 0;`, `for (int i = 1; …)`), cuidando la regla de Java
+   de que toda variable tenga valor antes de usarse. Un arreglo con todos sus
+   valores se escribe `int[] d = {4, 5, 6};`. Los nombres que chocan con Java
+   (`new`, `class`, `System`…) llevan `_`.
+5. **Escribir el texto** ([`EscritorJava.js`](../src/core/06.objeto/EscritorJava.js)).
+   Las expresiones se escriben con los **paréntesis exactos** que pide la
+   precedencia de Java, y cada cosa de SwordByte con su equivalente:
+
+| SwordByte | Java |
+|---|---|
+| `entero`, `decimal`, `cadena`, `logico` | `int`, `double`, `String`, `boolean` |
+| `si` / `sino` · `mientras` · `hacer` · `para` · `opcion` · `intentar` | `if` / `else` · `while` · `do-while` · `for` · `switch` · `try-catch` |
+| `funcion entero f(entero n)` · `clasePrincipal` | `static int f(int n)` · `public static void main(String[] args)` |
+| `imprimirLn(x)` · `leer(x)` | `System.out.println(x)` · `x = entrada.nextInt();` |
+| `a == b` (cadenas) · `Y` · `NO` | `a.equals(b)` · `&&` · `!` |
+| `potencia(a, b)` · `redondear(x)` | `Math.pow(a, b)` · `(int) Math.round(x)` |
+| `aleatorio(1, 6)`, `area.circulo(r)` | una **función de apoyo** al final de la clase, sólo si se usa |
+
+El resultado es un archivo que compila con `javac` tal cual. Para saberlo con
+certeza, las pruebas (sección 25) compilan y ejecutan el Java de los ejemplos y
+de programas escritos al azar, y comparan lo que imprime con lo que imprime el
+código de tres direcciones. Detalles en [11 — Código objeto](11-codigo-objeto.md).
+
 ---
 
 # PARTE VI — LA APLICACIÓN
 
-## 21. La ventana y sus cuatro pestañas
+## 21. La ventana y sus seis pestañas
 
-Hasta arriba van las cuatro pestañas. Debajo, la pestaña activa, **cada una con
+Hasta arriba van las seis pestañas. Debajo, la pestaña activa, **cada una con
 su propio diseño**: sus logos, sus botones y sus cuadros van donde los pide su
 diseño. Lo que comparten es el estilo (la paleta, los botones, las cajas).
 
@@ -1844,6 +2043,8 @@ diseño. Lo que comparten es el estilo (la paleta, los botones, las cajas).
 | **2 · Analizador Léxico-Sintáctico** | El anterior, sin cambios: los tres logos arriba; código, salida `id1 > id2` y árbol | A la izquierda: Limpiar · Análisis Léxico · Análisis Sintáctico · Análisis Léxico-Sintáctico · Equipo · Salir |
 | **3 · Analizador Semántico** | El del pizarrón: los tres logos en columna a la izquierda; título; código para analizar; análisis del código dado | A la derecha, repartidos: Limpieza · Analiza · Equipo · Termina |
 | **4 · Código Intermedio** | El de la pestaña 3; el cuadro del resultado tiene dos vistas: *Tres direcciones* y *Cuádruplos* | A la derecha, repartidos: Limpieza · Genera · Equipo · Termina |
+| **5 · Optimización** | El de la pestaña 3; arriba el resumen (de cuántas instrucciones a cuántas y cuántas veces se usó cada optimización) y tres vistas: *Optimizado*, *Cambios* y *Cuádruplos* | A la derecha, repartidos: Limpieza · Optimiza · Equipo · Termina |
+| **6 · Código Objeto** | El de la pestaña 3; arriba el resumen (archivo, renglones, métodos, funciones de apoyo) y dos vistas: *Java* y *Junto al optimizado* | A la derecha, repartidos: Limpieza · Genera · Guardar .java · Equipo · Termina |
 
 En el HTML cada panel trae su propio encabezado
 (`.encabezado-lexico`, `.encabezado`, `.logos-columna`). Los textos que
@@ -1853,17 +2054,20 @@ dependen del equipo llevan `data-dato="equipo"`, `"grupo"`, `"carrera"` o
 
 La aplicación **abre en blanco y en la pestaña 1**.
 
-### 21.1 Un solo código para las cuatro pestañas
+### 21.1 Un solo código para las seis pestañas
 
-Cada pestaña tiene su propio cuadro de código, pero los tres llevan siempre lo
+Cada pestaña tiene su propio cuadro de código, pero todos llevan siempre lo
 mismo. [`app.js`](../src/ui/js/app.js) los guarda en un objeto y, cuando uno
-cambia, copia su texto a los otros dos:
+cambia, copia su texto a los demás:
 
 ```js
 this.editores = {
   lexico: document.getElementById('lex-codigo'),
   sintactico: document.getElementById('codigo'),
-  semantico: document.getElementById('sem-codigo')
+  semantico: document.getElementById('sem-codigo'),
+  intermedio: document.getElementById('int-codigo'),
+  optimizacion: document.getElementById('opt-codigo'),
+  objeto: document.getElementById('obj-codigo')
 };
 
 _copiarCodigoDesde (origen) {
@@ -1874,7 +2078,7 @@ _copiarCodigoDesde (origen) {
 ```
 
 Al analizar desde cualquier pestaña se compila una vez y el resultado se pinta
-en los cuatro paneles. Cambiar de pestaña sólo esconde un panel y muestra otro
+en los seis paneles. Cambiar de pestaña sólo esconde un panel y muestra otro
 (`.panel` vs `.panel.activo` en el CSS), así que **nada se borra al cambiar**:
 la fila marcada, la rama abierta del árbol y el zoom siguen ahí al regresar.
 
@@ -2095,7 +2299,7 @@ Sus partes:
    se guardó.
 2. **Ficha**: programa, equipo, los seis integrantes, materia, grado y grupo,
    carrera, institución, unidad, fecha y hora. A la derecha, una tarjeta por
-   análisis (verde o roja).
+   fase (verde o roja).
 3. **1. Código fuente**, con los renglones numerados.
 4. **2. Análisis léxico**: la salida `id1 > id2` en colores, los
    identificadores y la tabla de tokens.
@@ -2108,6 +2312,10 @@ Sus partes:
    pestaña 3.
 7. **5. Código intermedio**: el código de tres direcciones, con el renglón
    del programa de donde sale cada grupo, y la tabla de cuádruplos.
+8. **6. Código optimizado**: el código que quedó (lo que cambió, en verde) y
+   la lista de cambios con su *antes* y su *después*.
+9. **7. Código objeto (Java)**: el programa en Java con sus colores y sus
+   números de renglón, y cómo compilarlo.
 
 En la sección 1, el código lleva sus errores (de las tres fases) subrayados en
 rojo, igual que en el editor.
@@ -2156,7 +2364,7 @@ cuarta sección con la gramática generada.
 ```
 // ==========================================================================
 //  C O M P I L A D O R   S W O R D B Y T E
-//  Reporte de análisis léxico, sintáctico y semántico
+//  Reporte de las seis fases: del código SwordByte al código Java
 // ==========================================================================
 //  Programa .......... ejemplo.bs
 //  Equipo ............ SwordByte
@@ -2218,6 +2426,15 @@ a = b + c > 9 AND d > e OR f <= 30
 
 //  Falta la clase: el código va dentro de una clase:
 //    clase ejemplo { clasePrincipal { ... } }
+
+// --------------------------------------------------------------------------
+//  5. CÓDIGO INTERMEDIO (TRES DIRECCIONES)
+// --------------------------------------------------------------------------
+
+//  No se generó: primero hay que corregir los errores del programa.
+
+//  6. CÓDIGO INTERMEDIO OPTIMIZADO   (igual: con un programa, el código y los cambios)
+//  7. CÓDIGO OBJETO (JAVA)           (igual: con un programa, el Java comentado)
 ```
 
 Con un programa, la sección 4 trae los errores y las advertencias, si hay, y la
@@ -2293,13 +2510,13 @@ Hay dos suites, y son complementarias.
 
 | Comando | Qué hace | Cuántas |
 |---|---|---|
-| `npm run pruebas` | Prueba el compilador sin abrir ventana | 161 |
-| `npm run pruebas:ui` | Abre la aplicación de verdad y la revisa | 142 |
+| `npm run pruebas` | Prueba el compilador sin abrir ventana | 201 |
+| `npm run pruebas:ui` | Abre la aplicación de verdad y la revisa | 160 |
 
 ### 25.1 Las pruebas del compilador
 
 No usan ninguna librería: el archivo trae su propio `prueba()`, `igual()` y
-`verdadero()`, en unas 30 líneas. Corren en menos de un segundo.
+`verdadero()`, en unas 30 líneas. Corren en un par de segundos.
 
 Cubren:
 
@@ -2320,8 +2537,25 @@ Cubren:
 - Que el archivo se llame igual que la clase
 - La gramática generada: el ejemplo del pizarrón, cada tipo de instrucción,
   las listas, el orden de las reglas y los caracteres
+- El código intermedio: cada forma de instrucción, los saltos de cada
+  estructura, el corto circuito, arreglos y matrices, los nombres que chocan y
+  las variables renombradas
+- La optimización: cada optimización, lo que **no** se debe optimizar
+  (`10 / 0`, un entero que no cabe, un valor dentro de `intentar`) y, lo más
+  importante, que el programa **imprima exactamente lo mismo** antes y después
+  de optimizar: los ejemplos y 80 programas escritos al azar
+  ([`programas-al-azar.js`](../pruebas/programas-al-azar.js)) se ejecutan con
+  un intérprete del código de tres direcciones
+  ([`interprete-intermedio.js`](../pruebas/interprete-intermedio.js)) que
+  escribe los valores igual que Java
+- El código objeto: cada estructura (`for`, `while`, `do-while`, `switch`,
+  `try`, `&&`, `x++`), los arreglos, los textos con `equals`, el `Scanner`,
+  los métodos, las funciones de apoyo, los nombres reservados y los colores.
+  Si hay **`javac`**, el Java de los ejemplos y de 60 programas al azar (20
+  también sin optimizar) se compila y se ejecuta, y debe imprimir lo mismo
+  que el código de tres direcciones; si no hay, esa prueba se omite
 - Los dos reportes y su ida y vuelta, incluido código con `<`, `&` y
-  `</script>`
+  `</script>`, y sus secciones 5, 6 y 7
 - Que los 7 ejemplos compilen
 - Robustez: programa vacío, basura, BOM, comillas de Word
 
@@ -2336,7 +2570,7 @@ DOM resultante. Verifican, entre otras cosas:
 - Que los colores por categoría sean los correctos
 - Que el `OR` quede hasta arriba del árbol
 - Que el zoom y la vista por ramas funcionen
-- Que las cuatro pestañas compartan el código y el resultado, y que **cambiar de
+- Que las seis pestañas compartan el código y el resultado, y que **cambiar de
   pestaña no borre nada**
 - Que cada pestaña tenga sus logos y sus botones donde los pide su diseño
 - La tabla de tokens, el análisis semántico (errores, advertencias y
@@ -2350,6 +2584,10 @@ DOM resultante. Verifican, entre otras cosas:
 - El zoom con un árbol ancho (el del ejemplo de las variables): que el dibujo
   no se encoja, que el `+` lo agrande de verdad, que la raíz quede a la vista
   y que se pueda llegar a la orilla izquierda
+- El código intermedio en sus dos vistas, el optimizado con su resumen y sus
+  cambios, y el Java: sus colores, de qué línea sale cada renglón, la vista
+  junto al optimizado y que **Guardar .java** escriba el archivo con el
+  nombre de la clase
 - Que el reporte `.html` traiga sus secciones y sus logos, y que al **volver a
   abrirlo** (o soltarlo sobre la ventana) regrese el código y la pestaña
 
@@ -2401,7 +2639,7 @@ nombre roto.
 
 ## 27. Cómo extender el compilador
 
-Tres recetas para los cambios más probables.
+Cuatro recetas para los cambios más probables.
 
 ### 27.1 Agregar una palabra reservada
 
@@ -2447,6 +2685,17 @@ cadena = más prioridad.
 La validación de argumentos ya es automática: si el número no cabe en el rango,
 sale *"raiz espera entre 1 y 2 argumento(s) y recibio 3."*
 
+Para que además se pueda usar en un programa: su tipo en `NATIVAS` del
+semántico, y su traducción en las fases 4, 5 y 6 (si sólo calcula, en
+`NATIVAS_PURAS` del optimizador; su equivalente de Java en `llamada()` de
+`EscritorJava.js`, o una función de apoyo si Java no la trae).
+
+### 27.4 Agregar una instrucción
+
+Una instrucción nueva pasa por las seis fases. La receta completa, fase por
+fase y con los nombres de cada función, está en
+[07 — Mantenimiento](07-mantenimiento.md#cuando-se-agrega-una-instrucción-las-pestañas-3-a-6).
+
 ---
 
 ## 28. Limitaciones conocidas
@@ -2458,9 +2707,10 @@ Vale la pena tenerlas claras, porque son preguntas probables en la revisión.
 | «Se usa antes de recibir un valor» se revisa en el orden del código | Java además sigue los caminos (un valor dado sólo dentro de un `si` sin `sino` no cuenta). Aquí basta con que se haya dado antes en el texto: nunca marca un error que Java no marcaría |
 | Las reglas de geometría (medidas positivas, triángulos) sólo revisan números escritos tal cual | Con una variable, el valor se conoce hasta ejecutar |
 | La gramática generada describe **este** código, no todo el lenguaje | Es lo que se pide: sólo salen las alternativas y los caracteres que aparecen. La gramática completa del lenguaje está en [04 — Gramática EBNF](04-gramatica-ebnf.md) |
-| No optimiza el código intermedio | Es la fase 5: el código de tres direcciones sale tal cual, con todas sus copias y temporales |
-| No genera código Java | Es la fase 6 |
-| No ejecuta el programa | Un compilador traduce; ejecutar es otra cosa |
+| La optimización sólo usa lo que sabe **dentro de un bloque básico** | Después de una etiqueta (por ejemplo, al dar otra vuelta a un ciclo) ya no se sabe cuánto vale cada variable. Un análisis de flujo entre bloques sacaría más, pero también es más difícil de explicar y de probar |
+| El Java no conserva los comentarios del programa ni algunos nombres | Sale del código **optimizado**: lo que la fase 5 calculó o quitó ya no está. Cada renglón sí dice de qué línea del programa sale |
+| Una matriz es en Java un arreglo de una dimensión (`m[i * 3 + j]`) | Así la dejó la fase 4; la declaración lo explica en un comentario |
+| No ejecuta el programa | Un compilador traduce; para ejecutarlo se guarda el `.java` y se usa `javac` y `java` |
 | Sólo Windows | El empaquetado está configurado para `.exe`. El compilador en sí es multiplataforma |
 
 ### Una decisión que documentamos aparte
@@ -2507,8 +2757,8 @@ Las 17 categorías de
 | Comando | Qué hace |
 |---|---|
 | `npm start` | Abre la aplicación desde el código |
-| `npm run pruebas` | 161 pruebas del compilador |
-| `npm run pruebas:ui` | 142 comprobaciones sobre la ventana real |
+| `npm run pruebas` | 201 pruebas del compilador (con `javac`, también compila y ejecuta el Java generado) |
+| `npm run pruebas:ui` | 160 comprobaciones sobre la ventana real |
 | `npm run capturas` | Igual que la anterior + regenera `docs/capturas/` |
 | `npm run gramatica` | Regenera `docs/04-gramatica-ebnf.md` |
 | `npm run icono` | Regenera el icono de la aplicación |
@@ -2533,12 +2783,20 @@ Las 17 categorías de
 | **IPC** | Inter-Process Communication. Cómo hablan los dos procesos de Electron |
 | **SVG** | Formato de imagen vectorial. Con él se dibuja el árbol |
 | **Análisis semántico** | En la pestaña 3: revisar que el código tenga sentido (nombres declarados, tipos que coinciden) y escribir la gramática de la que está hecho |
-| **Tabla de símbolos** | Donde se anota cada nombre del código. La usan las tres fases: el léxico le da su etiqueta `idN`, el sintáctico la usa en el árbol y el semántico le agrega su tipo y su ámbito |
-| **Manejo de errores** | La forma común en que las tres fases reportan sus errores (`ErrorCompilacion`) |
+| **Tabla de símbolos** | Donde se anota cada nombre del código. La usan las tres fases de análisis: el léxico le da su etiqueta `idN`, el sintáctico la usa en el árbol y el semántico le agrega su tipo y su ámbito |
+| **Manejo de errores** | La forma común en que todas las fases reportan sus errores (`ErrorCompilacion`) |
 | **Ámbito** | La parte del código donde existe un nombre: el bloque `{ }` donde se declaró y los de adentro |
 | **Código de tres direcciones** | El código intermedio: cada instrucción hace una sola operación con a lo más tres direcciones (`t1 = a + b`) |
 | **Cuádruplo** | Una instrucción de tres direcciones guardada en cuatro campos: (operador, arg1, arg2, resultado) |
 | **Temporal** | Un nombre nuevo (`t1`, `t2`…) que guarda un resultado a medio camino |
+| **Optimización** | Cambiar el código por otro que hace exactamente lo mismo con menos trabajo |
+| **Bloque básico** | Un pedazo de código que siempre se ejecuta completo, de arriba hacia abajo: empieza en una etiqueta y termina en un salto |
+| **Plegado de constantes** | Calcular desde que se compila lo que sólo usa valores fijos: `2 * 3` → `6` |
+| **Código muerto** | Instrucciones cuyo resultado nadie usa |
+| **Código objeto** | El programa en el lenguaje destino; en SwordByte, Java |
+| **Grafo de flujo** | Los bloques básicos con flechas que dicen a qué bloque puede seguir cada uno |
+| **Dominador** | El bloque A domina a B si para llegar a B siempre se pasa por A |
+| **Descompilador** | Programa que vuelve a encontrar las estructuras (`if`, `while`) de un código hecho de saltos |
 | **Producción** | Una regla de la gramática: `exp → exp / exp` dice que una expresión puede ser dos expresiones con `/` en medio |
 | **Terminal** | Símbolo que aparece tal cual en el código, como `si`, `(` o `;` |
 | **No terminal** | El nombre de otra regla, como `exp` o `id`: se sustituye por alguna de sus alternativas |
@@ -2556,8 +2814,10 @@ Las 17 categorías de
 | [05 — Arquitectura](05-arquitectura.md) | Decisiones de diseño y estructura |
 | [06 — Manual de usuario](06-manual-de-usuario.md) | Cómo usar la aplicación |
 | [07 — Mantenimiento](07-mantenimiento.md) | Tareas de mantenimiento paso a paso |
-| [09 — Código intermedio](09-codigo-intermedio.md) | La fase 4: las formas del código de tres direcciones, los cuádruplos y cómo se traduce cada instrucción |
 | [08 — Analizador semántico](08-analizador-semantico.md) | Cada regla que revisa la pestaña 3 con su mensaje, la tabla de símbolos, los tipos y cómo se genera la gramática |
+| [09 — Código intermedio](09-codigo-intermedio.md) | La fase 4: las formas del código de tres direcciones, los cuádruplos y cómo se traduce cada instrucción |
+| [10 — Optimización](10-optimizacion.md) | La fase 5: cada optimización, los bloques básicos y lo que no se optimiza a propósito |
+| [11 — Código objeto](11-codigo-objeto.md) | La fase 6: cómo se vuelve a encontrar la estructura, cómo se traduce cada cosa a Java y cómo se prueba con `javac` |
 
 ---
 

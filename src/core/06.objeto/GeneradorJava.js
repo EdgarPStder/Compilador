@@ -130,6 +130,8 @@ function empiezaAsignando (lista, n) {
   if (conN.length === 0) return false;
   const s = conN[0];
   if (s.t === 'asignar' && s.nombre === n && !usaNombre(s.valor, n)) return true;
+  // for (j = 1; ...) le da valor a j antes que nada
+  if (s.t === 'para' && s.inicio.t === 'asignar' && s.inicio.nombre === n && !usaNombre(s.inicio.valor, n)) return true;
   if (conN.length > 1) return false;
   switch (s.t) {
     case 'bloque': return empiezaAsignando(s.cuerpo, n);

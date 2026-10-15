@@ -15,7 +15,7 @@ El código vive en [`src/core/04.intermedio/`](../src/core/04.intermedio/).
 ## 1. Dónde va en el compilador
 
 ```
-  Código ─► 1. Léxico ─► 2. Sintáctico ─► 3. Semántico ─► 4. CÓDIGO INTERMEDIO ─► (5. Optimización ─► 6. Código Java)
+  Código ─► 1. Léxico ─► 2. Sintáctico ─► 3. Semántico ─► 4. CÓDIGO INTERMEDIO ─► 5. Optimización ─► 6. Código Java
                                   │                              │
                                   └── árbol ─────────────────────┘
 ```
@@ -126,6 +126,32 @@ función por forma:
 | `x = x + 1;` | `t1 = x + 1` · `x = t1` |
 | `i++;` | `i = i + 1` |
 | `entero y = x++;` | `t1 = x` · `x = x + 1` · `y = t1` |
+
+Los textos y los caracteres se escriben siempre con comillas normales, aunque
+en el programa vengan con las comillas tipográficas de Word: `“Hola”` →
+`"Hola"`.
+
+### Dos variables con el mismo nombre
+
+SwordByte deja declarar una variable con el mismo nombre en dos bloques que no
+se tocan (las dos ramas de un `si`, dos ciclos…). Si las dos tienen **el
+mismo tipo**, se quedan con el mismo nombre. Si tienen **otro tipo**, la
+segunda se renombra con `_2` (`_3`…), porque en el código intermedio, y en
+Java, cada nombre tiene un solo tipo dentro de una función:
+
+```
+si (a > 0) {                        t1 = a > 0
+    entero x = a;                   ifFalse t1 goto L1
+    imprimirLn(x);                  x = a
+} sino {                            param x
+    cadena x = "no";                call imprimirLn, 1
+    imprimirLn(x);                  goto L2
+}                                 L1:
+                                    x_2 = "no"
+                                    param x_2
+                                    call imprimirLn, 1
+                                  L2:
+```
 
 ### Llamadas, entrada y salida
 
@@ -244,6 +270,20 @@ intentar { A } capturar (Error e) { B }        intentar L1      <- si algo falla
                                                L2:
 ```
 
+Un `romper` dentro de un `intentar` (que sale del ciclo) primero sale del
+`intentar`: antes de su `goto` va un `finIntentar` por cada `intentar` que
+deja.
+
+```
+para (...) {                                   L1:
+    intentar {                                   ...
+        si (i == 1) { romper; }                  intentar L3
+        imprimirLn(i);                           t2 = i == 1
+    } capturar (Error e) { ... }                 ifFalse t2 goto L2
+}                                                finIntentar       <- sale del intentar
+                                                 goto L5           <- y del ciclo
+```
+
 ---
 
 ## 6. Qué se ve en la pestaña
@@ -281,6 +321,12 @@ Los reportes que se guardan traen el código intermedio en su sección 5.
   temporales: 2,
   etiquetas: 0,
   prefijos: { temporal: 't', etiqueta: 'L' },
+  clase: 'p',                // el nombre de la clase (para el archivo .java)
+  simbolos: [                // de cada función: lo que necesita la fase 6
+    { nombre: 'clasePrincipal', tipoRetorno: 'vacio', parametros: [],
+      variables: { a: 'entero', b: 'entero', c: 'entero', d: 'entero' },
+      columnas: {} }         // de cada matriz, cuántas columnas tiene
+  ],
   instrucciones: [
     { numero: 1, op: '*', arg1: 'c', arg2: 'd', resultado: 't1',
       texto: 't1 = c * d', linea: 4, comentarios: ['entero a = b + c * d;'] },
@@ -316,8 +362,9 @@ console.log(codigoIntermedioATexto(ci.instrucciones).join('\n'));
 `npm run pruebas` corre el grupo *Código intermedio: código de tres
 direcciones (fase 4)*: cada forma de instrucción, los saltos de cada
 estructura, el corto circuito, los arreglos y las matrices, los comentarios,
-los nombres que chocan y que en todos los ejemplos cada salto llegue a una
-etiqueta que existe.
+los nombres que chocan, las variables renombradas (`x_2`), el `finIntentar`
+de un `romper` y que en todos los ejemplos cada salto llegue a una etiqueta
+que existe.
 
 ---
 

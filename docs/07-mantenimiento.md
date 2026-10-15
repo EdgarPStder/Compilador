@@ -50,10 +50,11 @@ Los nombres de la tabla de la pestaña 1 están en
 Si se agrega un operador nuevo al lenguaje, conviene agregarlo también a
 `SIMBOLOS` para que tenga su propio nombre en la tabla.
 
-### Cuando se agrega una instrucción: las pestañas 3 y 4
+### Cuando se agrega una instrucción: las pestañas 3 a 6
 
 Las pestañas 3 y 4 recorren el árbol del sintáctico, con un `case` por tipo
-de nodo en cada recorrido:
+de nodo en cada recorrido; las pestañas 5 y 6 trabajan con el código de tres
+direcciones que sale de la 4:
 
 1. **El análisis semántico**, en
    [`VerificadorSemantico.js`](../src/core/03.semantico/VerificadorSemantico.js):
@@ -79,7 +80,7 @@ de nodo en cada recorrido:
      la tabla `NO_SON_DEL_LENGUAJE` con lo que se escribe en su lugar.
    - La tabla de símbolos está en
      [`comun/TablaSimbolos.js`](../src/core/comun/TablaSimbolos.js) porque la
-     usan las tres fases; el semántico sólo la recibe.
+     usan las tres fases de análisis; el semántico sólo la recibe.
 2. **La gramática**, en
    [`GeneradorGramatica.js`](../src/core/03.semantico/GeneradorGramatica.js):
    - Una **instrucción** nueva necesita su `case` en `formaInstruccion()`: la
@@ -100,15 +101,58 @@ de nodo en cada recorrido:
    - Si hace falta una **forma** nueva de instrucción, se agrega a
      `Instrucciones.js` con su cuádruplo y su texto, y a la tabla de
      [09 — Código intermedio](09-codigo-intermedio.md).
+   - Si la instrucción declara un nombre, se anota con `this.declarar(nombre,
+     tipo)` (eso la deja en `simbolos`, que usa la fase 6).
+
+4. **La optimización**, en
+   [`Optimizador.js`](../src/core/05.optimizacion/Optimizador.js). Sólo hace
+   falta si salió una **forma nueva** de instrucción:
+   - qué valores lee (`camposLeidos`) y a qué nombre le da valor
+     (`nombreDefinido`), para que la propagación y el código muerto la
+     respeten;
+   - si es **pura** (`esPura`: sólo calcula un valor, no puede fallar ni hace
+     nada más). Ante la duda, no lo es: una instrucción que no es pura nunca
+     se quita.
+   - Una **función nativa** nueva que sólo calcula (como `potencia`) va en
+     `NATIVAS_PURAS`, para que se quite si nadie usa su valor.
+   - Si se puede calcular con valores fijos, su cálculo va en
+     [`Literales.js`](../src/core/05.optimizacion/Literales.js), **como lo
+     haría Java** (división entera, rango de `int`…).
+
+5. **El código objeto**, en [`src/core/06.objeto/`](../src/core/06.objeto/):
+   - Una **forma nueva** de instrucción necesita su `case` en `bajar()` de
+     [`Sentencias.js`](../src/core/06.objeto/Sentencias.js) (qué sentencia o
+     expresión es) y, si da un valor, en `inferirTipos()`.
+   - Una **función nativa** nueva: su tipo en `NATIVAS` de
+     [`TiposJava.js`](../src/core/06.objeto/TiposJava.js) y su equivalente de
+     Java en `llamada()` de
+     [`EscritorJava.js`](../src/core/06.objeto/EscritorJava.js). Si Java no la
+     trae, una **función de apoyo** en `APOYO` de
+     [`GeneradorJava.js`](../src/core/06.objeto/GeneradorJava.js) (sólo se
+     escribe si el programa la usa).
+   - Una instrucción que sólo **hace algo** (como `esperar`), en
+     `llamadaSola()` de `EscritorJava.js`.
+   - Su tabla en [11 — Código objeto](11-codigo-objeto.md).
 
 Para el texto de los mensajes y el ejemplo que se ve al pasar el mouse, su
 `case` en [`TextoDeNodo.js`](../src/core/03.semantico/TextoDeNodo.js).
 
 Si falta el `case`, nada se rompe: el verificador no revisa ese nodo (su tipo
 queda `null`) y la gramática lo escribe con el nombre de su nodo como
-terminal, así se nota qué falta. Después se agrega su prueba al grupo
-*Analizador semántico* de [`pruebas/ejecutar.js`](../pruebas/ejecutar.js),
-con `conError(código, 'parte del mensaje')` o `sinErrores(código)`.
+terminal, así se nota qué falta. En la fase 6, una forma o una función que no
+conoce da *error interno* en la pestaña, con el nombre de lo que falta.
+
+Después se agregan sus pruebas en [`pruebas/ejecutar.js`](../pruebas/ejecutar.js):
+
+- *Analizador semántico*: `conError(código, 'parte del mensaje')` o
+  `sinErrores(código)`;
+- *Código intermedio*: `igual(tresDe(código), 'las instrucciones / ...')`;
+- *Optimización*: `mismaSalida(programaDe(código))`, que ejecuta el programa
+  antes y después de optimizar;
+- *Código objeto*: `igual(metodoDe(código), 'el Java / ...')`. Si se quiere
+  que la prueba con `javac` la use, que
+  [`programas-al-azar.js`](../pruebas/programas-al-azar.js) la escriba en
+  algunos programas.
 
 ### Cambiar los colores del código
 
@@ -163,7 +207,7 @@ const EQUIVALENTES_JAVA = {
 2. **Orden:** su nombre en la lista `PESTANAS` de
    [`pestanas.js`](../src/ui/js/pestanas.js) (es el orden de `Ctrl+Tab`).
 3. **Panel:** un archivo `panel-nueva.js` con una clase que tenga
-   `limpiar()` y `pintar(resultado)`, como los otros tres.
+   `limpiar()` y `pintar(resultado)`, como los otros cinco.
 4. **app.js:** agregar el cuadro de código a `this.editores` (así se comparte
    el código), crear el panel, llamarlo en `limpiar()` y en `analizar()` y
    conectar sus botones.
@@ -261,7 +305,7 @@ de la gramática.
 npm run capturas
 ```
 
-Abre la aplicación, pasa por las cuatro pestañas, analiza varios programas, abre
+Abre la aplicación, pasa por las seis pestañas, analiza varios programas, abre
 la ventana de Fuga, guarda un reporte `.html` y guarda las imágenes en
 `docs/capturas/`:
 
@@ -272,6 +316,8 @@ la ventana de Fuga, guarda un reporte `.html` y guarda las imágenes en
 | `principal.png`, `expresion.png`, `rama.png`, `programa.png`, `equipo.png`, `errores.png` | Pestaña 2 |
 | `subrayado.png` | Pestaña 2 con un `;` que falta subrayado en rojo |
 | `intermedio.png`, `intermedio-cuadruplos.png` | Pestaña 4: el código de tres direcciones de un `para` con un `si`, y sus cuádruplos |
+| `optimizacion-resumen.png`, `optimizacion.png`, `optimizacion-cambios.png` | Pestaña 5: el resumen, el código optimizado y la lista de cambios |
+| `objeto.png`, `objeto-lado.png` | Pestaña 6: el Java de un programa con `para`, `si` y `opcion`, solo y junto al código optimizado |
 | `semantico.png`, `semantico-errores.png`, `semantico-proposiciones.png` | Pestaña 3: un programa de geometría sin errores (sólo su gramática), uno con errores semánticos subrayados y una expresión suelta a la que le falta la clase |
 | `reporte.png` | El reporte `.html` completo, como se ve en el navegador |
 

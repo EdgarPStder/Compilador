@@ -1694,6 +1694,11 @@ prueba('el programa se traduce a una clase de Java con su main', () => {
 prueba('los saltos se vuelven otra vez for, while y do-while', () => {
   igual(metodoDe('entero n;\nleer(n);\nentero s = 0;\npara (entero i = 1; i <= n; i++) { s = s + i; }\nimprimirLn(s);'),
     'int n = entrada.nextInt(); / int s = 0; / for (int i = 1; i <= n; i++) { / s = s + i; / } / System.out.println(s);');
+  // Ciclos anidados: cada variable se declara en su propio for
+  igual(metodoDe('entero n;\nleer(n);\npara (entero i = 1; i <= n; i++) { para (entero j = 1; j <= i; j++) { ' +
+    'imprimir(j); } imprimirLn(""); }'),
+  'int n = entrada.nextInt(); / for (int i = 1; i <= n; i++) { / for (int j = 1; j <= i; j++) { / ' +
+    'System.out.print(j); / } / System.out.println(""); / }');
   igual(metodoDe('entero i;\nleer(i);\nmientras (i < 10) { i = i * 2; }\nimprimirLn(i);'),
     'int i = entrada.nextInt(); / while (i < 10) { / i = i + i; / } / System.out.println(i);');
   igual(metodoDe('entero x;\nleer(x);\nhacer { x = x - 3; } mientras (x > 0);\nimprimirLn(x);'),

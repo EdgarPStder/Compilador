@@ -2,7 +2,8 @@
    Compilador SwordByte — interfaz
 
    Distribución:
-     - Arriba:   las tres pestañas (Léxico, Léxico-Sintáctico, Semántico)
+     - Arriba:   las seis pestañas (Léxico, Léxico-Sintáctico, Semántico,
+                 Código Intermedio, Optimización y Código Objeto)
      - El resto: el panel de la pestaña activa.
 
    Cada panel conserva SU diseño (dónde van sus logos, sus botones y sus
@@ -12,6 +13,7 @@
      2. Léxico-Sintáctico  los tres logos arriba, botones a la izquierda
      3. Semántico          los tres logos en columna a la izquierda,
                            título arriba, botones a la derecha
+     4, 5 y 6              el diseño de la 3
 
    Lo que comparten es el estilo: la paleta de :root (aquí abajo), los
    botones, las cajas y los tipos de letra.
