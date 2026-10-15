@@ -18,7 +18,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { compilar } = require('../src/core/Compilador');
-const { contenidoParaGuardar, leerArchivoGuardado } = require('../src/core/ArchivoGuardado');
+const { nombreDelArchivo, contenidoParaGuardar, leerArchivoGuardado } = require('../src/core/ArchivoGuardado');
 const { datosEquipo } = require('../src/core/comun/Equipo');
 const { logosParaReporte } = require('./logos');
 
@@ -123,7 +123,7 @@ function construirMenu () {
     {
       label: 'Analizar',
       submenu: [
-        { label: 'Analizar (llena las tres pestañas)', accelerator: 'F5', click: () => enviar('menu:analizar') }
+        { label: 'Analizar (llena las cinco pestañas)', accelerator: 'F5', click: () => enviar('menu:analizar') }
       ]
     },
     {
@@ -136,6 +136,8 @@ function construirMenu () {
         { label: '1. Analizador Léxico', accelerator: 'CmdOrCtrl+1', click: () => enviar('menu:pestana', 'lexico') },
         { label: '2. Analizador Léxico-Sintáctico', accelerator: 'CmdOrCtrl+2', click: () => enviar('menu:pestana', 'sintactico') },
         { label: '3. Analizador Semántico', accelerator: 'CmdOrCtrl+3', click: () => enviar('menu:pestana', 'semantico') },
+        { label: '4. Generador de Código Intermedio', accelerator: 'CmdOrCtrl+4', click: () => enviar('menu:pestana', 'intermedio') },
+        { label: '5. Optimizador de Código Intermedio', accelerator: 'CmdOrCtrl+5', click: () => enviar('menu:pestana', 'optimizacion') },
         { type: 'separator' },
         { role: 'reload', label: 'Recargar' },
         { role: 'toggleDevTools', label: 'Herramientas de desarrollo' },
@@ -282,11 +284,18 @@ ipcMain.handle('archivo:leer', (evento, texto) => abrirGuardado(texto));
  * y los tres analisis. El formato depende de la extension elegida:
  *   .html  el reporte visual (se ofrece primero)
  *   .bs    el reporte en texto, que sigue siendo un programa SwordByte
+ *
+ * Como en Java, el archivo se llama igual que su clase: clase ejemplo ->
+ * ejemplo.html. Ese es el nombre que se propone, y si se escribe otro, se
+ * pregunta antes de guardarlo con el nombre de la clase.
  */
 ipcMain.handle('archivo:guardar', async (evento, fuente, pestana) => {
+  const resultado = compilar(fuente || '', {});
+  const nombre = nombreDelArchivo(resultado);
+
   const r = await dialog.showSaveDialog(ventana, {
     title: 'Guardar reporte del análisis',
-    defaultPath: path.join(app.getPath('documents'), 'analisis.html'),
+    defaultPath: path.join(app.getPath('documents'), nombre + '.html'),
     filters: [
       { name: 'Reporte visual (se abre en el navegador)', extensions: ['html'] },
       { name: 'Reporte en texto (programa SwordByte)', extensions: ['bs'] }
@@ -294,15 +303,36 @@ ipcMain.handle('archivo:guardar', async (evento, fuente, pestana) => {
   });
   if (r.canceled || !r.filePath) return { ok: false, cancelado: true };
 
+  let ruta = r.filePath;
+  const extension = path.extname(ruta);
+  const elegido = path.basename(ruta, extension);
+
+  // Se escribio otro nombre: el archivo debe llamarse como la clase.
+  if (nombre !== 'analisis' && elegido !== nombre) {
+    ruta = path.join(path.dirname(ruta), nombre + extension);
+    const yaExiste = fs.existsSync(ruta);
+    const respuesta = await dialog.showMessageBox(ventana, {
+      type: 'question',
+      title: 'El archivo se llama como la clase',
+      message: `El archivo se guardará como ${path.basename(ruta)}`,
+      detail: `Como en Java, el archivo de una clase se llama igual que ella: la clase ` +
+        `es «${nombre}», no «${elegido}».` +
+        (yaExiste ? `\n\nYa existe ${path.basename(ruta)} en esa carpeta: se reemplazará.` : ''),
+      buttons: [`Guardar como ${path.basename(ruta)}`, 'Cancelar'],
+      defaultId: 0,
+      cancelId: 1
+    });
+    if (respuesta.response !== 0) return { ok: false, cancelado: true };
+  }
+
   try {
-    const resultado = compilar(fuente || '', {});
-    const archivo = contenidoParaGuardar(resultado, path.basename(r.filePath), {
+    const archivo = contenidoParaGuardar(resultado, path.basename(ruta), {
       pestana,
       logos: logosParaReporte()
     });
-    fs.writeFileSync(r.filePath, archivo.contenido, 'utf8');
-    ultimoReporte = archivo.formato === 'html' ? r.filePath : null;
-    return { ok: true, ruta: r.filePath, formato: archivo.formato };
+    fs.writeFileSync(ruta, archivo.contenido, 'utf8');
+    ultimoReporte = archivo.formato === 'html' ? ruta : null;
+    return { ok: true, ruta, formato: archivo.formato };
   } catch (e) {
     return { ok: false, error: e.message };
   }

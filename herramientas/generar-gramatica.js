@@ -10,7 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { GRAMATICA } = require('../src/core/sintactico/Gramatica');
+const { GRAMATICA } = require('../src/core/02.sintactico/Gramatica');
 
 const DOC = path.join(__dirname, '..', 'docs', '04-gramatica-ebnf.md');
 const INICIO = '## Producciones\n\n';

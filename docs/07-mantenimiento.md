@@ -37,7 +37,7 @@ cambios.
 ### Cambiar el nombre de un token o su descripción (pestaña 1)
 
 Los nombres de la tabla de la pestaña 1 están en
-[`TablaLexica.js`](../src/core/lexico/TablaLexica.js):
+[`TablaLexica.js`](../src/core/01.lexico/TablaLexica.js):
 
 - Los **símbolos** (operadores, delimitadores y `Y` `AND` `O` `OR` `NO`
   `NOT`) en la tabla `SIMBOLOS`, uno por renglón:
@@ -45,26 +45,113 @@ Los nombres de la tabla de la pestaña 1 están en
 - Lo demás (identificadores, números, cadenas…) en `nombreYDescripcion()`,
   un `case` por categoría.
 - Las palabras reservadas usan la descripción de
-  [`PalabrasReservadas.js`](../src/core/lexico/PalabrasReservadas.js).
+  [`PalabrasReservadas.js`](../src/core/01.lexico/PalabrasReservadas.js).
 
 Si se agrega un operador nuevo al lenguaje, conviene agregarlo también a
 `SIMBOLOS` para que tenga su propio nombre en la tabla.
 
-### Cuando se agrega una instrucción: la gramática generada (pestaña 3)
+### Cuando se agrega una instrucción: las pestañas 3 y 4
 
-El analizador semántico escribe la gramática recorriendo el árbol del
-sintáctico, con un `case` por tipo de nodo en
-[`AnalizadorSemantico.js`](../src/core/semantico/AnalizadorSemantico.js):
+Las pestañas 3 y 4 recorren el árbol del sintáctico, con un `case` por tipo
+de nodo en cada recorrido:
 
-- Una **instrucción** nueva necesita su `case` en `formaInstruccion()`: la
-  lista de símbolos con que se escribe, por ejemplo
-  `[T('leer'), T('('), ...this.destino(n.destino), T(')'), T(';')]`.
-- Una **expresión** nueva, su `case` en `formaExpresion()`.
-- Para el ejemplo que se ve al pasar el mouse, su `case` en
-  [`TextoDeNodo.js`](../src/core/semantico/TextoDeNodo.js).
+1. **El análisis semántico**, en
+   [`VerificadorSemantico.js`](../src/core/03.semantico/VerificadorSemantico.js):
+   - Una **instrucción** nueva necesita su `case` en `instruccion()` y un
+     método que revise sus partes. Casi siempre basta con pedir el tipo de
+     cada expresión con `this.valor(...)` y compararlo:
+     ```js
+     /** esperar(1000);  los milisegundos son un entero que no es negativo. */
+     esperar (n) {
+       const tipo = this.valor(n.milisegundos);
+       if (tipo && !esEntero(tipo)) this.error(n.milisegundos, 'esperar recibe milisegundos enteros…');
+     }
+     ```
+   - Una **expresión** nueva, su `case` en `tipoDe()`, que devuelve su tipo
+     (`'entero'`, `'decimal'`…) o `null` si adentro ya hubo un error.
+   - Si declara un nombre, se anota con `this.declararNombre(nodo, { nombre,
+     categoria, tipo, asignado })`; si lo usa, se busca con
+     `this.lugar(nodo, 'leer' | 'escribir' | 'cambiar')`.
+   - Una **función nativa** nueva va en la tabla `NATIVAS` (lo que devuelve) y,
+     si hay que revisar algo de sus valores, en el `switch` de `nativa()`.
+   - Si el sintáctico la acepta pero **no es del lenguaje** (como `&&` o
+     `raiz`, que sólo sirven para practicar en las pestañas 1 y 2), se agrega a
+     la tabla `NO_SON_DEL_LENGUAJE` con lo que se escribe en su lugar.
+   - La tabla de símbolos está en
+     [`comun/TablaSimbolos.js`](../src/core/comun/TablaSimbolos.js) porque la
+     usan las tres fases; el semántico sólo la recibe.
+2. **La gramática**, en
+   [`GeneradorGramatica.js`](../src/core/03.semantico/GeneradorGramatica.js):
+   - Una **instrucción** nueva necesita su `case` en `formaInstruccion()`: la
+     lista de símbolos con que se escribe, por ejemplo
+     `[T('leer'), T('('), ...this.destino(n.destino), T(')'), T(';')]`.
+   - Una **expresión** nueva, su `case` en `formaExpresion()`.
 
-Si falta el `case`, la instrucción no se pierde: sale con el nombre de su nodo
-como terminal, y así se nota qué falta.
+3. **El código intermedio**, en
+   [`GeneradorIntermedio.js`](../src/core/04.intermedio/GeneradorIntermedio.js):
+   - Una **instrucción** nueva necesita su `case` en `traducir()` y un método
+     que emita sus instrucciones de tres direcciones con `this.emitir(...)`,
+     usando las formas de [`Instrucciones.js`](../src/core/04.intermedio/Instrucciones.js)
+     (`I.operacion`, `I.copia`, `I.siFalso`, `I.salto`, `I.etiqueta`…).
+     Las etiquetas se piden con `this.nuevaEtiqueta()` y los temporales con
+     `this.nuevoTemporal()`.
+   - Una **expresión** nueva, su `case` en `expresion()`, que devuelve dónde
+     quedó su valor (un nombre, un número o un temporal).
+   - Si hace falta una **forma** nueva de instrucción, se agrega a
+     `Instrucciones.js` con su cuádruplo y su texto, y a la tabla de
+     [09 — Código intermedio](09-codigo-intermedio.md).
+
+Para el texto de los mensajes y el ejemplo que se ve al pasar el mouse, su
+`case` en [`TextoDeNodo.js`](../src/core/03.semantico/TextoDeNodo.js).
+
+Si falta el `case`, nada se rompe: el verificador no revisa ese nodo (su tipo
+queda `null`) y la gramática lo escribe con el nombre de su nodo como
+terminal, así se nota qué falta. Después se agrega su prueba al grupo
+*Analizador semántico* de [`pruebas/ejecutar.js`](../pruebas/ejecutar.js),
+con `conError(código, 'parte del mensaje')` o `sinErrores(código)`.
+
+### Cambiar los colores del código
+
+Los colores de los cuadros de código son los de **Java en VS Code** (tema
+*Light+*). Están en variables al principio de la sección *Los cuadros de
+código* de [`estilos.css`](../src/ui/css/estilos.css):
+
+```css
+--java-control:     #af00db;   /* si, para, retornar...      (if, for, return)  */
+--java-tipo:        #267f99;   /* entero, cadena...          (int, String)      */
+--java-palabra:     #0000ff;   /* clase, funcion, verdadero  (class, true)      */
+--java-funcion:     #795e26;   /* imprimirLn, raiz, sumar    (println, pow)     */
+--java-variable:    #001080;   /* edad, total                                   */
+--java-cadena:      #a31515;   /* "textos" y 'caracteres'                       */
+--java-numero:      #098658;   /* 20, 3.5                                       */
+--java-comentario:  #008000;   /* comentarios                                   */
+--java-error:       #cd3131;   /* errores léxicos, subrayados                   */
+```
+
+Para usar otra paleta (la de Eclipse o la de IntelliJ, por ejemplo) se
+cambian esos valores. El reporte `.html` tiene los mismos colores en sus
+estilos (`.j-control`, `.j-tipo`… en [`ReporteHTML.js`](../src/core/ReporteHTML.js)).
+
+Qué se pinta de qué color lo decide `claseDe()` en
+[`ResaltadoCodigo.js`](../src/core/01.lexico/ResaltadoCodigo.js), con las
+listas `CONTROL`, `DECLARACION`, `CLASES` y `CONSTANTES` y, para los nombres,
+lo que tienen al lado: un nombre seguido de `(` es una función, uno después
+de `clase` es una clase, y los demás son variables.
+
+### Agregar una palabra de Java a la lista
+
+Si alguien escribe por costumbre una palabra de Java que el analizador no
+avisa, se agrega a `EQUIVALENTES_JAVA` en
+[`PalabrasReservadas.js`](../src/core/01.lexico/PalabrasReservadas.js), con la de
+SwordByte que va en su lugar:
+
+```js
+const EQUIVALENTES_JAVA = {
+  int: 'entero',
+  break: 'romper',
+  // ...
+};
+```
 
 ### Agregar una pestaña
 
@@ -165,7 +252,7 @@ npm run gramatica
 
 Reescribe la sección de producciones de
 [04-gramatica-ebnf.md](04-gramatica-ebnf.md) a partir de
-[`Gramatica.js`](../src/core/sintactico/Gramatica.js), que es la única fuente
+[`Gramatica.js`](../src/core/02.sintactico/Gramatica.js), que es la única fuente
 de la gramática.
 
 ### Regenerar las capturas de la documentación
@@ -174,7 +261,7 @@ de la gramática.
 npm run capturas
 ```
 
-Abre la aplicación, pasa por las tres pestañas, analiza varios programas, abre
+Abre la aplicación, pasa por las cuatro pestañas, analiza varios programas, abre
 la ventana de Fuga, guarda un reporte `.html` y guarda las imágenes en
 `docs/capturas/`:
 
@@ -183,7 +270,9 @@ la ventana de Fuga, guarda un reporte `.html` y guarda las imágenes en
 | `lexico.png` | Pestaña 1 con `a = b + c * 24` y una fila marcada |
 | `fuga.png` | La ventana de salida |
 | `principal.png`, `expresion.png`, `rama.png`, `programa.png`, `equipo.png`, `errores.png` | Pestaña 2 |
-| `semantico.png`, `semantico-opcion.png`, `semantico-proposiciones.png` | Pestaña 3: la gramática de `a1 = b5 / 20`, la de una `opcion` y la de dos proposiciones |
+| `subrayado.png` | Pestaña 2 con un `;` que falta subrayado en rojo |
+| `intermedio.png`, `intermedio-cuadruplos.png` | Pestaña 4: el código de tres direcciones de un `para` con un `si`, y sus cuádruplos |
+| `semantico.png`, `semantico-errores.png`, `semantico-proposiciones.png` | Pestaña 3: un programa de geometría sin errores (sólo su gramática), uno con errores semánticos subrayados y una expresión suelta a la que le falta la clase |
 | `reporte.png` | El reporte `.html` completo, como se ve en el navegador |
 
 La ventana debe quedar **a la vista** mientras se toman (con la pantalla

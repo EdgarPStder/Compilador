@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { compilar } = require('../src/core/Compilador');
-const { analizarLexico } = require('../src/core/lexico/AnalizadorLexico');
+const { analizarLexico } = require('../src/core/01.lexico/AnalizadorLexico');
 
 let pasadas = 0;
 let falladas = 0;
@@ -339,11 +339,29 @@ prueba('la precedencia se ve en la forma del arbol', () => {
   igual(a.hijos[1].etiqueta, '*', 'la multiplicacion va mas abajo:');
 });
 
-prueba('una instruccion suelta se analiza sin la clase', () => {
+prueba('una instruccion sin la clase es un error, como en Java', () => {
   const r = compilar('entero a = 5;');
   igual(r.sintactico.modo, 'instrucciones');
-  igual(r.errores.length, 0);
+  igual(r.errores.length, 1);
+  verdadero(r.errores[0].mensaje.startsWith('Falta la clase'), r.errores[0].mensaje);
+  igual(r.errores[0].linea, 1);
+  // Aun asi se revisan las instrucciones: los demas errores tambien salen
   igual(r.sintactico.arbol.etiqueta, 'entero');
+  igual(compilar('entero a = 5\nimprimirLn(a);').errores.length, 2, 'falta la clase y el ;');
+});
+
+prueba('clasePrincipal o una funcion sin la clase tambien la piden', () => {
+  ['clasePrincipal { entero a = 5; }', 'funcion vacio f() { }'].forEach((fuente) => {
+    const e = compilar(fuente).errores[0];
+    verdadero(e && e.mensaje.startsWith('Falta la clase'), `${fuente}: ${e && e.mensaje}`);
+  });
+});
+
+prueba('el punto y coma que falta se marca al final de su renglon', () => {
+  const e = compilar('clase p { clasePrincipal {\n  entero a = 5\n  imprimirLn(a);\n} }').errores[0];
+  igual(e.mensaje, "Falta ';' al final de la declaracion.");
+  igual(e.linea, 2, 'el renglon donde falta:');
+  igual(e.columna, 15, 'justo despues del 5:');
 });
 
 prueba('un programa completo sigue analizandose como programa', () => {
@@ -388,19 +406,40 @@ prueba('dos expresiones en el mismo renglon siguen siendo un error', () => {
   verdadero(compilar('a = b + c d').errores[0].mensaje.includes("Sobra 'd'"));
 });
 
-prueba('una proposicion simple con punto y coma es una instruccion', () => {
-  const r = compilar('a = b + c;\na && b || c + f > d;');
-  igual(r.errores.length, 0, 'no debe haber errores:');
-  igual(r.sintactico.modo, 'instrucciones');
-  // Se dibuja directo con su expresion, sin un nodo que la envuelva
-  igual(r.sintactico.arbol.hijos.map((h) => h.etiqueta).join(' '), '= ||');
+/** Un codigo dentro de clase y clasePrincipal, en el mismo renglon. */
+function enClase (cuerpo) {
+  return `clase prueba { clasePrincipal { ${cuerpo} } }`;
+}
+
+prueba('solo se reconocen las instrucciones del lenguaje', () => {
+  // Igual que en Java, una expresion sola con punto y coma no es instruccion
+  ['a > b;', 'a;', 'a && b || c + f > d;', 'raiz(16);'].forEach((fuente) => {
+    const r = compilar(enClase(fuente));
+    verdadero(r.errores.some((e) => e.mensaje.includes('no es una instruccion del lenguaje')),
+      `${fuente} deberia marcar error`);
+  });
+});
+
+prueba('las palabras de Java dicen cual es la de SwordByte', () => {
+  const casos = {
+    'break;': 'romper',
+    'int x = 5;': 'entero',
+    'printf("Hola");': 'imprimirF',
+    'x = true;': 'verdadero',
+    'para (int i = 0; i < 3; i++) { }': 'entero'
+  };
+  Object.keys(casos).forEach((fuente) => {
+    const e = compilar(enClase(fuente)).errores[0];
+    verdadero(e && e.mensaje.includes('no es una palabra de SwordByte') &&
+      e.sugerencia.includes(casos[fuente]), `${fuente}: ${e && e.mensaje} / ${e && e.sugerencia}`);
+  });
 });
 
 prueba('las instrucciones de siempre se siguen reconociendo', () => {
-  const ast = compilar('i++; sumar(5, 3); a[1] = 2;').sintactico.ast;
-  igual(ast.instrucciones.map((i) => i.tipo).join(' '),
+  const ast = compilar(enClase('i++; sumar(5, 3); a[1] = 2;')).sintactico.ast;
+  igual(ast.principal.cuerpo.instrucciones.map((i) => i.tipo).join(' '),
     'IncrementoStmt ExpresionInstruccion Asignacion');
-  verdadero(compilar('a b;').errores[0].mensaje.includes("Falta '='"),
+  verdadero(compilar(enClase('a b;')).errores[0].mensaje.includes("Falta '='"),
     'a b; debe seguir pidiendo el =');
 });
 
@@ -748,70 +787,357 @@ prueba('los comentarios no salen en la tabla', () => {
 });
 
 // =====================================================================
+grupo('Analizador semantico: que el codigo tenga sentido (pestaña 3)');
+
+const { reglaATexto, claseDeCaracter } = require('../src/core/03.semantico/AnalizadorSemantico');
+const { TablaSimbolos } = require('../src/core/comun/TablaSimbolos');
+
+/** El resultado semantico de un codigo. */
+function semanticoDe (fuente) {
+  return compilar(fuente).semantico;
+}
+
+/**
+ * Un programa con ese codigo: si no trae su clase, se mete dentro de
+ * clase prueba { clasePrincipal { ... } }, en el mismo renglon (asi los
+ * numeros de renglon no cambian).
+ */
+function programaDe (codigo) {
+  return codigo.startsWith('clase ') ? codigo : enClase(codigo);
+}
+
+/** Los mensajes de error semantico de un codigo, juntos en un texto. */
+function mensajesDe (codigo) {
+  return semanticoDe(programaDe(codigo)).errores.map((e) => e.mensaje).join(' / ');
+}
+
+/** Revisa que un codigo no tenga errores semanticos. */
+function sinErrores (codigo) {
+  const s = semanticoDe(programaDe(codigo));
+  igual(s.estado, 'analizado', `estado de "${codigo}":`);
+  igual(s.errores.length, 0, `"${codigo}" no deberia tener errores: ${mensajesDe(codigo)} /`);
+}
+
+/** Revisa que un codigo tenga un error que diga "parte". */
+function conError (codigo, parte) {
+  const errores = mensajesDe(codigo);
+  verdadero(errores.includes(parte), `"${codigo}" deberia decir «${parte}», dice: ${errores || '(nada)'}`);
+}
+
+prueba('como en Java, sin la clase no hay analisis semantico', () => {
+  // Una expresion suelta: falta la clase
+  ['a = b + c', 'a1 = b5 / 20', 'a && b || c + f > d', 'a = b + c\nx > y'].forEach((fuente) => {
+    const s = semanticoDe(fuente);
+    igual(s.estado, 'sin-clase', `"${fuente}":`);
+    verdadero(s.errores[0].mensaje.startsWith('Falta la clase'), s.errores[0].mensaje);
+    igual(s.reglas.length, 0, 'sin gramatica:');
+  });
+  // Instrucciones sueltas: el sintactico ya dice que falta la clase
+  const s = semanticoDe('a1 = b5 / 20;');
+  igual(s.estado, 'errores-previos');
+  verdadero(s.errores[0].mensaje.startsWith('Falta la clase'), s.errores[0].mensaje);
+});
+
+prueba('con errores lexicos o sintacticos no revisa nada y dice por que', () => {
+  const s = semanticoDe(enClase('entero = 5;'));
+  igual(s.estado, 'errores-previos');
+  igual(s.correcto, false);
+  igual(s.reglas.length, 0);
+  verdadero(s.errores.length > 0 && s.errores[0].fase === 'Sintáctica', 'debe traer los errores sintacticos');
+});
+
+prueba('sin codigo no hay nada que revisar', () => {
+  const s = semanticoDe('');
+  igual(s.estado, 'vacio');
+  verdadero(s.vacio, 'debe marcarse vacio');
+  igual(s.errores.length, 0);
+});
+
+prueba('todos los ejemplos correctos tienen sentido y generan su gramatica', () => {
+  const dir = path.join(__dirname, '..', 'ejemplos');
+  fs.readdirSync(dir).filter((f) => !f.includes('error')).forEach((f) => {
+    const s = semanticoDe(fs.readFileSync(path.join(dir, f), 'utf8'));
+    igual(s.errores.length, 0, `${f} tiene errores semanticos: ${s.errores.map((e) => e.mensaje).join(' / ')} /`);
+    verdadero(s.correcto && s.reglas[0].regla === 'prop', `${f} no genero su gramatica`);
+  });
+});
+
+prueba('un nombre se declara antes de usarse', () => {
+  conError('y = 5;', "'y' no está declarada");
+  conError('saludar();', "La función 'saludar' no está declarada");
+  sinErrores('entero y;\ny = 5;\nimprimirLn(y);');
+});
+
+prueba('si un nombre esta mal escrito sugiere el parecido', () => {
+  const e = semanticoDe(enClase('entero edad = 3;\nimprimirLn(Edad);')).errores[0];
+  igual(e.sugerencia, "¿Quisiste decir 'edad'?");
+  igual(e.linea, 2);
+});
+
+prueba('un nombre no se repite dentro de la misma funcion', () => {
+  conError('entero x = 1;\nentero x = 2;', "'x' ya está declarada (línea 1)");
+  conError('para (entero i = 0; i < 3; i++) { entero i = 2; }', "'i' ya está declarada");
+  // Dos ciclos seguidos si pueden usar el mismo contador
+  sinErrores('para (entero i = 0; i < 3; i++) { imprimirLn(i); }\npara (entero i = 0; i < 3; i++) { imprimirLn(i); }');
+});
+
+prueba('lo que se declara en un bloque no existe afuera', () => {
+  conError('si (verdadero) { entero t = 1; }\nt = 2;', "'t' no está declarada");
+});
+
+prueba('el valor que se guarda debe caber en el tipo', () => {
+  conError('entero x = "hola";', "Tipos incompatibles: 'x' es entero y el valor es cadena");
+  conError('entero a = 2.5;', "'a' es entero y el valor es decimal");
+  conError('byte b = 200;', "'b' es byte y el valor es entero");
+  conError('cadena n = 5;', "'n' es cadena y el valor es entero");
+  sinErrores('decimal d = 5;\nimprimirLn(d);');           // un entero cabe en un decimal
+  sinErrores('byte b = 100;\nimprimirLn(b);');            // 100 cabe en un byte
+  sinErrores('largo l = 8000000L;\nimprimirLn(l);');
+  const flotante = semanticoDe(enClase('flotante f = 8.5;')).errores[0];
+  igual(flotante.sugerencia, 'Para un flotante, el número lleva f al final: 8.5f');
+  sinErrores('flotante f = 8.5f;\nimprimirLn(f);');
+});
+
+prueba('las condiciones deben ser logicas', () => {
+  conError('entero x = 5;\nsi (x) { imprimirLn(x); }', 'La condición de si debe ser lógica');
+  conError('entero x = 5;\nmientras (x + 1) { x++; }', 'La condición de mientras debe ser lógica');
+  const asignacion = semanticoDe(enClase('entero x = 5;\nsi (x = 5) { imprimirLn(x); }')).errores[0];
+  verdadero(asignacion.sugerencia.includes('=='), 'debe sugerir ==');
+});
+
+prueba('cada operador revisa el tipo de sus lados', () => {
+  conError('cadena s = "a";\nentero n = s * 2;', "* trabaja con números, y 's * 2' es cadena * entero");
+  conError('logico l = 5 > "a";', '> compara números');
+  conError('logico l = 5 Y verdadero;', 'Y une condiciones lógicas');
+  conError('logico l = NO 5;', 'NO niega una condición lógica');
+  conError('cadena n = "Ana";\nlogico l = n == 5;', 'No se puede comparar cadena == entero');
+  sinErrores('cadena s = "Total: " + 5;\nimprimirLn(s);');   // + con una cadena junta textos
+  sinErrores('entero a = 2;\ndecimal b = a * 1.5;\nimprimirLn(b);');
+});
+
+prueba('en el lenguaje la logica es Y, O, NO y las potencias son potencia()', () => {
+  const noSeUsan = {
+    'logico l = 1 > 0 && verdadero;': '&&',
+    'logico l = 1 > 0 || verdadero;': '||',
+    'logico l = !verdadero;': '!',
+    'logico l = 1 > 0 AND verdadero;': 'AND',
+    'logico l = 1 > 0 OR verdadero;': 'OR',
+    'logico l = NOT verdadero;': 'NOT',
+    'decimal p = 2 ^ 3;': '^',
+    'decimal p = 2 ** 3;': '**',
+    'decimal r = √16;': '√',
+    'decimal r = raiz(16);': 'raiz',
+    'decimal r = raizCuadrada(16);': 'raizCuadrada',
+    'decimal r = raizCubica(27);': 'raizCubica'
+  };
+  Object.keys(noSeUsan).forEach((codigo) => {
+    conError(codigo, `'${noSeUsan[codigo]}' no se usa en SwordByte.`);
+    // En las pestañas 1 y 2 si se reconocen: no son errores lexicos ni sintacticos
+    igual(compilar(enClase(codigo)).errores.length, 0, `${codigo} en la pestaña 2:`);
+  });
+  // Cada uno dice que se escribe en su lugar
+  igual(semanticoDe(enClase('logico l = 1 > 0 && verdadero;')).errores[0].sugerencia,
+    'El Y lógico se escribe Y:  a > 0 Y b > 0');
+  verdadero(semanticoDe(enClase('decimal r = raiz(16);')).errores[0].sugerencia.includes('potencia(x, 0.5)'),
+    'la raiz se saca con potencia');
+  // Lo que si es del lenguaje
+  sinErrores('logico l = 1 > 0 Y NO (2 > 3) O falso;\nimprimirLn(l);');
+  sinErrores('decimal r = potencia(27, 1.0 / 3) + potencia(2, 10);\nimprimirLn(r);');
+  conError('decimal r = potencia(-4, 0.5);', 'No existe la raíz de un número negativo');
+});
+
+prueba('una Constante no cambia de valor', () => {
+  conError('Constante decimal PI = 3.14;\nPI = 3;', "'PI' es Constante: su valor no se puede cambiar");
+  conError('Constante entero MAX = 3;\nMAX++;', "'MAX' es Constante");
+});
+
+prueba('una variable se usa despues de recibir un valor', () => {
+  conError('entero x;\nimprimirLn(x);', "'x' se usa antes de recibir un valor");
+  sinErrores('entero x;\nleer(x);\nimprimirLn(x);');
+  sinErrores('entero x;\nx = 4;\nimprimirLn(x);');
+});
+
+prueba('los arreglos revisan tamaño, indices y valores', () => {
+  conError('Arreglo entero d[3];\nd[3] = 1;', "'d' tiene 3 posiciones (de 0 a 2): la 3 no existe");
+  conError('Arreglo entero d[3];\nd[-1] = 1;', 'Un índice no puede ser negativo');
+  conError('Arreglo entero d[3];\nd[1.5] = 1;', 'Un índice debe ser entero');
+  conError('Arreglo entero d[0];', 'El tamaño de un arreglo debe ser mayor que cero');
+  conError('Arreglo entero d[] = {1, 2, "tres"};', "cada valor de 'd' es entero y el valor es cadena");
+  conError('Arreglo entero d[2] = {1, 2, 3};', "En 'd' caben 2 valores y se dieron 3");
+  conError('matriz entero m[2][2];\nimprimirLn(m[0]);', 'lleva 2 índice(s) [ ] y se escribieron 1');
+  conError('entero x = 1;\nimprimirLn(x[0]);', "'x' no es un arreglo");
+  sinErrores('matriz entero m[2][2] = {{1, 2}, {3, 4}};\nimprimirLn(m[1][1]);');
+});
+
+prueba('las funciones existen, reciben lo que piden y devuelven su tipo', () => {
+  const fuente = [
+    'clase p {',
+    '  funcion entero doble(entero n) { entero r = n * 2; }',
+    '  funcion vacio hola() { retornar 5; }',
+    '  clasePrincipal {',
+    '    entero x = doble(2, 3);',
+    '    entero y = hola();',
+    '    entero z = doble("a");',
+    '    imprimirLn(x + y + z);',
+    '    dobel(2);',
+    '  }',
+    '}'].join('\n');
+  conError(fuente, "La función 'doble' debe devolver un valor entero con retornar");
+  conError(fuente, "La función 'hola' es vacio: su retornar no lleva valor");
+  conError(fuente, "'doble' recibe 1 valor(es) y se le dieron 2");
+  conError(fuente, "'hola' es vacio: no devuelve ningún valor");
+  conError(fuente, "El valor 1 de 'doble' debe ser entero");
+  conError(fuente, "La función 'dobel' no está declarada");
+  // Una funcion se puede llamar aunque este declarada mas abajo
+  sinErrores('clase p {\n  clasePrincipal { imprimirLn(cuadrado(3)); }\n' +
+    '  funcion entero cuadrado(entero n) { retornar n * n; }\n}');
+  // Si todas las ramas retornan, no falta el retornar
+  sinErrores('clase p {\n  funcion entero signo(entero n) { si (n > 0) { retornar 1; } sino { retornar -1; } }\n' +
+    '  clasePrincipal { imprimirLn(signo(3)); }\n}');
+});
+
+prueba('romper y retornar solo van donde tienen sentido', () => {
+  conError('romper;', 'romper solo puede ir dentro de un ciclo');
+  conError('retornar 5;', 'Fuera de una función, retornar va sin valor');
+  sinErrores('entero i = 0;\nmientras (i < 3) { i++; si (i == 2) { romper; } }');
+});
+
+prueba('la geometria: medidas positivas, triangulos posibles y resultado decimal', () => {
+  conError('decimal a = area.circulo(-5);', 'Una medida de area.circulo debe ser mayor que cero');
+  conError('decimal a = perimetro.triangulo(1, 2, 10);', 'Los lados 1, 2 y 10 no forman un triángulo');
+  conError('decimal v = volumen.cubo("x");', 'Las medidas de volumen.cubo son números');
+  const entero = semanticoDe(enClase('entero a = area.circulo(5);')).errores[0];
+  verdadero(entero.sugerencia.includes('area.circulo devuelve decimal'), entero.sugerencia);
+  sinErrores('decimal r = 2.5;\ndecimal a = area.circulo(r);\nimprimirLn(a);');
+  sinErrores('decimal p = perimetro.triangulo(3, 4, 5);\nimprimirLn(p);');
+});
+
+prueba('imprimirF revisa sus formatos', () => {
+  conError('imprimirF("Edad: %d, prom: %.2f", 5, 8);', "%.2f pide un valor decimal y '8' es entero");
+  conError('imprimirF("Edad: %d", 5, 6);', 'El formato pide 1 valor(es) y se dieron 2');
+  conError('imprimirF("%q", 5);', "'%q' no es un formato de imprimirF");
+  conError('imprimirLn("a", "b");', 'imprimirLn recibe un solo valor');
+  sinErrores('imprimirF("%s tiene %d años y mide %.2f%n", "Ana", 20, 1.65);');
+});
+
+prueba('las funciones nativas y convertir revisan sus valores', () => {
+  conError('entero n = convertir("hola", entero);', '"hola" no es un número entero');
+  conError('entero n = convertir(verdadero, entero);', 'No se puede convertir logico a entero');
+  conError('entero r = aleatorio(6, 1);', 'el mínimo es mayor que el máximo');
+  conError('decimal l = logaritmo(0);', 'El logaritmo solo existe para números mayores que cero');
+  conError('entero n = longitud(5);', 'longitud mide una cadena o un arreglo');
+  conError('entero r = redondear("4.7");', 'redondear trabaja con números');
+  sinErrores('entero n = convertir("22", entero);\nimprimirLn(n);');
+});
+
+prueba('opcion: un tipo que se pueda evaluar y casos sin repetir', () => {
+  conError('decimal d = 2.5;\nopcion (d) { caso 1: romper; }', 'opcion no puede evaluar un valor decimal');
+  const repetidos = 'entero d = 2;\nopcion (d) { caso 1: romper; caso 1: romper; caso "a": romper; }';
+  conError(repetidos, 'El caso 1 está repetido');
+  conError(repetidos, 'El caso "a" es cadena, pero opcion evalúa un valor entero');
+});
+
+prueba('las advertencias: sin usar, codigo que no corre y division entre cero', () => {
+  const avisos = (codigo) => semanticoDe(programaDe(codigo)).advertencias.map((a) => a.mensaje).join(' / ');
+  verdadero(avisos('entero x = 5;').includes("'x' se declaró y su valor nunca se usa"), avisos('entero x = 5;'));
+  verdadero(avisos('entero i = 0;\nmientras (i < 3) { i++; romper; imprimirLn(i); }')
+    .includes('nunca se ejecuta: está después de romper'), 'codigo inalcanzable');
+  verdadero(avisos('entero x = 10 / 0;\nimprimirLn(x);').includes('divide entre cero'), 'division entre cero');
+  // Dentro de intentar, dividir entre cero es a proposito
+  igual(avisos('intentar { entero x = 10 / 0; imprimirLn(x); } capturar (Error e) { imprimirLn("Error: " + e); }'), '');
+  // Las advertencias no son errores
+  sinErrores('entero x = 10 / 0;\nimprimirLn(x);');
+});
+
+prueba('la tabla de simbolos la comparten las tres fases', () => {
+  const r = compilar(enClase('entero edad = 3;\nimprimirLn(edad);'));
+  const ids = r.lexico.identificadores;
+  // 1. El lexico anoto cada identificador con su etiqueta
+  igual(ids.map((i) => `${i.etiqueta}=${i.nombre}`).join(' '), 'id1=prueba id2=edad');
+  igual(ids[1].veces, 2, 'veces que aparece edad:');
+  // 2. El sintactico usa esas etiquetas en el arbol
+  verdadero(JSON.stringify(r.sintactico.arbol).includes('"etiqueta":"id2"'), 'el arbol dice id2');
+  // 3. El semantico completo cada nombre con lo que es, su tipo y su ambito
+  const edad = ids[1].declaraciones[0];
+  igual(`${edad.categoria} ${edad.tipo} ${edad.ambito} ${edad.linea}`, 'variable entero clasePrincipal 1');
+  igual(ids[0].declaraciones[0].categoria, 'clase');
+});
+
+prueba('la tabla de simbolos guarda los ambitos de cada nombre', () => {
+  const fuente = fs.readFileSync(path.join(__dirname, '..', 'ejemplos', '05-completo.bs'), 'utf8');
+  const ids = compilar(fuente).lexico.identificadores;
+  const de = (nombre) => ids.find((i) => i.nombre === nombre).declaraciones[0];
+  igual(de('areaCirculo').categoria, 'funcion');
+  igual(de('radio').categoria, 'parametro');
+  igual(de('radio').ambito, 'areaCirculo');
+  igual(de('datos').tipo, 'entero[]');
+  igual(de('tabla').tipo, 'entero[][]');
+  igual(de('division').ambito, 'clasePrincipal › intentar');
+  igual(de('e').categoria, 'error');
+
+  // La pila de ambitos: se busca de adentro hacia afuera
+  const t = new TablaSimbolos();
+  t.abrir('clasePrincipal');
+  t.declarar({ nombre: 'a', categoria: 'variable', tipo: 'entero' });
+  t.abrir('si');
+  igual(t.ambito, 'clasePrincipal › si');
+  igual(t.buscar('a').tipo, 'entero', 'desde adentro se ve la de afuera:');
+  t.declarar({ nombre: 'b', categoria: 'variable', tipo: 'cadena' });
+  t.cerrar();
+  igual(t.buscar('b'), null, 'al cerrar el bloque, b ya no existe:');
+});
+
+// =====================================================================
 grupo('Analizador semantico: la gramatica del codigo (pestaña 3)');
 
-const { reglaATexto, claseDeCaracter } = require('../src/core/semantico/AnalizadorSemantico');
-
-/** La gramatica de un codigo, una regla por renglon:  exp → id | num */
-function gramaticaDe (fuente) {
-  const s = compilar(fuente).semantico;
-  if (!s.correcto) throw new Error('no se genero la gramatica: ' + s.errores.map((e) => e.mensaje).join(' / '));
+/** La gramatica de un programa, una regla por renglon:  exp → id | num */
+function gramaticaDe (codigo) {
+  const s = semanticoDe(programaDe(codigo));
+  if (s.estado !== 'analizado') throw new Error(`no se genero la gramatica (${s.estado})`);
   return s.reglas.map((r) => reglaATexto(r));
 }
 
 /** La regla con ese nombre, o '' si no salio. */
-function reglaDe (fuente, nombre) {
-  return gramaticaDe(fuente).find((r) => r.startsWith(nombre + ' →')) || '';
+function reglaDe (codigo, nombre) {
+  return gramaticaDe(codigo).find((r) => r.startsWith(nombre + ' →')) || '';
 }
 
-prueba('genera la gramatica del ejemplo del pizarron (a1 = b5 / 20)', () => {
-  igual(gramaticaDe('a1 = b5 / 20').join(' / '),
-    'prop → id = exp / exp → id | num | exp / exp / id → let ( dig )* / ' +
-    'num → dig ( dig )* / dig → 0-9 / let → a-z');
+prueba('genera la gramatica del ejemplo del pizarron (a1 = b5 / 20;)', () => {
+  igual(gramaticaDe('clase p { clasePrincipal { a1 = b5 / 20; } }').join(' / '),
+    'prop → clase id { principal } / principal → clasePrincipal { inst } / inst → id = exp ; / ' +
+    'exp → id | num | exp / exp / id → let ( dig )* / num → dig ( dig )* / dig → 0-9 / let → a-z');
+});
+
+prueba('la gramatica sale aunque haya errores semanticos', () => {
+  // a1 y b5 no estan declaradas, pero el codigo esta bien escrito
+  const s = semanticoDe(enClase('a1 = b5 / 20;'));
+  igual(s.correcto, false);
+  verdadero(s.reglas.length > 0, 'debe traer la gramatica');
 });
 
 prueba('solo salen las alternativas que aparecen en el codigo', () => {
-  const exp = reglaDe('a + b', 'exp');
-  igual(exp, 'exp → id');
-  verdadero(!gramaticaDe('a + b').some((r) => r.includes('*')), 'no hay multiplicaciones');
+  igual(reglaDe('x = a + b;', 'exp'), 'exp → id | exp + exp');
+  verdadero(!gramaticaDe('x = a + b;').some((r) => r.includes('exp * exp')), 'no hay multiplicaciones');
 });
 
 prueba('los parentesis aparecen como exp → ( exp )', () => {
-  verdadero(reglaDe('(a + b) * c', 'exp').includes('( exp )'), reglaDe('(a + b) * c', 'exp'));
+  verdadero(reglaDe('x = (a + b) * c;', 'exp').includes('( exp )'), reglaDe('x = (a + b) * c;', 'exp'));
 });
 
-prueba('una instruccion suelta es la proposicion', () => {
-  igual(reglaDe('entero edad = 20;', 'prop'), 'prop → tipo id = exp ;');
+prueba('cada instruccion es una alternativa de inst', () => {
+  igual(reglaDe('entero edad = 20;', 'inst'), 'inst → tipo id = exp ;');
   igual(reglaDe('entero edad = 20;', 'tipo'), 'tipo → entero');
-});
-
-prueba('las proposiciones del usuario: asignacion y expresion', () => {
-  igual(gramaticaDe('a = b + c').join(' / '),
-    'prop → id = exp / exp → id | exp + exp / id → let / let → a-z');
-  igual(reglaDe('a && b || c +f > d', 'prop'), 'prop → exp || exp');
-  igual(reglaDe('a && b || c +f > d', 'exp'), 'exp → id | exp && exp | exp + exp | exp > exp');
-  igual(reglaDe('a', 'prop'), 'prop → id');
-});
-
-prueba('varias proposiciones, una por renglon: props → prop prop', () => {
-  const fuente = 'a = b + c\na && b || c + f > d';
-  igual(reglaDe(fuente, 'props'), 'props → prop prop');
-  igual(reglaDe(fuente, 'prop'), 'prop → id = exp | exp || exp');
-  igual(compilar(fuente).semantico.modo, 'proposiciones');
-});
-
-prueba('varias instrucciones con punto y coma: cada una es una prop', () => {
-  igual(reglaDe('a = 1; b = 2; c = 3;', 'props'), 'props → prop ( prop )*');
-  igual(reglaDe('a = 1; x > y;', 'prop'), 'prop → id = exp ; | exp > exp ;');
+  igual(reglaDe('a = 1; i++;', 'inst'), 'inst → id ++ ; | id = exp ;');
 });
 
 prueba('tres o mas iguales se escriben con repeticion ( )*', () => {
-  igual(reglaDe('imprimir(a, b, c);', 'prop'), 'prop → imprimir ( exp ( , exp )* ) ;');
+  igual(reglaDe('a = 1; b = 2; c = 3;', 'principal'), 'principal → clasePrincipal { inst ( inst )* }');
+  igual(reglaDe('imprimir(a, b, c);', 'inst'), 'inst → imprimir ( exp ( , exp )* ) ;');
 });
 
 prueba('las estructuras de control llevan sus bloques', () => {
-  igual(reglaDe('si (a > 1) { romper; } sino { romper; }', 'prop'),
-    'prop → si ( exp ) { inst } sino { inst }');
+  igual(reglaDe('si (a > 1) { romper; } sino { romper; }', 'inst'),
+    'inst → romper ; | si ( exp ) { inst } sino { inst }');
   igual(reglaDe('opcion (a) { caso 1: imprimir("Hola"); romper; }', 'rama'),
     'rama → caso exp : inst inst');
 });
@@ -824,13 +1150,13 @@ prueba('un programa completo empieza con la clase', () => {
 
 prueba('las reglas van de arriba hacia abajo y al final los caracteres', () => {
   const reglas = gramaticaDe('opcion (a) { caso 1: imprimir("Hola"); romper; }').map((r) => r.split(' →')[0]);
-  igual(reglas.join(','), 'prop,exp,rama,inst,id,num,cadena,TEXTO,dig,LET,let');
+  igual(reglas.join(','), 'prop,principal,inst,exp,rama,id,num,cadena,TEXTO,dig,LET,let');
 });
 
 prueba('el identificador usa solo las clases de caracteres que aparecen', () => {
-  igual(reglaDe('a', 'id'), 'id → let');
-  igual(reglaDe('miVariable2', 'id'), 'id → let ( let | LET | dig )*');
-  igual(reglaDe('_x', 'id'), 'id → _ ( let )*');
+  igual(reglaDe('clase a { clasePrincipal { b = 1; } }', 'id'), 'id → let');
+  igual(reglaDe('clase p { clasePrincipal { miVariable2 = 1; } }', 'id'), 'id → let ( let | LET | dig )*');
+  igual(reglaDe('clase _p { clasePrincipal { _x = 1; } }', 'id'), 'id → _ ( let )*');
 });
 
 prueba('el texto de una cadena dice sus clases de caracteres', () => {
@@ -841,40 +1167,405 @@ prueba('el texto de una cadena dice sus clases de caracteres', () => {
 prueba('la ñ y los acentos cuentan como letras', () => {
   igual(claseDeCaracter('ñ'), 'let');
   igual(claseDeCaracter('Á'), 'LET');
-  igual(reglaDe('año', 'let'), 'let → a-z | ñ');
+  igual(reglaDe('clase p { clasePrincipal { año = 1; } }', 'let'), 'let → a-z | ñ');
 });
 
 prueba('cada produccion dice de que parte del codigo salio', () => {
-  const exp = compilar('a1 = b5 / 20').semantico.reglas.find((r) => r.regla === 'exp');
+  const exp = semanticoDe(enClase('a1 = b5 / 20;')).reglas.find((r) => r.regla === 'exp');
   const division = exp.alternativas.find((a) => a.texto === 'exp / exp');
   igual(division.ejemplo, 'b5 / 20');
 });
 
 prueba('los terminales y los no terminales se distinguen', () => {
-  const prop = compilar('si (a) { romper; }').semantico.reglas[0].alternativas[0];
-  igual(prop.simbolos[0].clase, 'terminal');      // si
-  igual(prop.simbolos[2].clase, 'no-terminal');   // exp
+  const prop = semanticoDe(enClase('romper;')).reglas[0].alternativas[0];
+  igual(prop.simbolos[0].clase, 'terminal');      // clase
+  igual(prop.simbolos[1].clase, 'no-terminal');   // id
 });
 
-prueba('con errores no hay gramatica, y se dice por que', () => {
-  const s = compilar('entero = 5;').semantico;
-  igual(s.correcto, false);
-  igual(s.reglas.length, 0);
-  verdadero(s.errores.length > 0, 'debe traer los errores');
+// =====================================================================
+grupo('Errores subrayados mientras se escribe');
+
+const { erroresParaMarcar } = require('../src/core/Compilador');
+const { resaltarCodigo } = require('../src/core/01.lexico/ResaltadoCodigo');
+
+/** Los pedazos de codigo que quedan subrayados en rojo. */
+function subrayados (fuente, pestana) {
+  const html = resaltarCodigo(fuente, erroresParaMarcar(fuente, pestana));
+  return (html.match(/class="[^"]*j-marca[^"]*">[^<]*/g) || []).map((s) => s.split('>')[1]);
+}
+
+prueba('cada pestaña marca los errores de su fase y de las anteriores', () => {
+  const fuente = enClase('entero a = "x"; imprimirLn(a); x = 4.;');
+  igual(subrayados(fuente, 'lexico').join(' '), '4.', 'pestaña 1, solo el lexico:');
+  igual(subrayados(fuente.replace('4.', '4'), 'sintactico').join(' '), '', 'pestaña 2, sin errores sintacticos:');
+  igual(subrayados(fuente.replace('4.', '4'), 'semantico').join(' '), 'a x', 'pestaña 3, los semanticos:');
 });
 
-prueba('sin codigo no hay gramatica ni errores', () => {
-  const s = compilar('').semantico;
-  verdadero(s.vacio, 'debe marcarse vacio');
-  igual(s.errores.length, 0);
+prueba('el codigo sin clase se marca desde su primera palabra', () => {
+  igual(subrayados('entero a = 5;', 'sintactico').join(' '), 'entero');
+  igual(subrayados('a = b + c', 'sintactico').join(' '), '', 'una expresion suelta si vale en la pestaña 2');
+  igual(subrayados('a = b + c', 'semantico').join(' '), 'a', 'pero no en la pestaña 3');
 });
 
-prueba('todos los ejemplos correctos generan su gramatica', () => {
+prueba('el punto y coma que falta se marca en lo ultimo del renglon', () => {
+  igual(subrayados('clase p { clasePrincipal {\n  entero a = 5\n  imprimirLn(a);\n} }', 'sintactico').join(' '), '5');
+});
+
+prueba('subrayar no cambia el texto', () => {
+  const fuente = enClase('entero a = "x"; imprimirLn(a);');
+  const html = resaltarCodigo(fuente, erroresParaMarcar(fuente, 'semantico'));
+  const texto = html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  igual(texto, fuente);
+});
+
+// =====================================================================
+grupo('Codigo intermedio: codigo de tres direcciones (fase 4)');
+
+/** El resultado de la fase 4 para unas instrucciones dentro de clasePrincipal. */
+function intermedioDe (codigo) {
+  return compilar(programaDe(codigo)).intermedio;
+}
+
+/**
+ * Las instrucciones de tres direcciones de un codigo, juntas en un texto, sin
+ * las de inicio y fin de clasePrincipal (que salen siempre).
+ */
+function tresDe (codigo) {
+  const ci = intermedioDe(codigo);
+  if (ci.estado !== 'generado') throw new Error(`no se genero (${ci.estado}): ${ci.errores.map((e) => e.mensaje).join(' / ')}`);
+  return ci.instrucciones
+    .filter((i) => !/^(funcion|fin) clasePrincipal/.test(i.texto))
+    .map((i) => i.texto).join(' / ');
+}
+
+prueba('a = b + c * d se traduce con temporales, como en el libro', () => {
+  igual(tresDe('entero b = 1, c = 2, d = 3;\nentero a = b + c * d;'),
+    'b = 1 / c = 2 / d = 3 / t1 = c * d / t2 = b + t1 / a = t2');
+});
+
+prueba('cada instruccion es tambien un cuadruplo (operador, arg1, arg2, resultado)', () => {
+  const ci = intermedioDe('entero b = 1, c = 2, d = 3;\nentero a = b + c * d;');
+  const t1 = ci.instrucciones.find((i) => i.texto === 't1 = c * d');
+  igual(`${t1.op} ${t1.arg1} ${t1.arg2} ${t1.resultado}`, '* c d t1');
+  const copia = ci.instrucciones.find((i) => i.texto === 'a = t2');
+  igual(`${copia.op}|${copia.arg1}|${copia.arg2}|${copia.resultado}`, '=|t2||a');
+  igual(ci.instrucciones.map((i) => i.numero).join(','),
+    ci.instrucciones.map((_, k) => k + 1).join(','), 'numeradas en orden:');
+  igual(ci.temporales, 2);
+});
+
+prueba('la jerarquia y los parentesis deciden el orden', () => {
+  igual(tresDe('entero a = 2;\nentero x = (a + 3) * -a;'),
+    'a = 2 / t1 = a + 3 / t2 = - a / t3 = t1 * t2 / x = t3');
+  igual(tresDe('entero x = 2 + 3 * 4;'), 't1 = 3 * 4 / t2 = 2 + t1 / x = t2');
+});
+
+prueba('si y sino saltan con etiquetas', () => {
+  igual(tresDe('entero a = 1;\nsi (a > 0) { a = 2; } sino { a = 3; }'),
+    'a = 1 / t1 = a > 0 / ifFalse t1 goto L1 / a = 2 / goto L2 / L1: / a = 3 / L2:');
+  // Sin sino no hace falta saltar al final
+  igual(tresDe('entero a = 1;\nsi (a > 0) { a = 2; }'),
+    'a = 1 / t1 = a > 0 / ifFalse t1 goto L1 / a = 2 / L1:');
+});
+
+prueba('mientras, hacer y para regresan a su etiqueta de inicio', () => {
+  igual(tresDe('entero i = 0;\nmientras (i < 3) { i++; }'),
+    'i = 0 / L1: / t1 = i < 3 / ifFalse t1 goto L2 / i = i + 1 / goto L1 / L2:');
+  igual(tresDe('entero i = 0;\nhacer { i++; } mientras (i < 3);'),
+    'i = 0 / L1: / i = i + 1 / t1 = i < 3 / if t1 goto L1');
+  igual(tresDe('para (entero i = 0; i < 5; i++) { si (i == 2) { romper; } }'),
+    'i = 0 / L1: / t1 = i < 5 / ifFalse t1 goto L3 / t2 = i == 2 / ifFalse t2 goto L2 / ' +
+    'goto L3 / L2: / i = i + 1 / goto L1 / L3:');
+});
+
+prueba('opcion compara cada caso y romper salta a la salida', () => {
+  igual(tresDe('entero d = 2;\nopcion (d) { caso 1: imprimirLn(1); romper; porDefecto: imprimirLn(0); }'),
+    'd = 2 / if d == 1 goto L1 / goto L2 / L1: / param 1 / call imprimirLn, 1 / goto L3 / ' +
+    'L2: / param 0 / call imprimirLn, 1 / L3:');
+});
+
+prueba('Y y O tienen corto circuito; NO es una operacion de un valor', () => {
+  igual(tresDe('logico l = 1 > 0 Y 2 > 1;'),
+    't1 = 1 > 0 / t2 = t1 / ifFalse t2 goto L1 / t3 = 2 > 1 / t2 = t3 / L1: / l = t2');
+  igual(tresDe('logico l = 1 > 0 O 2 > 1;'),
+    't1 = 1 > 0 / t2 = t1 / if t2 goto L1 / t3 = 2 > 1 / t2 = t3 / L1: / l = t2');
+  igual(tresDe('logico l = NO verdadero;'), 't1 = NO verdadero / l = t1');
+});
+
+prueba('las funciones: param, call y return', () => {
+  const ci = compilar('clase p {\n  funcion entero doble(entero n) { retornar n * 2; }\n' +
+    '  clasePrincipal { entero x = doble(4); imprimirLn(x); }\n}').intermedio;
+  igual(ci.instrucciones.map((i) => i.texto).join(' / '),
+    'funcion doble(n) / t1 = n * 2 / return t1 / fin doble / funcion clasePrincipal() / ' +
+    'param 4 / t2 = call doble, 1 / x = t2 / param x / call imprimirLn, 1 / fin clasePrincipal');
+});
+
+prueba('arreglos y matrices: reservar, leer y escribir por posicion', () => {
+  igual(tresDe('Arreglo entero d[] = {5, 6};\nmatriz entero m[2][3];\nentero i = 1;\nm[i][2] = d[1];'),
+    'reservar d, 2 / d[0] = 5 / d[1] = 6 / t1 = 2 * 3 / reservar m, t1 / i = 1 / ' +
+    't2 = i * 3 / t3 = t2 + 2 / t4 = d[1] / m[t3] = t4');
+});
+
+prueba('leer, convertir, geometria e incrementos', () => {
+  igual(tresDe('decimal r;\nleer(r);\ndecimal a = area.circulo(r);\nentero n = convertir("5", entero);'),
+    'leer r / param r / t1 = call area.circulo, 1 / a = t1 / t2 = (entero) "5" / n = t2');
+  igual(tresDe('entero x = 5;\nentero y = x++;'), 'x = 5 / t1 = x / x = x + 1 / y = t1');
+});
+
+prueba('intentar y capturar', () => {
+  igual(tresDe('intentar { entero x = 10 / 0; imprimirLn(x); } capturar (Error e) { imprimirLn(e); }'),
+    'intentar L1 / t1 = 10 / 0 / x = t1 / param x / call imprimirLn, 1 / finIntentar / goto L2 / ' +
+    'L1: / capturar e / param e / call imprimirLn, 1 / L2:');
+});
+
+prueba('cada grupo dice de que renglon del programa sale', () => {
+  const ci = intermedioDe('entero b = 1, c = 2, d = 3;\nentero a = b + c * d;');
+  const t1 = ci.instrucciones.find((i) => i.texto === 't1 = c * d');
+  igual((t1.comentarios || []).join(), 'entero a = b + c * d;');
+  igual(t1.linea, 2);
+  // Las instrucciones del mismo renglon que van despues ya no repiten el comentario
+  verdadero(!ci.instrucciones.find((i) => i.texto === 't2 = b + t1').comentarios, 'sin comentario repetido');
+});
+
+prueba('los temporales y las etiquetas no chocan con los nombres del programa', () => {
+  igual(tresDe('entero t1 = 2;\nentero L1 = t1 * 3;\nsi (L1 > 0) { imprimirLn(L1); }'),
+    't1 = 2 / tt1 = t1 * 3 / L1 = tt1 / tt2 = L1 > 0 / ifFalse tt2 goto LL1 / ' +
+    'param L1 / call imprimirLn, 1 / LL1:');
+});
+
+prueba('sin un programa correcto no se genera', () => {
+  const sinClase = compilar('a = b + c').intermedio;
+  igual(sinClase.estado, 'errores-previos');
+  verdadero(sinClase.errores[0].mensaje.startsWith('Falta la clase'), sinClase.errores[0].mensaje);
+  const conError = intermedioDe('entero x = "hola";');
+  igual(conError.estado, 'errores-previos');
+  verdadero(/Tipos incompatibles/.test(conError.errores[0].mensaje), 'el error semantico');
+  igual(compilar('').intermedio.estado, 'vacio');
+  // Las advertencias no lo impiden
+  igual(intermedioDe('entero x = 5;').estado, 'generado');
+});
+
+prueba('todos los ejemplos correctos generan su codigo y sus saltos llegan a una etiqueta', () => {
   const dir = path.join(__dirname, '..', 'ejemplos');
   fs.readdirSync(dir).filter((f) => !f.includes('error')).forEach((f) => {
-    const s = compilar(fs.readFileSync(path.join(dir, f), 'utf8')).semantico;
-    verdadero(s.correcto && s.reglas[0].regla === 'prop', `${f} no genero su gramatica`);
+    const ci = compilar(fs.readFileSync(path.join(dir, f), 'utf8')).intermedio;
+    igual(ci.estado, 'generado', `${f}:`);
+    const definidas = ci.instrucciones.filter((i) => i.op === 'etiqueta').map((i) => i.resultado);
+    igual(new Set(definidas).size, definidas.length, `${f}, etiquetas repetidas:`);
+    ci.instrucciones.filter((i) => ['goto', 'if', 'ifFalse', 'if==', 'intentar'].includes(i.op))
+      .forEach((i) => verdadero(definidas.includes(i.resultado), `${f}: ${i.texto} salta a una etiqueta que no existe`));
+    igual(ci.etiquetas, definidas.length, `${f}, cuenta de etiquetas:`);
   });
+});
+
+// =====================================================================
+grupo('Optimizacion del codigo intermedio (fase 5)');
+
+const { ejecutarIntermedio } = require('./interprete-intermedio');
+
+/** El resultado de la fase 5 para unas instrucciones dentro de clasePrincipal. */
+function optimizadoDe (codigo) {
+  return compilar(programaDe(codigo)).optimizacion;
+}
+
+/** Las instrucciones optimizadas juntas en un texto (sin el inicio y fin de clasePrincipal). */
+function optDe (codigo) {
+  const o = optimizadoDe(codigo);
+  if (o.estado !== 'optimizado') throw new Error(`no se optimizo (${o.estado})`);
+  return o.instrucciones
+    .filter((i) => !/^(funcion|fin) clasePrincipal/.test(i.texto))
+    .map((i) => i.texto).join(' / ');
+}
+
+/** Cuantas veces se aplico cada optimizacion:  { plegado: 2, muerto: 1 } */
+function vecesDe (codigo) {
+  const veces = {};
+  optimizadoDe(codigo).porOptimizacion.forEach((o) => { veces[o.clave] = o.veces; });
+  return veces;
+}
+
+/**
+ * Ejecuta un programa antes y despues de optimizar: los dos deben imprimir
+ * exactamente lo mismo. Devuelve lo que imprime.
+ */
+function mismaSalida (fuente, entradas = []) {
+  const r = compilar(fuente);
+  igual(r.intermedio.estado, 'generado', 'el codigo intermedio:');
+  const antes = ejecutarIntermedio(r.intermedio.instrucciones, { entradas });
+  const despues = ejecutarIntermedio(r.optimizacion.instrucciones, { entradas });
+  igual(despues, antes, 'lo que imprime cambio al optimizar:');
+  verdadero(r.optimizacion.instrucciones.length <= r.optimizacion.antes, 'el codigo optimizado crecio');
+  return antes;
+}
+
+prueba('plegado y propagacion de constantes: lo que ya se sabe se calcula desde ahora', () => {
+  igual(optDe('entero x = 2 * 3 + 4;\nimprimirLn(x);'), 'param 10 / call imprimirLn, 1');
+  igual(optDe('entero b = 2;\nentero a = b * 3;\nimprimirLn(a);'), 'param 6 / call imprimirLn, 1');
+  const veces = vecesDe('entero b = 2;\nentero a = b * 3;\nimprimirLn(a);');
+  verdadero(veces.plegado > 0 && veces.propagacion > 0 && veces.muerto > 0, JSON.stringify(veces));
+  igual(optDe('cadena c = "Hola " + "tú";\nimprimirLn(c);'), 'param "Hola tú" / call imprimirLn, 1');
+  igual(optDe('entero n = 16;\nimprimirLn("Total: " + n);'), 'param "Total: 16" / call imprimirLn, 1');
+  // Un decimal no se pasa a texto desde ahora: Java escribe algunos distinto
+  verdadero(optDe('imprimirLn("x" + 2.5);').includes('"x" + 2.5'), 'se paso un decimal a texto');
+  igual(optDe('logico l = NO (3 > 2);\nimprimirLn(l);'), 'param falso / call imprimirLn, 1');
+});
+
+prueba('los enteros se dividen como en Java, y un decimal guarda 5.0', () => {
+  igual(optDe('imprimirLn(7 / 2);'), 'param 3 / call imprimirLn, 1');
+  igual(optDe('imprimirLn(7.0 / 2);'), 'param 3.5 / call imprimirLn, 1');
+  // La fase 4 escribe la conversion que Java hace sola, y la fase 5 la calcula
+  igual(tresDe('decimal x = 5;\nimprimirLn(x / 2);'), 'x = (decimal) 5 / t1 = x / 2 / param t1 / call imprimirLn, 1');
+  igual(optDe('decimal x = 5;\nimprimirLn(x / 2);'), 'param 2.5 / call imprimirLn, 1');
+  igual(mismaSalida(programaDe('decimal x = 5;\nimprimirLn(x / 2);\nimprimirLn(x);')), '2.5\n5.0\n');
+});
+
+prueba('no se calcula lo que debe fallar al ejecutarse', () => {
+  const opt = optDe('intentar { entero x = 10 / 0; imprimirLn(x); } capturar (Error e) { imprimirLn("error"); }');
+  verdadero(opt.includes('x = 10 / 0'), opt);
+  igual(mismaSalida(programaDe('intentar { entero x = 10 / 0; imprimirLn(x); } capturar (Error e) { imprimirLn("error"); }')),
+    'error\n');
+  // Un entero que ya no cabe tampoco se calcula
+  verdadero(optDe('entero a = 2147483647;\nimprimirLn(a + 1);').includes('2147483647 + 1'), 'se calculo un entero que no cabe');
+});
+
+prueba('propagacion de copias: el calculo va directo a la variable', () => {
+  igual(optDe('entero a;\nleer(a);\nentero b = a + 1;\nimprimirLn(b);'),
+    'leer a / b = a + 1 / param b / call imprimirLn, 1');
+  igual(optDe('entero a;\nleer(a);\nentero b = a;\nimprimirLn(b * 3);'),
+    'leer a / t1 = a * 3 / param t1 / call imprimirLn, 1');
+});
+
+prueba('subexpresiones comunes: lo que ya se calculo no se vuelve a calcular', () => {
+  igual(optDe('entero a, b;\nleer(a);\nleer(b);\nentero c = a * b + a * b;\nimprimirLn(c);'),
+    'leer a / leer b / t1 = a * b / c = t1 + t1 / param c / call imprimirLn, 1');
+  // Si a cambia en medio, ya no es lo mismo
+  igual(optDe('entero a, b;\nleer(a);\nleer(b);\nentero c = a * b;\na = a + 1;\nentero d = a * b;\nimprimirLn(c + d);'),
+    'leer a / leer b / c = a * b / a = a + 1 / d = a * b / t4 = c + d / param t4 / call imprimirLn, 1');
+});
+
+prueba('simplificacion algebraica y reduccion de fuerza', () => {
+  igual(optDe('entero a;\nleer(a);\nimprimirLn(a * 1 - 0);'), 'leer a / param a / call imprimirLn, 1');
+  igual(optDe('entero a;\nleer(a);\nimprimirLn(a * 2);'), 'leer a / t1 = a + a / param t1 / call imprimirLn, 1');
+  igual(vecesDe('entero a;\nleer(a);\nimprimirLn(a * 2);').fuerza, 1);
+  // a + 0 se queda: con una cadena, + junta textos ("a" + 0 es "a0")
+  verdadero(optDe('cadena s;\nleer(s);\nimprimirLn(s + 0);').includes('s + 0'), 'se quito un + 0');
+});
+
+prueba('codigo muerto: lo que nadie usa se quita, pero las llamadas se quedan', () => {
+  igual(optDe('entero a = 5;\nentero b = 7;\nimprimirLn(b);'), 'param 7 / call imprimirLn, 1');
+  igual(optDe('entero d = aleatorio(1, 6);'), 'param 1 / param 6 / call aleatorio, 2');
+  igual(vecesDe('entero d = aleatorio(1, 6);').muerto, 1);
+});
+
+prueba('saltos: una condicion que ya se sabe deja un solo camino', () => {
+  igual(optDe('si (3 > 2) { imprimirLn("si"); } sino { imprimirLn("no"); }'), 'param "si" / call imprimirLn, 1');
+  igual(optDe('entero d = 2;\nopcion (d) { caso 1: imprimirLn("uno"); caso 2: imprimirLn("dos"); romper; porDefecto: imprimirLn("otro"); }'),
+    'param "dos" / call imprimirLn, 1');
+  const veces = vecesDe('si (3 > 2) { imprimirLn("si"); } sino { imprimirLn("no"); }');
+  verdadero(veces.saltos > 0 && veces.inalcanzable > 0, JSON.stringify(veces));
+});
+
+prueba('saltos: un if que solo brinca un goto se voltea', () => {
+  const o = optimizadoDe('entero i;\nleer(i);\nmientras (i < 9) { si (i == 5) { romper; } i++; }');
+  const textos = o.instrucciones.map((i) => i.texto);
+  verdadero(textos.includes('if t2 goto L3'), textos.join(' / '));
+  verdadero(!textos.includes('goto L3'), 'el goto de romper ya no hace falta');
+});
+
+prueba('codigo inalcanzable: lo que va despues de retornar', () => {
+  const r = compilar('clase p {\n  funcion entero f(entero n) { retornar n; imprimirLn(n); }\n' +
+    '  clasePrincipal { imprimirLn(f(2)); }\n}');
+  igual(r.optimizacion.instrucciones.slice(0, 3).map((i) => i.texto).join(' / '), 'funcion f(n) / return n / fin f');
+});
+
+prueba('los ciclos se respetan: despues de una etiqueta ya no se sabe lo que vale', () => {
+  igual(optDe('entero i = 0;\nmientras (i < 3) { i++; }\nimprimirLn(i);'),
+    'i = 0 / L1: / t1 = i < 3 / ifFalse t1 goto L2 / i = i + 1 / goto L1 / L2: / param i / call imprimirLn, 1');
+  igual(mismaSalida(programaDe('entero i = 0;\nmientras (i < 3) { i++; }\nimprimirLn(i);')), '3\n');
+});
+
+prueba('cada cambio queda anotado, con el antes y el despues', () => {
+  const o = optimizadoDe('entero x = 2 * 3;\nimprimirLn(x);');
+  const plegado = o.cambios.find((c) => c.optimizacion === 'plegado');
+  igual(`${plegado.nombre}: ${plegado.antes} -> ${plegado.despues}`, 'Plegado de constantes: t1 = 2 * 3 -> t1 = 6');
+  igual(plegado.linea, 1);
+  igual(o.antes, compilar(programaDe('entero x = 2 * 3;\nimprimirLn(x);')).intermedio.instrucciones.length);
+  igual(o.instrucciones.map((i) => i.numero).join(','), o.instrucciones.map((_, k) => k + 1).join(','), 'numeradas:');
+  // Cada instruccion recuerda su numero en la fase 4 y lo que se le hizo
+  const param = o.instrucciones.find((i) => i.op === 'param');
+  igual(param.original, 4);
+  igual(param.optimizaciones.join(), 'propagacion');
+  // El renglon de las instrucciones quitadas pasa a la siguiente
+  igual(param.comentarios.join(' | '), 'entero x = 2 * 3; | imprimirLn(x);');
+});
+
+prueba('los temporales con otro prefijo tambien se optimizan', () => {
+  igual(optDe('entero t1;\nleer(t1);\nentero a = t1 + 1;\nimprimirLn(a * 1);'),
+    'leer t1 / a = t1 + 1 / param a / call imprimirLn, 1');
+});
+
+prueba('sin codigo intermedio no hay optimizacion', () => {
+  igual(compilar('').optimizacion.estado, 'vacio');
+  const sinClase = compilar('a = b + c').optimizacion;
+  igual(sinClase.estado, 'errores-previos');
+  verdadero(sinClase.errores[0].mensaje.startsWith('Falta la clase'), sinClase.errores[0].mensaje);
+  igual(optimizadoDe('entero x = "hola";').estado, 'errores-previos');
+});
+
+prueba('los ejemplos imprimen lo mismo antes y despues de optimizar', () => {
+  const dir = path.join(__dirname, '..', 'ejemplos');
+  fs.readdirSync(dir).filter((f) => !f.includes('error')).forEach((f) => {
+    const fuente = fs.readFileSync(path.join(dir, f), 'utf8');
+    verdadero(mismaSalida(fuente, ['5']).length > 0, `${f} no imprimio nada`);
+    // Todos sus saltos siguen llegando a una etiqueta
+    const o = compilar(fuente).optimizacion;
+    const etiquetas = o.instrucciones.filter((i) => i.op === 'etiqueta').map((i) => i.resultado);
+    o.instrucciones.filter((i) => ['goto', 'if', 'ifFalse', 'if==', 'intentar'].includes(i.op))
+      .forEach((i) => verdadero(etiquetas.includes(i.resultado), `${f}: ${i.texto} salta a una etiqueta que no existe`));
+    igual(o.etiquetas, etiquetas.length, `${f}, cuenta de etiquetas:`);
+  });
+  // El ejemplo 3 tiene sus valores fijos: casi todas sus decisiones se resuelven
+  const control = compilar(fs.readFileSync(path.join(dir, '03-control.bs'), 'utf8')).optimizacion;
+  verdadero(control.instrucciones.length < control.antes / 2, `${control.antes} -> ${control.instrucciones.length}`);
+});
+
+prueba('programas con trampas imprimen lo mismo antes y despues de optimizar', () => {
+  const casos = [
+    // opcion sin romper sigue con el siguiente caso
+    ['entero d = 2;\nopcion (d) { caso 1: imprimirLn("uno"); caso 2: imprimirLn("dos"); caso 3: imprimirLn("tres"); romper; porDefecto: imprimirLn("otro"); }',
+      'dos\ntres\n'],
+    // Y, O y NO con corto circuito
+    ['entero a = 5;\nlogico l = a > 3 Y a < 10;\nlogico m = a < 0 O a == 5;\nsi (l Y NO m) { imprimirLn("x"); } sino { imprimirLn("y"); }', 'y\n'],
+    // ciclos anidados con romper
+    ['entero suma = 0;\npara (entero i = 1; i <= 4; i++) { para (entero j = 1; j <= 4; j++) { si (j > i) { romper; } suma = suma + i * j; } }\nimprimirLn(suma);',
+      '65\n'],
+    // arreglos y matrices
+    ['Arreglo entero d[] = {4, 5, 6};\nmatriz entero m[2][2] = {{1, 2}, {3, 4}};\nentero s = d[0] + d[2] * m[1][1];\nd[1] = s;\nimprimirLn(d[1]);',
+      '28\n'],
+    // textos
+    ['cadena c = "Hola" + " " + "mundo";\nimprimirLn(c + 1);', 'Hola mundo1\n'],
+    // hacer se ejecuta una vez aunque la condicion sea falsa
+    ['entero x = 0;\nhacer { x = x + 2; } mientras (x < 0);\nimprimirLn(x);', '2\n'],
+    // un lugar que no existe se captura
+    ['Arreglo entero d[2];\nentero k = 5;\nintentar { d[k] = 1; imprimirLn("no"); } capturar (Error e) { imprimirLn("fuera"); }', 'fuera\n'],
+    // enteros y decimales mezclados
+    ['decimal p = 10;\nentero k = 4;\ndecimal r = p / k;\nimprimirLn(r);\nimprimirLn(k / 3 * 1.5);', '2.5\n1.5\n'],
+    ['decimal total = 0;\npara (entero i = 1; i <= 3; i++) { total = total + i / 2; }\nimprimirLn(total);', '2.0\n'],
+    // x++ devuelve el valor de antes
+    ['entero x = 5;\nentero y = x++ + x;\nimprimirLn(y);', '11\n'],
+    ['entero a = 7;\nentero b = -a;\nentero c = -(-3);\nimprimirLn(b * c);', '-21\n'],
+    ['cadena t = "22";\nentero n = convertir(t, entero) + 1;\nimprimirLn(n);\nimprimirLn(convertir(n, decimal));', '23\n23.0\n'],
+    ['entero i = 0;\nmientras (verdadero) { i++; si (i == 3) { romper; } }\nimprimirLn(i);', '3\n']
+  ];
+  casos.forEach(([codigo, esperado]) => igual(mismaSalida(programaDe(codigo)), esperado, codigo + '\n       '));
+
+  // Con funciones: los valores se convierten al tipo de cada parametro y de lo que devuelve
+  igual(mismaSalida('clase p {\n  funcion decimal mitad(entero n) { retornar n / 2; }\n' +
+    '  funcion decimal prom(decimal a, decimal b) { retornar (a + b) / 2; }\n' +
+    '  clasePrincipal { imprimirLn(mitad(7)); imprimirLn(prom(3, 4)); }\n}'), '3.0\n3.5\n');
+  // Con lo que se escribe en leer
+  igual(mismaSalida(programaDe('entero n;\nleer(n);\nsi (n % 2 == 0) { imprimirLn("par"); } sino { imprimirLn("impar"); }'), ['7']),
+    'impar\n');
 });
 
 // =====================================================================
@@ -934,14 +1625,60 @@ prueba('una pagina web ajena no se abre como codigo', () => {
   igual(r.ok, false);
 });
 
-prueba('los dos reportes traen la gramatica generada', () => {
-  const r = compilar('a1 = b5 / 20');
+prueba('los dos reportes traen el analisis semantico', () => {
+  const r = compilar('clase p {\nclasePrincipal {\nentero b5 = 4;\nentero a1 = b5 / 20;\n' +
+    'imprimirLn(a1);\ncadena c = a1;\n}\n}');
   const texto = contenidoParaGuardar(r, 'x.bs').contenido;
-  verdadero(texto.includes('4. ANÁLISIS SEMÁNTICO: GRAMÁTICA DEL CÓDIGO'), 'falta la seccion 4');
-  verdadero(texto.includes('prop → id = exp'), 'falta la regla prop en el .bs');
-  verdadero(texto.includes('    | exp / exp'), 'las alternativas van alineadas bajo la flecha');
+  verdadero(texto.includes('4. ANÁLISIS SEMÁNTICO'), 'falta la seccion 4');
+  verdadero(texto.includes('Errores semánticos (1):'), 'falta el error semantico');
+  verdadero(texto.includes("'c' es cadena y el valor es entero"), 'falta el mensaje del error');
+  verdadero(!texto.includes('Tabla de símbolos'), 'la tabla de simbolos ya no va en la seccion 4');
+  verdadero(texto.includes('prop      → clase id { principal }'), 'falta la regla prop en el .bs');
+  verdadero(texto.includes('          | exp / exp'), 'las alternativas van alineadas bajo la flecha');
   const html = contenidoParaGuardar(r, 'x.html').contenido;
   verdadero(html.includes('<table class="gramatica">'), 'falta la gramatica en el .html');
+  verdadero(!html.includes('simbolos'), 'la tabla de simbolos ya no va en el .html');
+  verdadero(html.includes('1 error semántico'), 'falta el error en el .html');
+  verdadero(html.includes('j-marca'), 'el error se subraya en el codigo del .html');
+});
+
+prueba('los dos reportes traen el codigo intermedio', () => {
+  const r = compilar(fs.readFileSync(path.join(__dirname, '..', 'ejemplos', '04-funciones.bs'), 'utf8'));
+  const texto = contenidoParaGuardar(r, 'x.bs').contenido;
+  verdadero(texto.includes('5. CÓDIGO INTERMEDIO (TRES DIRECCIONES)'), 'falta la seccion 5');
+  verdadero(texto.includes('//      t1 = a + b'), 'falta el codigo de tres direcciones');
+  verdadero(texto.includes('//  // retornar a + b;'), 'falta el renglon del programa');
+  igual(compilar(texto).errores.length, 0, 'el reporte sigue siendo un programa valido:');
+  const html = contenidoParaGuardar(r, 'x.html').contenido;
+  verdadero(html.includes('<h2><span>5</span> Código intermedio</h2>'), 'falta la seccion 5 en el .html');
+  verdadero(html.includes('<table class="tabla cuadruplos">'), 'faltan los cuadruplos');
+  verdadero(html.includes('t1 = a + b'), 'falta el codigo de tres direcciones en el .html');
+});
+
+prueba('los dos reportes traen el codigo optimizado', () => {
+  const r = compilar(fs.readFileSync(path.join(__dirname, '..', 'ejemplos', '03-control.bs'), 'utf8'));
+  const texto = contenidoParaGuardar(r, 'x.bs').contenido;
+  verdadero(texto.includes('6. CÓDIGO INTERMEDIO OPTIMIZADO'), 'falta la seccion 6');
+  verdadero(texto.includes(`De ${r.optimizacion.antes} instrucciones a ${r.optimizacion.instrucciones.length}`),
+    'falta el resumen');
+  verdadero(texto.includes('Plegado de constantes:  t1 = 20 >= 18  ->  t1 = verdadero'), 'falta la lista de cambios');
+  igual(compilar(texto).errores.length, 0, 'el reporte sigue siendo un programa valido:');
+  const html = contenidoParaGuardar(r, 'x.html').contenido;
+  verdadero(html.includes('<h2><span>6</span> Código optimizado</h2>'), 'falta la seccion 6 en el .html');
+  verdadero(html.includes('<table class="tabla cambios">'), 'faltan los cambios en el .html');
+  verdadero(html.includes('<tr class="cambiada">'), 'faltan las instrucciones que cambiaron');
+  verdadero(html.includes('<b>31 instrucciones</b>'), 'falta la tarjeta de la optimizacion');
+  // Se puede guardar desde la pestaña 5 y volver a ella
+  igual(leerArchivoGuardado(contenidoParaGuardar(r, 'x.html', { pestana: 'optimizacion' }).contenido).pestana,
+    'optimizacion');
+});
+
+prueba('el archivo se llama igual que la clase, como en Java', () => {
+  const { nombreDelArchivo } = require('../src/core/ArchivoGuardado');
+  igual(nombreDelArchivo(compilar('clase ejemplo { clasePrincipal { } }')), 'ejemplo');
+  igual(nombreDelArchivo(compilar(fs.readFileSync(path.join(__dirname, '..', 'ejemplos', '03-control.bs'), 'utf8'))),
+    'control');
+  igual(nombreDelArchivo(compilar('a > b')), 'analisis', 'sin clase:');
 });
 
 // =====================================================================

@@ -1,32 +1,29 @@
 /**
- * AnalizadorSemantico.js
- * Pestaña 3: genera la GRAMATICA del codigo dado.
+ * GeneradorGramatica.js
+ * Parte del analisis semantico (pestaña 3): escribe la GRAMATICA del codigo.
  *
- * Recibe cualquier codigo del lenguaje SwordByte (una expresion, unas
- * instrucciones o un programa completo), ya revisado por el analizador lexico
- * y el sintactico, y escribe las reglas que lo producen. Por ejemplo:
+ * Recorre el arbol que armo el analizador sintactico y escribe las reglas que
+ * producen exactamente ese codigo. Por ejemplo:
  *
- *   Codigo:   a1 = b5 / 20
+ *   Codigo:   clase p { clasePrincipal { a1 = b5 / 20; } }
  *
- *   prop -> id = exp
- *   exp  -> id | num | exp / exp
- *   id   -> let ( dig )*
- *   num  -> dig ( dig )*
- *   dig  -> 0-9
- *   let  -> a-z
+ *   prop      -> clase id { principal }
+ *   principal -> clasePrincipal { inst }
+ *   inst      -> id = exp ;
+ *   exp       -> id | num | exp / exp
+ *   id        -> let ( let | dig )*
+ *   num       -> dig ( dig )*
+ *   dig       -> 0-9
+ *   let       -> a-z
  *
  * Como se hace:
  *
- *   1. Se recorre el arbol del analizador sintactico (las MISMAS reglas que
- *      usan las otras dos pestañas). Cada nodo aporta una produccion con la
- *      forma en que se escribio:  una suma aporta  exp -> exp + exp.
+ *   1. Cada nodo del arbol aporta una produccion con la forma en que se
+ *      escribio:  una suma aporta  exp -> exp + exp.
  *   2. Solo se escriben las alternativas que de verdad aparecen en el codigo:
  *      si no hay multiplicaciones, no sale  exp -> exp * exp.
  *   3. Al final se agregan las reglas de las palabras (id, num, cadena...) y
  *      de los caracteres (dig, let, LET, simb), tambien solo con lo que se uso.
- *
- * Si el codigo tiene errores lexicos o sintacticos no se puede generar la
- * gramatica: primero hay que corregirlos.
  */
 
 const { textoExpresion, textoInstruccion } = require('./TextoDeNodo');
@@ -46,7 +43,7 @@ const R = (texto) => ({ texto, clase: 'rango' });
 
 /**
  * Orden en que se muestran las reglas, como en el pizarron:
- *   1. props (si hay varias proposiciones), prop y las reglas de estructura,
+ *   1. prop (el programa) y las reglas de estructura,
  *      de arriba hacia abajo: cada una aparece despues de la primera regla
  *      que la nombra.
  *   2. Las palabras, en este orden fijo.
@@ -63,8 +60,7 @@ const PRIMERO = ['id', 'num', 'dec', 'cadena', 'car', 'logico'];
 
 /** Que dice cada regla, para el texto de ayuda al pasar el mouse. */
 const DESCRIPCIONES = {
-  props: 'Todo el código: una proposición tras otra',
-  prop: 'Una proposición: una expresión, una asignación o una instrucción',
+  prop: 'Una proposición: el programa completo o una instrucción',
   func: 'Una función declarada en la clase',
   principal: 'El bloque principal del programa',
   inst: 'Una instrucción',
@@ -188,48 +184,12 @@ class GeneradorGramatica {
   // ------------------------------------------------------------------
 
   /**
-   * @param {object} ast  Arbol del analizador sintactico.
-   * @param {string} modo 'programa' | 'instrucciones' | 'expresion'
+   * prop es la proposicion: todo el programa,  clase id { ... }.
+   * @param {object} ast  Arbol del programa.
    */
-  raiz (ast, modo) {
-    // Varias proposiciones, una por renglon o cada una con su punto y coma:
-    //
-    //   a = b + c                props -> prop prop
-    //   a && b || c + f > d      prop  -> id = exp | exp || exp
-    //
-    // props dice que el codigo es una proposicion tras otra, y cada una
-    // aporta su forma como alternativa de prop.
-    if (ast.tipo === 'Proposiciones' || (modo === 'instrucciones' && ast.tipo === 'Bloque')) {
-      this.reglas.set('props', new Map());
-      this.reglas.set('prop', new Map());
-
-      const lista = ast.tipo === 'Proposiciones' ? ast.proposiciones : ast.instrucciones;
-      this.agregar('props', this.lista(lista.map(() => [N('prop')]), ''), 'todo el código');
-      lista.forEach((p) => {
-        if (ast.tipo === 'Proposiciones') {
-          this.agregar('prop', this.formaExpresion(p), textoExpresion(p));
-        } else {
-          this.agregar('prop', this.formaInstruccion(p), textoInstruccion(p));
-        }
-      });
-
-      this.reglasDePalabras();
-      return;
-    }
-
-    // Una sola proposicion: prop va primero y es la forma de todo el codigo
+  raiz (ast) {
     this.reglas.set('prop', new Map());
-
-    if (modo === 'programa') {
-      this.agregar('prop', this.formaPrograma(ast), textoInstruccion(ast));
-    } else if (modo === 'instrucciones') {
-      // Una sola instruccion: prop es esa instruccion
-      this.agregar('prop', this.formaInstruccion(ast), textoInstruccion(ast));
-    } else {
-      // Una expresion suelta:  a1 = b5 / 20  ->  prop -> id = exp
-      this.agregar('prop', this.formaExpresion(ast), textoExpresion(ast));
-    }
-
+    this.agregar('prop', this.formaPrograma(ast), textoInstruccion(ast));
     this.reglasDePalabras();
   }
 
@@ -589,7 +549,7 @@ class GeneradorGramatica {
   /**
    * Los nombres de las reglas, en el orden en que se muestran (ver
    * REGLAS_DE_PALABRAS). Las de estructura se ordenan de arriba hacia abajo:
-   * se empieza en props (o en prop) y cada regla nombrada se agrega a la
+   * se empieza en prop y cada regla nombrada se agrega a la
    * cola la primera vez que aparece.
    */
   ordenDeReglas () {
@@ -597,8 +557,7 @@ class GeneradorGramatica {
     const esDeEstructura = (r) =>
       REGLAS_DE_PALABRAS.indexOf(r) === -1 && REGLAS_DE_CARACTERES.indexOf(r) === -1;
 
-    // Se empieza en props si hay varias proposiciones; si no, en prop.
-    const estructura = [this.reglas.has('props') ? 'props' : 'prop'];
+    const estructura = ['prop'];
     for (let i = 0; i < estructura.length; i++) {
       this.reglas.get(estructura[i]).forEach((alternativa) => {
         alternativa.simbolos.forEach((s) => {
@@ -645,49 +604,22 @@ class GeneradorGramatica {
 }
 
 // ====================================================================
-// El analisis completo
+// La gramatica completa
 // ====================================================================
 
 /**
- * @param {object} sintactico     Lo que devolvio el analizador sintactico:
- *                                { ast, modo, errores }.
- * @param {Array}  erroresLexicos Errores del analizador lexico.
- * @returns {object} {
- *   vacio:     true si no habia codigo,
- *   correcto:  true si se pudo generar la gramatica,
- *   errores:   los errores lexicos y sintacticos que lo impidieron,
- *   modo:      'expresion' | 'proposiciones' | 'instrucciones' | 'programa' | 'vacio',
- *   reglas:    [{ regla, descripcion, alternativas: [{ simbolos, texto, ejemplo }] }],
- *   totalAlternativas
- * }
+ * @param {object} ast  Arbol del programa (sin errores).
+ * @returns {{reglas: Array, totalAlternativas: number}}
+ *   reglas: [{ regla, descripcion, alternativas: [{ simbolos, texto, ejemplo }] }]
  */
-function analizarSemantico (sintactico, erroresLexicos) {
-  const errores = (erroresLexicos || []).concat(sintactico ? sintactico.errores : []);
-  const sinArbol = !sintactico || sintactico.modo === 'vacio' || !sintactico.ast;
-
-  const resultado = {
-    vacio: sinArbol && errores.length === 0,
-    correcto: false,
-    errores,
-    // Varias proposiciones sueltas, una por renglon, se distinguen de una sola
-    modo: sintactico && sintactico.ast && sintactico.ast.tipo === 'Proposiciones'
-      ? 'proposiciones'
-      : (sintactico ? sintactico.modo : 'vacio'),
-    reglas: [],
-    totalAlternativas: 0
-  };
-
-  // Sin codigo, o con errores, no hay gramatica que generar.
-  if (sinArbol || errores.length > 0) return resultado;
-
+function generarGramatica (ast) {
   const generador = new GeneradorGramatica();
-  generador.raiz(sintactico.ast, sintactico.modo);
-
-  resultado.correcto = true;
-  resultado.reglas = generador.resultado();
-  resultado.totalAlternativas = resultado.reglas
-    .reduce((total, r) => total + r.alternativas.length, 0);
-  return resultado;
+  generador.raiz(ast);
+  const reglas = generador.resultado();
+  return {
+    reglas,
+    totalAlternativas: reglas.reduce((total, r) => total + r.alternativas.length, 0)
+  };
 }
 
 /**
@@ -698,4 +630,4 @@ function reglaATexto (r, ancho = 0) {
   return `${r.regla.padEnd(ancho)} → ${r.alternativas.map((a) => a.texto).join(' | ')}`;
 }
 
-module.exports = { analizarSemantico, claseDeCaracter, reglaATexto };
+module.exports = { generarGramatica, claseDeCaracter, reglaATexto };

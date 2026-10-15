@@ -6,9 +6,9 @@ mínimas con significado del lenguaje.
 
 Archivos:
 
-- [`src/core/lexico/AnalizadorLexico.js`](../src/core/lexico/AnalizadorLexico.js) — el análisis
-- [`src/core/lexico/PalabrasReservadas.js`](../src/core/lexico/PalabrasReservadas.js) — diccionario del lenguaje
-- [`src/core/lexico/FormatoLexico.js`](../src/core/lexico/FormatoLexico.js) — la salida `id1 > id2`
+- [`src/core/01.lexico/AnalizadorLexico.js`](../src/core/01.lexico/AnalizadorLexico.js) — el análisis
+- [`src/core/01.lexico/PalabrasReservadas.js`](../src/core/01.lexico/PalabrasReservadas.js) — diccionario del lenguaje
+- [`src/core/01.lexico/FormatoLexico.js`](../src/core/01.lexico/FormatoLexico.js) — la salida `id1 > id2`
 - [`src/core/comun/Token.js`](../src/core/comun/Token.js) — estructura de un token
 - [`src/core/comun/TiposToken.js`](../src/core/comun/TiposToken.js) — categorías léxicas
 
@@ -88,7 +88,7 @@ Además de los tokens, esta fase entrega:
 
 El reconocimiento se describe con un **AFD de 19 estados**, que es lo que
 implementa
-[`AnalizadorLexico.js`](../src/core/lexico/AnalizadorLexico.js). Cada token
+[`AnalizadorLexico.js`](../src/core/01.lexico/AnalizadorLexico.js). Cada token
 guarda el estado en el que fue aceptado.
 
 Las tablas de esta sección son la especificación del autómata: el código las
@@ -204,8 +204,15 @@ aplicación.
 | `datos[0] = tabla[1][2];` | `id1[num(0)] = id2[num(1)][num(2)];` |
 | `decimal r = area.circulo(5);` | `decimal id1 = area.circulo(num(5));` |
 
-Lo hace [`FormatoLexico.js`](../src/core/lexico/FormatoLexico.js), con cuatro
-reglas:
+Lo hace [`FormatoLexico.js`](../src/core/01.lexico/FormatoLexico.js). Las
+etiquetas no las inventa él: cada identificador se anota en la **tabla de
+símbolos** ([`comun/TablaSimbolos.js`](../src/core/comun/TablaSimbolos.js)),
+que le da su etiqueta y cuenta sus apariciones. Esa misma tabla la usan
+después el sintáctico (para escribir `id1` en el árbol) y el semántico (que le
+agrega a cada nombre su tipo y su ámbito): en un compilador, la tabla de
+símbolos y el manejo de errores son de todas las fases.
+
+La salida sigue cuatro reglas:
 
 1. **Un nombre, una etiqueta.** El mismo identificador recibe siempre la misma
    etiqueta, sin importar cuántas veces aparezca. Por eso `a + a + b` da
@@ -264,7 +271,7 @@ El `mapaIdentificadores` también lo usa el analizador sintáctico, para que el
 ## 5 ter. La tabla de la pestaña 1
 
 La pestaña *Analizador Léxico* muestra los tokens como tabla. La arma
-[`TablaLexica.js`](../src/core/lexico/TablaLexica.js) y llega en
+[`TablaLexica.js`](../src/core/01.lexico/TablaLexica.js) y llega en
 `resultado.lexico.tabla`, un renglón por token (sin comentarios ni la marca de
 fin):
 

@@ -1,40 +1,38 @@
 // Ejemplo 6: potencias y raices
 //
-// La potencia y la raiz quedan DEBAJO de * / % en la jerarquia,
-// o sea que se resuelven primero:  2 * 3 ^ 2  es  2 * (3 ^ 2) = 18
+// En SwordByte las potencias y las raices se sacan con una sola funcion:
+// potencia(base, exponente). Una raiz es una potencia con exponente
+// fraccionario:
+//
+//   raiz cuadrada de x  =  potencia(x, 0.5)
+//   raiz cubica de x    =  potencia(x, 1.0 / 3)
+//   raiz n-esima de x   =  potencia(x, 1.0 / n)
 clase potenciasYRaices {
     clasePrincipal {
 
-        // --- Potencia: tres formas de escribir lo mismo ---
-        decimal a = 2 ^ 10;
-        decimal b = 2 ** 10;
-        decimal c = potencia(2, 10);
+        // --- Potencias ---
+        decimal a = potencia(2, 10);          // 1024
+        decimal cuadrado = potencia(5, 2);    // 25
 
-        // Se agrupa de derecha a izquierda:  2 ^ (3 ^ 2) = 512
-        decimal torre = 2 ^ 3 ^ 2;
+        // El exponente puede ser negativo: 2 elevado a -3 es 1 / 8
+        decimal fraccion = potencia(2, -3);   // 0.125
 
-        // El menos funciona como en matematicas:  -(2 ^ 2) = -4
-        decimal negativa = -2 ^ 2;
-
-        // Y el exponente puede ser negativo
-        decimal fraccion = 2 ^ -3;
-
-        // --- Raiz: el simbolo y las funciones ---
-        decimal r1 = √16;
-        decimal r2 = raiz(16);
-        decimal r3 = raizCuadrada(16);
-
-        // Raiz n-esima: el segundo argumento es el indice
-        decimal cubica1 = raiz(27, 3);
-        decimal cubica2 = raizCubica(27);
+        // --- Raices: potencia con exponente fraccionario ---
+        decimal r2 = potencia(16, 0.5);       // raiz cuadrada de 16 = 4
+        decimal r3 = potencia(27, 1.0 / 3);   // raiz cubica de 27 = 3
+        decimal r4 = potencia(81, 1.0 / 4);   // raiz cuarta de 81 = 3
 
         // --- Mezcladas con los demas operadores ---
-        decimal hipotenusa = raiz(3 ^ 2 + 4 ^ 2);
-        decimal mezcla = 2 * 3 ^ 2 + √16;
+        // La hipotenusa de un triangulo de catetos 3 y 4
+        decimal hipotenusa = potencia(potencia(3, 2) + potencia(4, 2), 0.5);   // 5
+        decimal mezcla = 2 * potencia(3, 2) + potencia(16, 0.5);              // 22
 
         imprimirLn(a);
-        imprimirLn(torre);
-        imprimirLn(negativa);
+        imprimirLn(cuadrado);
+        imprimirLn(fraccion);
+        imprimirLn(r2);
+        imprimirLn(r3);
+        imprimirLn(r4);
         imprimirLn(hipotenusa);
         imprimirLn(mezcla);
     }

@@ -5,7 +5,7 @@
 ## 1. Los tres analizadores
 
 ```
-  Código fuente (el mismo en las tres pestañas)
+  Código fuente (el mismo en las cuatro pestañas)
          │
          ▼
   ┌──────────────────────┐
@@ -23,13 +23,23 @@
          │                              │
          └──────────────┬───────────────┘
                         ▼
-     Las tres pestañas y el reporte (.html o .bs)
+     Las cuatro pestañas y el reporte (.html o .bs)
 ```
 
 Los tres trabajan con el mismo lenguaje (SwordByte) y las mismas reglas. El
 semántico no lee el código por su cuenta: recorre el árbol (AST) que armó el
-sintáctico y escribe la gramática que produce ese código. Si el léxico o el
-sintáctico encontraron errores, no hay gramática.
+sintáctico, revisa que tenga sentido (nombres y tipos) y escribe la gramática
+que produce ese código. Si el léxico o el sintáctico encontraron errores, el
+semántico no revisa nada. Como en Java, el código va dentro de una clase; las
+expresiones sueltas (`a = b + c`, sin `;`) sólo se aceptan en las pestañas 1
+y 2.
+
+Las tres fases comparten dos piezas de `src/core/comun/`, como en el esquema
+clásico de un compilador: la **tabla de símbolos** (`TablaSimbolos.js`: el
+léxico anota cada identificador, el sintáctico usa sus etiquetas en el árbol y
+el semántico le agrega su tipo y su ámbito) y el **manejo de errores**
+(`ErrorCompilacion.js`: todas reportan con el mismo formato). `Compilador.js`
+crea una tabla por cada código y se la pasa a las tres.
 
 ---
 
@@ -55,7 +65,7 @@ Compilador/
 │
 ├── src/
 │   ├── core/                    EL COMPILADOR (JavaScript puro, sin dependencias)
-│   │   ├── Compilador.js             Une los tres análisis en una llamada
+│   │   ├── Compilador.js             Une las cuatro fases en una llamada
 │   │   │
 │   │   ├── ReporteHTML.js            El reporte visual (.html) y su lectura
 │   │   ├── Reporte.js                El reporte en texto (.bs)
@@ -65,36 +75,46 @@ Compilador/
 │   │   │   ├── Token.js                  estructura de un token
 │   │   │   ├── TiposToken.js             catálogo de categorías léxicas
 │   │   │   ├── Equipo.js                 datos del equipo y de la materia
-│   │   │   └── ErrorCompilacion.js       formato uniforme de errores
+│   │   │   ├── ErrorCompilacion.js       manejo de errores: el formato de las 3 fases
+│   │   │   └── TablaSimbolos.js          tabla de símbolos: la usan las 3 fases
 │   │   │
-│   │   ├── lexico/              FASE 1
+│   │   ├── 01.lexico/           FASE 1
 │   │   │   ├── AnalizadorLexico.js       recorre el fuente y produce tokens
 │   │   │   ├── FormatoLexico.js          la salida id1 > num(9) y sus colores
 │   │   │   ├── TablaLexica.js            la tabla Lexema | Token | Descripción
+│   │   │   ├── ResaltadoCodigo.js        los colores de Java del código
 │   │   │   └── PalabrasReservadas.js     diccionario del lenguaje
 │   │   │
-│   │   ├── sintactico/          FASE 2
+│   │   ├── 02.sintactico/       FASE 2
 │   │   │   ├── AnalizadorSintactico.js   descenso recursivo y AST
 │   │   │   ├── Gramatica.js              gramática EBNF como dato
 │   │   │   └── NodosAST.js               nodos del AST y árbol dibujable
 │   │   │
-│   │   └── semantico/           PESTAÑA 3
-│   │       ├── AnalizadorSemantico.js    genera la gramática del código
-│   │       └── TextoDeNodo.js            vuelve a escribir un nodo como código
+│   │   ├── 03.semantico/        FASE 3
+│   │   │   ├── AnalizadorSemantico.js    punto de entrada: estado y resultado
+│   │   │   ├── VerificadorSemantico.js   declaraciones, tipos, errores y advertencias
+│   │   │   ├── GeneradorGramatica.js     genera la gramática del código
+│   │   │   └── TextoDeNodo.js            vuelve a escribir un nodo como código
+│   │   │
+│   │   └── 04.intermedio/       FASE 4
+│   │       ├── Instrucciones.js          las formas del código de tres direcciones
+│   │       └── GeneradorIntermedio.js    traduce el árbol a tres direcciones
 │   │
 │   └── ui/                      INTERFAZ GRÁFICA (proceso de renderizado)
-│       ├── index.html                encabezado, pestañas y los tres paneles
-│       ├── css/estilos.css           una sola paleta para las tres pestañas
+│       ├── index.html                encabezado, pestañas y los cuatro paneles
+│       ├── css/estilos.css           una sola paleta para las cuatro pestañas
 │       ├── img/                      logos UAT, UAMM e ISC (reemplazables)
 │       └── js/
 │           ├── dom.js                ayudas para crear errores, notas e insignias
 │           ├── equipo.js             ventana emergente del equipo
 │           ├── salir.js              ventana de Fuga / Salir / Termina
 │           ├── arbol.js              dibuja el árbol en SVG, el zoom y las ramas
+│           ├── editor.js             números, colores y errores subrayados en el código
 │           ├── pestanas.js           cambia de pestaña sin borrar nada
 │           ├── panel-lexico.js       pinta la pestaña 1 (tabla de tokens)
 │           ├── panel-sintactico.js   pinta la pestaña 2 (id1 > id2 y el árbol)
-│           ├── panel-semantico.js    pinta la pestaña 3 (la gramática)
+│           ├── panel-semantico.js    pinta la pestaña 3 (errores y gramática)
+│           ├── panel-intermedio.js   pinta la pestaña 4 (tres direcciones y cuádruplos)
 │           └── app.js                el código compartido, botones, menú y archivos
 │
 ├── electron/                    APLICACIÓN DE ESCRITORIO
@@ -104,8 +124,8 @@ Compilador/
 │
 ├── ejemplos/                    Programas .bs de demostración
 ├── pruebas/
-│   ├── ejecutar.js                   118 pruebas del compilador
-│   └── verificar-ui.js               109 comprobaciones sobre la ventana real
+│   ├── ejecutar.js                   161 pruebas del compilador
+│   └── verificar-ui.js               142 comprobaciones sobre la ventana real
 ├── herramientas/
 │   ├── generar-icono.js              genera el icono de la app
 │   └── generar-gramatica.js          regenera docs/04 desde Gramatica.js
@@ -142,15 +162,15 @@ la interfaz. `FormatoLexico.js` arma el texto y `aArbolCompacto()` arma el
 exactamente lo que hizo el compilador, y la pantalla y el reporte guardado
 nunca pueden decir cosas distintas del mismo programa.
 
-Por la misma razón el `mapaIdentificadores` se calcula una sola vez, en la fase
-léxica, y lo reciben tanto la salida léxica como el árbol: si las dos vistas
-numeraran por su cuenta, podrían discrepar.
+Por la misma razón las etiquetas `id1`, `id2`… salen de una sola tabla de
+símbolos, que llena la fase léxica, y la usan tanto la salida léxica como el
+árbol: si las dos vistas numeraran por su cuenta, podrían discrepar.
 
 Lo mismo vale para la tabla de tokens de la pestaña 1 (la arma
-[`TablaLexica.js`](../src/core/lexico/TablaLexica.js)), para el análisis
-semántico de la pestaña 3 (las reglas, cada símbolo con su clase y el ejemplo
-de cada producción salen ya listos de
-[`AnalizadorSemantico.js`](../src/core/semantico/AnalizadorSemantico.js)) y
+[`TablaLexica.js`](../src/core/01.lexico/TablaLexica.js)), para el análisis
+semántico de la pestaña 3 (los errores con su sugerencia y las reglas con
+cada símbolo, su clase y el ejemplo de cada producción salen ya listos de
+[`AnalizadorSemantico.js`](../src/core/03.semantico/AnalizadorSemantico.js)) y
 para los reportes que se guardan: los arman
 [`ReporteHTML.js`](../src/core/ReporteHTML.js) y
 [`Reporte.js`](../src/core/Reporte.js) en el núcleo, a partir del mismo
@@ -172,7 +192,7 @@ que saber nada de operadores.
 │  electron/main.js           │        │  src/ui/  (sin acceso a Node)│
 │   ├── ventana y menú        │  IPC   │   ├── botones y editor       │
 │   ├── sistema de archivos   │ <────► │   ├── salida léxica           │
-│   └── src/core/ (compilador)│        │   └── los tres paneles        │
+│   └── src/core/ (compilador)│        │   └── los cuatro paneles      │
 └─────────────────────────────┘        └──────────────────────────────┘
                     ▲
                     │ contextBridge
@@ -185,8 +205,9 @@ puede tocar el disco por su cuenta. Sólo dispone de las funciones que
 
 | Función | Qué hace |
 |---|---|
-| `analizar(fuente, opciones)` | ejecuta los tres análisis |
+| `analizar(fuente, opciones)` | ejecuta las cuatro fases |
 | `equipo()` | datos del equipo y de la materia |
+| `resaltar(texto)` | el código con los colores de Java; corre en el mismo `preload.js` (sin IPC) porque se llama en cada tecla |
 | `abrirArchivo()` | diálogo Abrir; devuelve el código (y la pestaña, si es un reporte `.html`) |
 | `leerArchivo(texto)` | lo mismo, para un archivo que se soltó sobre la ventana |
 | `guardarReporte(fuente, pestana)` | diálogo Guardar; escribe el reporte `.html` o `.bs` |
@@ -212,15 +233,16 @@ que hay que poder abrir y ejecutar en cualquier máquina.
 Todas las fases construyen `ErrorCompilacion`, con los mismos campos: fase,
 mensaje, línea, columna, lexema, esperado, encontrado y sugerencia. Así la
 pantalla y el reporte muestran igual de bien un error léxico, uno sintáctico o
-uno semántico, con el mismo formato.
+uno semántico, con el mismo formato, y el editor los subraya igual mientras se
+escribe (`erroresDe()` en `Compilador.js` junta los de cada pestaña).
 
 ### 3.6 Tres pestañas, un solo código y un solo resultado
 
 Cada pestaña tiene su propio cuadro de código, pero los tres llevan siempre lo
 mismo: al escribir en uno, `app.js` copia el texto a los otros dos.
 
-Al analizar, `compilar()` corre **los tres análisis de una vez** y el mismo
-resultado se reparte a los tres paneles (`panel-lexico.js`,
+Al analizar, `compilar()` corre **las cuatro fases de una vez** y el mismo
+resultado se reparte a los cuatro paneles (`panel-lexico.js`,
 `panel-sintactico.js` y `panel-semantico.js`). Por eso al cambiar de pestaña
 el análisis ya está hecho, y nunca puede pasar que una pestaña muestre un
 análisis de un código distinto al de otra.
@@ -256,10 +278,11 @@ bloque antes de tiempo.
        ├── construirTablaLexica(tokens)    → Lexema | Token | Descripción
        ├── analizarSintactico(tokens)      → ast, modo, errores
        ├── aArbolCompacto(ast, mapa)       → árbol listo para dibujar
-       └── analizarSemantico(sintactico)   → la gramática del código
+       └── analizarSemantico(sintactico)   → errores, advertencias, tabla de
+                                              símbolos y gramática del código
 5. main.js devuelve el resultado completo a la interfaz
-6. app.js se lo pasa a los tres paneles: la tabla, la salida y el árbol, y la
-   gramática
+6. app.js se lo pasa a los cuatro paneles: la tabla, la salida y el árbol, el
+   análisis semántico y el código intermedio
 ```
 
 Los botones *Análisis Léxico* y *Análisis Sintáctico* de la pestaña 2 sólo
@@ -275,8 +298,8 @@ Tiempo típico para un programa de 30 líneas: **2 a 5 ms**.
 
 | Comando | Qué comprueba |
 |---|---|
-| `npm run pruebas` | 118 pruebas del compilador: léxico, tabla de tokens, salida `id1` / `num()`, jerarquía de operadores, sintáctico, fragmentos, la gramática generada, los dos reportes, ejemplos y robustez |
-| `npm run pruebas:ui` | 109 comprobaciones sobre la aplicación real: las pestañas con sus logos y botones donde los pide cada diseño, el código compartido, la tabla de tokens, la gramática generada, la ventana de Fuga, guardar y volver a abrir el reporte (también soltándolo), los logos, los botones, la salida de `a > b`, los colores, la jerarquía del árbol y el orden del equipo |
+| `npm run pruebas` | 161 pruebas del compilador: léxico, tabla de tokens, salida `id1` / `num()`, jerarquía de operadores, sintáctico, fragmentos y la falta de clase, el análisis semántico (declaraciones, tipos, ámbitos, funciones, arreglos, geometría, Y/O/NO y `potencia`, advertencias y la tabla de símbolos compartida), la gramática generada, el código intermedio (cada forma de instrucción, los saltos de cada estructura, el corto circuito, arreglos y matrices), los errores subrayados, los dos reportes, el nombre del archivo, ejemplos y robustez |
+| `npm run pruebas:ui` | 142 comprobaciones sobre la aplicación real: las pestañas con sus logos y botones donde los pide cada diseño, el código compartido, la tabla de tokens, el análisis semántico (errores, advertencias y gramática; la falta de clase), el código intermedio en sus dos vistas, que los cuadros de código no se estiren con mucho código, el subrayado rojo de los errores, el zoom con un árbol ancho, la ventana de Fuga, guardar y volver a abrir el reporte (también soltándolo), los logos, los botones, la salida de `a > b`, los colores, la jerarquía del árbol y el orden del equipo |
 
 Las pruebas no usan ninguna librería externa: son JavaScript plano, así que
 funcionan sin instalar nada extra.

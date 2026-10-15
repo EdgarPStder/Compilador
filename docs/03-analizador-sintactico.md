@@ -7,9 +7,9 @@ trabajarán las fases siguientes.
 
 Archivos:
 
-- [`src/core/sintactico/AnalizadorSintactico.js`](../src/core/sintactico/AnalizadorSintactico.js) — el análisis
-- [`src/core/sintactico/Gramatica.js`](../src/core/sintactico/Gramatica.js) — la gramática como dato
-- [`src/core/sintactico/NodosAST.js`](../src/core/sintactico/NodosAST.js) — nodos del árbol y vista dibujable
+- [`src/core/02.sintactico/AnalizadorSintactico.js`](../src/core/02.sintactico/AnalizadorSintactico.js) — el análisis
+- [`src/core/02.sintactico/Gramatica.js`](../src/core/02.sintactico/Gramatica.js) — la gramática como dato
+- [`src/core/02.sintactico/NodosAST.js`](../src/core/02.sintactico/NodosAST.js) — nodos del árbol y vista dibujable
 
 ---
 
@@ -78,14 +78,20 @@ instruccion () {
 
 ## 2 bis. Tres modos de análisis
 
-No siempre se quiere escribir un programa completo para revisar una idea. El
-analizador acepta tres formas de entrada y elige sola cuál corresponde:
+Como en Java, un programa va dentro de una clase. Para practicar la forma de
+las expresiones, el analizador acepta también expresiones sueltas. Elige sola
+cuál de tres formas de entrada se escribió:
 
-| Modo | Entrada | Ejemplo |
-|---|---|---|
-| `programa` | clase completa | `clase p { clasePrincipal { ... } }` |
-| `instrucciones` | una o varias instrucciones sueltas, cada una con su `;` | `entero a = 5;` · `a && b \|\| c;` |
-| `expresion` | una o varias proposiciones sueltas, **una por renglón** y sin `;` | `a > b` · `a = b + c` |
+| Modo | Entrada | Ejemplo | Resultado |
+|---|---|---|---|
+| `programa` | Clase completa | `clase p { clasePrincipal { ... } }` | Se analiza |
+| `expresion` | Una o varias proposiciones sueltas, **una por renglón** y sin `;` | `a > b` · `a = b + c` | Se analiza |
+| `instrucciones` | Instrucciones sueltas, cada una con su `;` | `entero a = 5;` | Error: **Falta la clase** |
+
+Con instrucciones sueltas se reporta *Falta la clase: todo el código va
+dentro de una clase* (`faltaLaClase()`), pero las instrucciones se
+revisan igual, para reportar de una vez los demás errores. Lo mismo pasa si el
+código empieza con `clasePrincipal` o `funcion` sin la clase alrededor.
 
 ```js
 analizarSintactico(tokens, 'auto');   // por defecto
@@ -96,9 +102,9 @@ cuatro reglas en orden:
 
 | # | Si… | Modo |
 |---|---|---|
-| 1 | el primer token es `clase` | `programa` |
-| 2 | el primer token es un tipo (`entero`, `cadena`…) o una palabra que empieza instrucción (`si`, `para`, `imprimirLn`…) | `instrucciones` |
-| 3 | en algún lado hay un `;` o un `{` | `instrucciones` |
+| 1 | el primer token es `clase` (o `clasePrincipal` o `funcion`, que van dentro de una clase) | `programa` |
+| 2 | el primer token es un tipo (`entero`, `cadena`…) o una palabra que empieza instrucción (`si`, `para`, `imprimirLn`…) | `instrucciones` (falta la clase) |
+| 3 | en algún lado hay un `;` o un `{` | `instrucciones` (falta la clase) |
 | 4 | en cualquier otro caso | `expresion` (una o varias proposiciones) |
 
 La regla 3 es la que atrapa los casos que no empiezan con palabra reservada,
@@ -112,7 +118,7 @@ el del modo correcto en lugar del que "llegó más lejos":
 | Entrada | Regla | Mensaje |
 |---|---|---|
 | `5 = a` | 4 → `expresion` | *A la izquierda de "=" debe ir una variable* |
-| `entero a = 5` | 2 → `instrucciones` | *Falta ';' al final de la declaración* |
+| `entero a = 5` | 2 → `instrucciones` | *Falta la clase* y *Falta ';' al final de la declaración* |
 
 Un detalle de presentación: cuando el fragmento es una sola instrucción, el
 `Bloque` que la envuelve se descarta y la instrucción queda como raíz del
@@ -134,23 +140,46 @@ puede seguir en el renglón de abajo mientras no termine (`a = b +` y abajo
 `c`), pero dos expresiones completas en el **mismo** renglón son un error:
 `a = b + c d` → *Sobra 'd' al final de la expresión*.
 
-### Proposiciones simples con punto y coma
+Las proposiciones sueltas se analizan en las pestañas 1 y 2. La pestaña 3
+(semántica) sólo revisa programas: ahí a una expresión suelta le falta la
+clase.
 
-En el modo `instrucciones` (y dentro de un programa), una instrucción que
-empieza como expresión —un nombre, un valor, un paréntesis, `NO`, `-`, una
-función nativa…— se lee completa con `proposicion()` y se clasifica por lo que
-resultó:
+### Sólo las instrucciones del lenguaje
+
+En el modo `instrucciones` y dentro de un programa sólo se reconocen las
+instrucciones de la especificación. Una instrucción que empieza con un nombre
+se lee completa con `proposicion()` y tiene que ser una de estas tres:
 
 | Código | Nodo |
 |---|---|
 | `a = b + c;` | `Asignacion` |
 | `i++;` | `IncrementoStmt` |
-| `sumar(5, 3);` | `ExpresionInstruccion` (una llamada) |
-| `a && b \|\| c + f > d;` | `ExpresionInstruccion` (una proposición simple) |
+| `sumar(5, 3);` | `ExpresionInstruccion` (una llamada a una función) |
 
-Una proposición simple se dibuja directo con su expresión, sin un nodo que la
-envuelva. Si después de una variable sola no viene `;`, el error sigue siendo
-el de siempre: `a b;` → *Falta '=' para asignar un valor a la variable*.
+Cualquier otra expresión con punto y coma (`a > b;`, `a;`, `raiz(16);`) es
+un error, igual que en Java: *'a > b' no es una instrucción del lenguaje: una
+expresión sola no hace nada*. Si después de una variable sola no viene `;`, el
+error es el de siempre: `a b;` → *Falta '=' para asignar un valor a la
+variable*.
+
+### Las palabras de Java
+
+El lenguaje está basado en Java pero tiene sus propias palabras. Si aparece una
+de Java donde va una instrucción, un valor o el inicio de un `para`, el
+analizador la rechaza y la sugerencia dice cuál va
+(`EQUIVALENTES_JAVA` en
+[`PalabrasReservadas.js`](../src/core/01.lexico/PalabrasReservadas.js)):
+
+| Se escribió | Error | Sugerencia |
+|---|---|---|
+| `break;` | *'break' no es una palabra de SwordByte* | *en SwordByte se usa romper* |
+| `int x = 5;` | *'int' no es una palabra de SwordByte* | *en SwordByte se usa entero* |
+| `x = true;` | *'true' no es una palabra de SwordByte* | *en SwordByte se usa verdadero* |
+| `System.out.println("hola");` | *'System' no es una palabra de SwordByte* | *en SwordByte se usa imprimir, imprimirLn o imprimirF* |
+
+La tabla cubre los tipos (`int`, `double`, `String`…), los valores (`true`,
+`false`, `null`), el control de flujo (`if`, `for`, `switch`, `break`…),
+`class`, `final`, `void` y `System`, `printf`, `Scanner` y `Math`.
 
 ---
 
@@ -357,7 +386,8 @@ Esto está cubierto por la prueba *"no entra en ciclo infinito con basura"*.
 
 | Situación | Mensaje |
 |---|---|
-| Falta `;` | `Falta ';' al final de la declaracion.` |
+| Código sin la clase | `Falta la clase: todo el código va dentro de una clase.` |
+| Falta `;` | `Falta ';' al final de la declaracion.` (se marca justo después de lo último del renglón, como en Java, y no en el renglón de abajo) |
 | Falta `)` | `Falta ')' para cerrar la condicion.` |
 | Falta `}` | `Falta '}' para cerrar el bloque verdadero.` |
 | Falta `clasePrincipal` | `Falta el bloque clasePrincipal: todo programa debe tener un punto de entrada.` |
@@ -403,7 +433,7 @@ Cada nodo es un objeto plano con su tipo y su posición en el fuente:
 ### De AST a árbol dibujable
 
 `aArbolCompacto(ast, mapa)` en
-[`NodosAST.js`](../src/core/sintactico/NodosAST.js) recorre el AST de forma
+[`NodosAST.js`](../src/core/02.sintactico/NodosAST.js) recorre el AST de forma
 genérica: todo valor que sea un nodo (o un arreglo de nodos) se vuelve un hijo.
 Por eso agregar un nodo nuevo al parser **no obliga a tocar la interfaz**.
 

@@ -26,17 +26,21 @@
 
 const { MATERIA, NOMBRE_EQUIPO, nombresCompletos } = require('./comun/Equipo');
 const { arbolATexto } = require('./Reporte');
+const { resaltarLineas } = require('./01.lexico/ResaltadoCodigo');
+const { erroresDe } = require('./Compilador');
 
 /** Marca que identifica el bloque de datos de nuestros reportes. */
 const FORMATO = 'reporte-swordbyte';
 const VERSION_FORMATO = 1;
 const ID_DATOS = 'datos-swordbyte';
 
-/** Las tres pestañas de la aplicacion y su nombre completo. */
+/** Las pestañas de la aplicacion y su nombre completo. */
 const PESTANAS = {
   lexico: 'Analizador Léxico',
   sintactico: 'Analizador Léxico-Sintáctico',
-  semantico: 'Analizador Semántico'
+  semantico: 'Analizador Semántico',
+  intermedio: 'Generador de Código Intermedio',
+  optimizacion: 'Optimizador de Código Intermedio'
 };
 
 /** Nombre completo de cada institucion, para el texto alterno de su logo. */
@@ -123,6 +127,43 @@ function encabezado (opciones, pestana) {
 <p class="pestana-origen">Guardado desde la pestaña <b>${esc(PESTANAS[pestana])}</b></p>`;
 }
 
+/** La tarjeta del analisis semantico en la ficha: su estado en dos palabras. */
+function tarjetaSemantica (sem, tarjeta) {
+  if (!sem || sem.estado === 'vacio') return tarjeta('Análisis semántico', 'sin código', 'no hay nada que revisar', false);
+  if (sem.estado === 'sin-clase') {
+    return tarjeta('Análisis semántico', 'falta la clase', 'el código no es un programa', false);
+  }
+  if (sem.estado === 'errores-previos') {
+    return tarjeta('Análisis semántico', 'no se analizó', 'hay errores léxicos o sintácticos', false);
+  }
+  return tarjeta('Análisis semántico',
+    sem.correcto ? 'sin errores' : cuantos(sem.errores.length, 'error', 'errores'),
+    `gramática de ${cuantos(sem.reglas.length, 'regla', 'reglas')}`,
+    sem.correcto);
+}
+
+/** La tarjeta del codigo intermedio en la ficha. */
+function tarjetaIntermedio (ci, tarjeta) {
+  if (!ci || ci.estado !== 'generado') {
+    return tarjeta('Código intermedio', 'no se generó',
+      ci && ci.estado === 'errores-previos' ? 'el programa tiene errores' : 'no hay código', false);
+  }
+  return tarjeta('Código intermedio', cuantos(ci.instrucciones.length, 'instrucción', 'instrucciones'),
+    `${cuantos(ci.temporales, 'temporal', 'temporales')} · ${cuantos(ci.etiquetas, 'etiqueta', 'etiquetas')}`,
+    true);
+}
+
+/** La tarjeta de la optimizacion en la ficha. */
+function tarjetaOptimizacion (o, tarjeta) {
+  if (!o || o.estado !== 'optimizado') {
+    return tarjeta('Optimización', 'no se optimizó',
+      o && o.estado === 'errores-previos' ? 'el programa tiene errores' : 'no hay código', false);
+  }
+  const menos = o.antes - o.instrucciones.length;
+  return tarjeta('Optimización', cuantos(o.instrucciones.length, 'instrucción', 'instrucciones'),
+    menos > 0 ? `${menos} menos que el código intermedio` : 'ya no se podía mejorar', true);
+}
+
 function ficha (opciones, fecha, resultado) {
   const nombres = nombresCompletos().map((n) => `<li>${esc(n)}</li>`).join('');
   const lex = resultado.lexico;
@@ -143,11 +184,9 @@ function ficha (opciones, fecha, resultado) {
         : (sin.arbol ? cuantos(sin.estadisticas.nodos, 'nodo', 'nodos') : 'sin árbol'),
       !sin || sin.errores.length === 0 ? 'sin errores' : cuantos(sin.errores.length, 'error', 'errores'),
       !!sin && sin.errores.length === 0 && !!sin.arbol),
-    tarjeta('Análisis semántico',
-      sem && sem.correcto ? cuantos(sem.reglas.length, 'regla', 'reglas') : 'sin gramática',
-      sem && sem.correcto ? 'gramática generada del código'
-        : 'el código tiene errores',
-      !!sem && sem.correcto)
+    tarjetaSemantica(sem, tarjeta),
+    tarjetaIntermedio(resultado.intermedio, tarjeta),
+    tarjetaOptimizacion(resultado.optimizacion, tarjeta)
   ].join('');
 
   return `
@@ -167,10 +206,15 @@ function ficha (opciones, fecha, resultado) {
 </section>`;
 }
 
-function seccionCodigo (fuente) {
-  const lineas = fuente.replace(/\s+$/, '').split(/\r?\n/);
+/**
+ * El codigo con sus numeros de renglon y los colores de Java, como en el
+ * editor, y con sus errores subrayados en rojo.
+ */
+function seccionCodigo (fuente, errores) {
+  // resaltarLineas ya escapa el texto y no deja etiquetas cruzando renglones.
+  const lineas = resaltarLineas(fuente.replace(/\s+$/, ''), errores);
   const filas = lineas.map((l, i) =>
-    `<tr><td class="num">${i + 1}</td><td>${esc(l) || ' '}</td></tr>`).join('');
+    `<tr><td class="num">${i + 1}</td><td>${l || ' '}</td></tr>`).join('');
   return `
 <section id="codigo" class="seccion">
   <h2><span>1</span> Código fuente</h2>
@@ -179,13 +223,22 @@ function seccionCodigo (fuente) {
 }
 
 function seccionLexico (lex) {
-  // La salida  a > b  ->  id1 > id2, con los colores de la aplicacion
-  const salida = lex.lineas.map((l) => {
-    const piezas = l.piezas.map((p) =>
-      (p.espacioAntes ? ' ' : '') + `<span class="tk-${esc(p.categoria)}">${esc(p.texto)}</span>`
-    ).join('');
-    return `<div>${esc(l.sangria)}${piezas}</div>`;
-  }).join('');
+  // La salida  a > b  ->  id1 > id2, con los colores de la aplicacion. Una
+  // fila por renglon del codigo, con su numero: la fila N es el renglon N
+  // del codigo (los renglones sin tokens salen vacios).
+  const porNumero = {};
+  lex.lineas.forEach((l) => { porNumero[l.numero] = l; });
+  const ultimo = lex.lineas.length > 0 ? lex.lineas[lex.lineas.length - 1].numero : 0;
+  let salida = '';
+  for (let numero = 1; numero <= ultimo; numero++) {
+    const l = porNumero[numero];
+    const piezas = l
+      ? esc(l.sangria) + l.piezas.map((p) =>
+        (p.espacioAntes ? ' ' : '') + `<span class="tk-${esc(p.categoria)}">${esc(p.texto)}</span>`
+      ).join('')
+      : ' ';
+    salida += `<tr><td class="num">${numero}</td><td>${piezas}</td></tr>`;
+  }
 
   const filas = lex.tabla.map((f) =>
     `<tr class="${f.categoria === 'error' ? 'fila-error' : ''}" ` +
@@ -204,7 +257,7 @@ function seccionLexico (lex) {
   <h2><span>2</span> Análisis léxico</h2>
   ${listaErrores(lex.errores)}
   <h3>Salida del análisis</h3>
-  <div class="caja salida">${salida || '<p class="vacio">No se reconoció ningún token.</p>'}</div>
+  ${salida ? `<table class="codigo"><tbody>${salida}</tbody></table>` : '<p class="vacio">No se reconoció ningún token.</p>'}
   ${ids ? `<h3>Identificadores</h3><ul class="identificadores">${ids}</ul>` : ''}
   <h3>Tabla de tokens</h3>
   <table class="tabla">
@@ -267,12 +320,38 @@ function alternativaHTML (a) {
   return `<span class="alternativa" title="En el código: ${esc(a.ejemplo)}">${simbolos}</span>`;
 }
 
+/** Un error o advertencia:  L5:C3  mensaje → sugerencia */
+function filaSemantica (e, marca) {
+  return `<div class="fila-sem"><b>${marca}</b> <code>L${e.linea}:C${e.columna}</code> ` +
+    `${esc(e.mensaje)}${e.sugerencia ? ' → ' + esc(e.sugerencia) : ''}</div>`;
+}
+
+/** El veredicto y las advertencias. */
+function veredictoHTML (sem) {
+  let html = '';
+  if (!sem.correcto) {
+    html = `<div class="veredicto mal"><b>✕ ${cuantos(sem.errores.length, 'error semántico', 'errores semánticos')}</b>` +
+      '<p>El código está bien escrito, pero algo no tiene sentido:</p>' +
+      sem.errores.map((e) => filaSemantica(e, '✕')).join('') + '</div>';
+  }
+  if (sem.advertencias.length > 0) {
+    html += `<div class="veredicto advertencia"><b>⚠ ${cuantos(sem.advertencias.length, 'advertencia', 'advertencias')}</b>` +
+      sem.advertencias.map((e) => filaSemantica(e, '⚠')).join('') + '</div>';
+  }
+  return html;
+}
+
 function seccionSemantico (sem) {
   let cuerpo;
-  if (!sem || sem.vacio) {
+  if (!sem || sem.estado === 'vacio') {
     cuerpo = '<p class="vacio">No hay código que analizar.</p>';
-  } else if (!sem.correcto) {
-    cuerpo = `<div class="veredicto mal"><b>✕ No se pudo generar la gramática</b>
+  } else if (sem.estado === 'sin-clase') {
+    cuerpo = `<div class="veredicto mal"><b>✕ Falta la clase</b>
+      <p>Como en Java, el código va dentro de una clase:
+      <code>clase ejemplo { clasePrincipal { ... } }</code>.
+      Las expresiones sueltas se practican en el análisis sintáctico.</p></div>`;
+  } else if (sem.estado === 'errores-previos') {
+    cuerpo = `<div class="veredicto mal"><b>✕ No se pudo hacer el análisis semántico</b>
       <p>Primero hay que corregir los errores léxicos y sintácticos del código.</p></div>`;
   } else {
     const filas = sem.reglas.map((r) =>
@@ -282,8 +361,9 @@ function seccionSemantico (sem) {
     ).join('');
 
     cuerpo = `
-  <p class="estadisticas">Gramática generada del código dado:
-    ${cuantos(sem.reglas.length, 'regla', 'reglas')},
+  ${veredictoHTML(sem)}
+  <h3>Gramática del código</h3>
+  <p class="estadisticas">${cuantos(sem.reglas.length, 'regla', 'reglas')},
     ${cuantos(sem.totalAlternativas, 'producción', 'producciones')}.
     Los terminales (lo que se escribe tal cual) van <u>subrayados</u> o en negritas.</p>
   <table class="gramatica"><tbody>${filas}</tbody></table>`;
@@ -291,7 +371,99 @@ function seccionSemantico (sem) {
 
   return `
 <section id="semantico" class="seccion">
-  <h2><span>4</span> Análisis semántico: la gramática del código</h2>
+  <h2><span>4</span> Análisis semántico</h2>
+  ${cuerpo}
+</section>`;
+}
+
+/** Las filas del codigo de tres direcciones, con sus comentarios en verde. */
+function filasTresDirecciones (instrucciones) {
+  const filas = [];
+  instrucciones.forEach((ins) => {
+    (ins.comentarios || []).forEach((c) =>
+      filas.push(`<tr class="comentario"><td class="num"></td><td>// ${esc(c)}</td></tr>`));
+    const clases = [ins.op === 'etiqueta' ? 'etiqueta' : '', ins.optimizaciones ? 'cambiada' : ''].join(' ').trim();
+    filas.push(`<tr${clases ? ` class="${clases}"` : ''}><td class="num">${ins.numero}</td>` +
+      `<td class="instruccion">${esc(ins.texto)}</td></tr>`);
+  });
+  return `<table class="codigo-intermedio"><tbody>${filas.join('')}</tbody></table>`;
+}
+
+/** La tabla de cuadruplos: # · Operador · Arg 1 · Arg 2 · Resultado */
+function tablaCuadruplos (instrucciones) {
+  const filas = instrucciones.map((ins) =>
+    `<tr><td class="num">${ins.numero}</td><td class="op">${esc(ins.op)}</td><td>${esc(ins.arg1)}</td>` +
+    `<td>${esc(ins.arg2)}</td><td>${esc(ins.resultado)}</td></tr>`).join('');
+  return '<table class="tabla cuadruplos"><thead><tr><th>#</th><th>Operador</th><th>Arg 1</th><th>Arg 2</th>' +
+    `<th>Resultado</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+/**
+ * El codigo intermedio: el codigo de tres direcciones, con el renglon del
+ * programa de donde sale cada grupo, y la tabla de cuadruplos.
+ */
+function seccionIntermedio (ci) {
+  let cuerpo;
+  if (!ci || ci.estado === 'vacio') {
+    cuerpo = '<p class="vacio">No hay código que traducir.</p>';
+  } else if (ci.estado === 'errores-previos') {
+    cuerpo = `<div class="veredicto mal"><b>✕ No se pudo generar el código intermedio</b>
+      <p>Primero hay que corregir los errores del programa (léxicos, sintácticos o semánticos).</p></div>`;
+  } else {
+    cuerpo = `
+  <p class="estadisticas">${cuantos(ci.instrucciones.length, 'instrucción', 'instrucciones')},
+    ${cuantos(ci.temporales, 'temporal', 'temporales')} y ${cuantos(ci.etiquetas, 'etiqueta', 'etiquetas')}.
+    En verde, el renglón del programa de donde sale cada grupo.</p>
+  <h3>Código de tres direcciones</h3>
+  ${filasTresDirecciones(ci.instrucciones)}
+  <h3>Cuádruplos</h3>
+  ${tablaCuadruplos(ci.instrucciones)}`;
+  }
+
+  return `
+<section id="intermedio" class="seccion">
+  <h2><span>5</span> Código intermedio</h2>
+  ${cuerpo}
+</section>`;
+}
+
+/**
+ * La optimizacion: el codigo que quedo (con las instrucciones que cambiaron
+ * marcadas), cada cambio con su antes y su despues, y los cuadruplos.
+ */
+function seccionOptimizacion (o) {
+  let cuerpo;
+  if (!o || o.estado === 'vacio') {
+    cuerpo = '<p class="vacio">No hay código que optimizar.</p>';
+  } else if (o.estado === 'errores-previos') {
+    cuerpo = `<div class="veredicto mal"><b>✕ No se pudo optimizar el código intermedio</b>
+      <p>Primero hay que corregir los errores del programa (léxicos, sintácticos o semánticos).</p></div>`;
+  } else {
+    const usadas = o.porOptimizacion.length === 0
+      ? 'No hubo nada que mejorar.'
+      : o.porOptimizacion.map((x) => `${esc(x.nombre)} (${x.veces})`).join(' · ');
+    const cambios = o.cambios.map((c, k) =>
+      `<tr><td class="num">${k + 1}</td><td>${esc(c.nombre)}</td><td>${esc(c.antes)}</td>` +
+      `<td>${c.despues ? esc(c.despues) : '<i>(se quita)</i>'}</td><td class="num">${c.linea}</td></tr>`).join('');
+
+    cuerpo = `
+  <p class="estadisticas">De ${o.antes} instrucciones a ${o.instrucciones.length},
+    con ${cuantos(o.temporales, 'temporal', 'temporales')} y ${cuantos(o.etiquetas, 'etiqueta', 'etiquetas')}.
+    Hace lo mismo que el código intermedio, con menos trabajo. Con fondo verde, las instrucciones que cambiaron.</p>
+  <p class="estadisticas"><b>Optimizaciones:</b> ${usadas}</p>
+  <h3>Código optimizado</h3>
+  ${filasTresDirecciones(o.instrucciones)}` +
+  (o.cambios.length === 0 ? '' : `
+  <h3>Cambios, en el orden en que se hicieron</h3>
+  <table class="tabla cambios"><thead><tr><th>#</th><th>Optimización</th><th>Antes</th><th>Después</th>` +
+  `<th>Línea</th></tr></thead><tbody>${cambios}</tbody></table>`) + `
+  <h3>Cuádruplos</h3>
+  ${tablaCuadruplos(o.instrucciones)}`;
+  }
+
+  return `
+<section id="optimizacion" class="seccion">
+  <h2><span>6</span> Código optimizado</h2>
   ${cuerpo}
 </section>`;
 }
@@ -342,12 +514,16 @@ ${ficha(opciones, fecha, resultado)}
   <a href="#codigo">1 · Código fuente</a>
   <a href="#lexico">2 · Análisis léxico</a>
   <a href="#sintactico">3 · Análisis sintáctico</a>
-  <a href="#semantico">4 · Análisis semántico (gramática)</a>
+  <a href="#semantico">4 · Análisis semántico</a>
+  <a href="#intermedio">5 · Código intermedio</a>
+  <a href="#optimizacion">6 · Código optimizado</a>
 </nav>
-${seccionCodigo(fuente)}
+${seccionCodigo(fuente, erroresDe(resultado, 'semantico'))}
 ${seccionLexico(resultado.lexico)}
 ${seccionSintactico(resultado.sintactico)}
 ${seccionSemantico(resultado.semantico)}
+${seccionIntermedio(resultado.intermedio)}
+${seccionOptimizacion(resultado.optimizacion)}
 <footer class="pie">
   <b>¿Quieres volver a trabajar con este código?</b>
   Ábrelo en el Compilador ${esc(NOMBRE_EQUIPO)} con <kbd>Archivo → Abrir</kbd> (<kbd>Ctrl+O</kbd>)
@@ -407,6 +583,7 @@ const ESTILOS = `
   --azul: #1f4e9c; --azul-claro: #e7effb;
   --verde: #17794f; --verde-claro: #e4f4ec;
   --rojo: #c0392b; --rojo-claro: #fdeceb;
+  --ambar: #8a5b12; --ambar-claro: #fdf3e0;
   --morado: #5b3fbf;
   --mono: 'Cascadia Mono', Consolas, 'Courier New', monospace;
   --sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -455,7 +632,7 @@ body { margin: 0; background: var(--fondo); color: var(--texto); font: 14px/1.5 
   font: 13.5px/1.6 var(--mono); padding: 10px 14px; white-space: pre-wrap; word-break: break-word; margin: 0; }
 .codigo { border-collapse: separate; width: 100%; padding: 8px 0; }
 .codigo td { padding: 0 14px; white-space: pre-wrap; vertical-align: top; }
-.codigo td.num { width: 1%; color: var(--texto-3); text-align: right; user-select: none; border-right: 1px solid var(--borde); }
+.codigo td.num { width: 1%; white-space: nowrap; color: var(--texto-3); text-align: right; user-select: none; border-right: 1px solid var(--borde); }
 .vacio { color: var(--texto-3); font-style: italic; }
 
 .tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -466,6 +643,17 @@ body { margin: 0; background: var(--fondo); color: var(--texto); font: 14px/1.5 
 .tabla .num { text-align: right; width: 1%; color: var(--texto-2); font-family: var(--mono); }
 .tabla .lexema { font-family: var(--mono); font-weight: 600; white-space: pre; }
 .fila-error td { background: var(--rojo-claro) !important; color: var(--rojo); }
+
+/* El resaltado de Java (tema claro de VS Code), el mismo del editor */
+.j-control { color: #af00db; }
+.j-tipo, .j-clase { color: #267f99; }
+.j-declaracion, .j-constante, .j-operador { color: #0000ff; }
+.j-funcion { color: #795e26; }
+.j-variable { color: #001080; }
+.j-cadena { color: #a31515; }
+.j-numero { color: #098658; }
+.j-comentario { color: #008000; }
+.j-error, .j-marca { text-decoration: underline wavy #cd3131; text-decoration-skip-ink: none; }
 
 .tk-logico { color: #0b5ed7; font-weight: 700; }
 .tk-relacional { color: #d12a2a; font-weight: 700; }
@@ -522,10 +710,27 @@ details { margin-top: 10px; }
 summary { cursor: pointer; color: var(--azul); font-size: 13px; }
 details pre { margin-top: 8px; white-space: pre; overflow-x: auto; }
 
-/* --- Analisis semantico: la gramatica generada --- */
+/* --- Codigo intermedio: tres direcciones y cuadruplos --- */
+.codigo-intermedio { border-collapse: collapse; font: 13.5px/1.6 var(--mono); }
+.codigo-intermedio td { padding: 0 10px; white-space: pre; }
+.codigo-intermedio td.num { color: var(--texto-3); text-align: right; border-right: 1px solid var(--borde); }
+.codigo-intermedio td.instruccion { padding-left: 34px; }
+.codigo-intermedio tr.etiqueta td.instruccion { padding-left: 10px; font-weight: 700; color: var(--azul); }
+.codigo-intermedio tr.comentario td { color: #008000; padding-top: 5px; }
+.codigo-intermedio tr.cambiada td.instruccion { background: var(--verde-claro); box-shadow: inset 3px 0 0 var(--verde); }
+.cuadruplos { width: auto; font-family: var(--mono); }
+.cuadruplos td, .cuadruplos th { padding-right: 24px; }
+.cuadruplos .num { width: auto; }
+.cuadruplos .op { font-weight: 700; color: #af00db; }
+
+/* --- Analisis semantico: errores, advertencias y gramatica --- */
 .veredicto { border-radius: 8px; padding: 12px 16px; border: 1px solid; }
 .veredicto p { margin: 4px 0 0; }
+.veredicto + .veredicto { margin-top: 8px; }
 .veredicto.mal { background: var(--rojo-claro); border-color: var(--rojo); color: var(--rojo); }
+.veredicto.advertencia { background: var(--ambar-claro); border-color: var(--ambar); color: var(--ambar); }
+.fila-sem { margin-top: 4px; font-size: 13px; }
+.fila-sem code { font-family: var(--mono); font-size: 12px; color: var(--texto-2); }
 .gramatica { border-collapse: collapse; font: 14px/1.7 var(--mono); }
 .gramatica td { padding: 3px 8px; vertical-align: top; }
 .gramatica .regla { font-weight: 700; color: var(--azul); white-space: nowrap; text-align: right; }

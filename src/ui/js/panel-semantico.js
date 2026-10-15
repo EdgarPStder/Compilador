@@ -2,34 +2,37 @@
  * panel-semantico.js
  * Pestaña 3: Analizador Semántico.
  *
- * Muestra la gramática que src/core/semantico/AnalizadorSemantico.js generó
- * para el código dado, escrita como en el pizarrón:
+ * Muestra lo que src/core/03.semantico/AnalizadorSemantico.js encontró en el
+ * código:
  *
- *   prop → id = exp
- *   exp  → id | num | exp / exp
- *   id   → let ( dig )*
- *   ...
+ *   1. Los errores semánticos (un nombre sin declarar, tipos que no
+ *      coinciden...), si hay, y abajo las advertencias. Si no hay errores,
+ *      basta con la insignia «sin errores» junto al título.
+ *   2. La gramática del código, escrita como en el pizarrón:
  *
- * Los terminales (lo que se escribe tal cual en el código) van en negritas,
- * y las palabras además subrayadas, como en el pizarrón. Al pasar el mouse
- * sobre una alternativa se ve de qué parte del código salió.
+ *        prop → clase id { principal }
+ *        exp  → id | num | exp / exp
  *
- * Si el código tiene errores léxicos o sintácticos no hay gramática: se
- * muestran los errores para corregirlos.
+ * Solo trabaja con programas (clase nombre { clasePrincipal { ... } }), como
+ * Java. Si falta la clase, o el código tiene errores léxicos o sintácticos,
+ * se dice por qué no se analizó.
  */
 
 /* global window, document, Dom */
 
 const ESPERA_SEMANTICO =
-  'Escribe cualquier código del lenguaje y presiona «Analiza»: aquí aparecerá su gramática.';
+  'Escribe un programa SwordByte y presiona «Analiza»: aquí aparecerán ' +
+  'sus errores semánticos y su gramática.';
 
-/** Cómo se llama cada tipo de código que reconoce el analizador sintáctico. */
-const MODOS = {
-  expresion: 'una expresión',
-  proposiciones: 'varias proposiciones, una por renglón',
-  instrucciones: 'instrucciones',
-  programa: 'un programa completo'
-};
+/** El esqueleto de un programa, para cuando falta la clase. */
+const EJEMPLO_PROGRAMA = [
+  'clase ejemplo {',
+  '    clasePrincipal {',
+  '        decimal radio = 2.5;',
+  '        imprimirLn(area.circulo(radio));',
+  '    }',
+  '}'
+].join('\n');
 
 class PanelSemantico {
   constructor () {
@@ -46,39 +49,93 @@ class PanelSemantico {
   /** @param {object} r Resultado de Compilador.compilar() */
   pintar (r) {
     const sem = r.semantico;
-    if (!sem || sem.vacio) {
+    if (!sem || sem.estado === 'vacio') {
       this.limpiar('No hay código que analizar.');
       return;
     }
 
-    if (!sem.correcto) {
-      Dom.ponerInsignia(this.estado, 'error', 'sin gramática');
-      this.salida.replaceChildren(this._errores(sem.errores));
+    if (sem.estado === 'sin-clase') {
+      Dom.ponerInsignia(this.estado, 'error', 'falta la clase');
+      this.salida.replaceChildren(this._sinClase(sem.errores[0]));
       return;
     }
 
-    Dom.ponerInsignia(this.estado, 'ok',
-      Dom.cuantos(sem.reglas.length, 'regla', 'reglas'));
+    if (sem.estado === 'errores-previos') {
+      Dom.ponerInsignia(this.estado, 'error', 'corrige primero');
+      this.salida.replaceChildren(this._erroresPrevios(sem.errores));
+      return;
+    }
 
-    const resumen = Dom.crear('p', 'resumen-gramatica',
-      `✓ Gramática generada del código dado — ${Dom.cuantos(sem.reglas.length, 'regla', 'reglas')}, ` +
-      `${Dom.cuantos(sem.totalAlternativas, 'producción', 'producciones')}. ` +
-      `Se analizó como ${MODOS[sem.modo] || sem.modo}.`);
+    // estado 'analizado'
+    Dom.ponerInsignia(this.estado, sem.correcto ? 'ok' : 'error',
+      sem.correcto ? 'sin errores' : Dom.cuantos(sem.errores.length, 'error', 'errores'));
 
-    this.salida.replaceChildren(resumen, this._gramatica(sem.reglas), this._nota());
+    const partes = [];
+    if (!sem.correcto) partes.push(this._errores(sem.errores));
+    if (sem.advertencias.length > 0) partes.push(this._advertencias(sem.advertencias));
+
+    partes.push(
+      Dom.crear('h3', 'titulo-semantico-parte',
+        `Gramática del código (${Dom.cuantos(sem.reglas.length, 'regla', 'reglas')}, ` +
+        `${Dom.cuantos(sem.totalAlternativas, 'producción', 'producciones')})`),
+      this._gramatica(sem.reglas),
+      this._nota()
+    );
+    this.salida.replaceChildren(...partes);
   }
 
   // ------------------------------------------------------------------
-  // Las partes
+  // Cuando no se analiza
   // ------------------------------------------------------------------
 
-  /** Recuadro rojo: sin código correcto no hay gramática. */
+  /**
+   * Una expresión suelta (a = b + c) no es un programa: como en Java, falta
+   * la clase. Se muestra el error y cómo se escribe un programa.
+   */
+  _sinClase (error) {
+    const caja = Dom.crear('div', 'veredicto mal');
+    caja.append(
+      Dom.crear('b', null, '✕ Falta la clase'),
+      Dom.filaError(error),
+      Dom.crear('p', null, 'Como en Java, el código va dentro de una clase y se ejecuta desde clasePrincipal:'),
+      Dom.crear('pre', 'ejemplo-codigo', EJEMPLO_PROGRAMA),
+      Dom.crear('p', null,
+        'Las expresiones sueltas, como a = b + c, se practican en la pestaña «Analizador Léxico-Sintáctico».')
+    );
+    return caja;
+  }
+
+  /** Con errores léxicos o sintácticos no se puede revisar el sentido. */
+  _erroresPrevios (errores) {
+    const caja = Dom.crear('div', 'veredicto mal');
+    caja.append(
+      Dom.crear('b', null, '✕ No se pudo hacer el análisis semántico'),
+      Dom.crear('p', null, 'Primero hay que corregir los errores léxicos y sintácticos del código:')
+    );
+    errores.forEach((e) => caja.appendChild(Dom.filaError(e)));
+    return caja;
+  }
+
+  // ------------------------------------------------------------------
+  // Las partes del análisis
+  // ------------------------------------------------------------------
+
+  /** Recuadro rojo con los errores semánticos. */
   _errores (errores) {
     const caja = Dom.crear('div', 'veredicto mal');
-    caja.appendChild(Dom.crear('b', null, '✕ No se pudo generar la gramática'));
-    caja.appendChild(Dom.crear('p', null,
-      'Primero hay que corregir los errores del código:'));
+    caja.append(
+      Dom.crear('b', null, '✕ ' + Dom.cuantos(errores.length, 'error semántico', 'errores semánticos')),
+      Dom.crear('p', null, 'El código está bien escrito, pero algo no tiene sentido:')
+    );
     errores.forEach((e) => caja.appendChild(Dom.filaError(e)));
+    return caja;
+  }
+
+  /** Lo que se puede ejecutar pero parece un descuido. */
+  _advertencias (advertencias) {
+    const caja = Dom.crear('div', 'veredicto advertencia');
+    caja.appendChild(Dom.crear('b', null, '⚠ ' + Dom.cuantos(advertencias.length, 'advertencia', 'advertencias')));
+    advertencias.forEach((e) => caja.appendChild(Dom.filaError(e, '⚠')));
     return caja;
   }
 

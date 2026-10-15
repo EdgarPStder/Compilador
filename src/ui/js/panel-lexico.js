@@ -2,7 +2,7 @@
  * panel-lexico.js
  * Pestaña 1: Analizador Léxico.
  *
- * Pinta la tabla de tokens que arma src/core/lexico/TablaLexica.js:
+ * Pinta la tabla de tokens que arma src/core/01.lexico/TablaLexica.js:
  *
  *   Lexema   Token                     Descripción
  *   a        identificador             Variable o nombre definido... (id1)

@@ -1,7 +1,8 @@
 /**
  * Reporte.js
  * Arma el reporte en texto (.bs): encabezado, codigo fuente, analisis lexico,
- * analisis sintactico y analisis semantico.
+ * analisis sintactico, analisis semantico, codigo intermedio y codigo
+ * optimizado.
  *
  * Es la forma "clasica" de guardar. La que se ofrece primero es el reporte
  * visual en HTML (ver ReporteHTML.js); esta se conserva para quien quiera un
@@ -16,6 +17,7 @@
  */
 
 const { MATERIA, NOMBRE_EQUIPO, AUTOR, nombresCompletos } = require('./comun/Equipo');
+const { codigoIntermedioATexto } = require('./04.intermedio/GeneradorIntermedio');
 
 const ANCHO = 74;
 const MARCA_INICIO = '// >>>>> INICIO DEL CODIGO FUENTE';
@@ -109,14 +111,16 @@ function arbolATexto (raiz) {
 }
 
 // ====================================================================
-// La gramatica generada (analisis semantico) en texto
+// El analisis semantico en texto
 // ====================================================================
 
 /**
- * Escribe la gramatica generada, una regla por renglon. Si una regla tiene
- * varias alternativas, cada una va en su renglon, alineada bajo la flecha:
+ * Escribe el analisis semantico: el veredicto con sus errores, las
+ * advertencias y la gramatica del codigo. Si una regla
+ * de la gramatica tiene varias alternativas, cada una va en su renglon,
+ * alineada bajo la flecha:
  *
- *   prop  → id = exp
+ *   prop  → id = exp ;
  *   exp   → id
  *         | num
  *         | exp / exp
@@ -126,21 +130,79 @@ function arbolATexto (raiz) {
  */
 function semanticoATexto (sem) {
   if (!sem) return ['No se ejecutó el análisis semántico.'];
-  if (sem.vacio) return ['No hay código que analizar.'];
-
-  if (!sem.correcto) {
-    return ['No se pudo generar la gramática: primero hay que corregir',
+  if (sem.estado === 'vacio') return ['No hay código que analizar.'];
+  if (sem.estado === 'sin-clase') {
+    return ['Falta la clase: el código va dentro de una clase:',
+      '  clase ejemplo { clasePrincipal { ... } }'];
+  }
+  if (sem.estado === 'errores-previos') {
+    return ['No se analizó: primero hay que corregir',
       'los errores léxicos y sintácticos del código.'];
   }
 
+  const lineas = [];
+  const fila = (e) => `  Línea ${e.linea}, columna ${e.columna}: ${e.mensaje}` +
+    (e.sugerencia ? ` — ${e.sugerencia}` : '');
+
+  // --- El veredicto ---
+  if (sem.correcto) {
+    lineas.push('Sin errores semánticos: el código tiene sentido.');
+  } else {
+    lineas.push(`Errores semánticos (${sem.errores.length}):`);
+    sem.errores.forEach((e) => lineas.push(fila(e)));
+  }
+  if (sem.advertencias.length > 0) {
+    lineas.push('', `Advertencias (${sem.advertencias.length}):`);
+    sem.advertencias.forEach((e) => lineas.push(fila(e)));
+  }
+
+  // --- La gramatica ---
+  lineas.push('', `Gramática del código (${sem.reglas.length} reglas):`, '');
   const ancho = Math.max(...sem.reglas.map((r) => r.regla.length));
-  const lineas = [`Gramática generada del código dado (${sem.reglas.length} reglas):`, ''];
   sem.reglas.forEach((r) => {
     r.alternativas.forEach((a, i) => {
       const izquierda = i === 0 ? r.regla.padEnd(ancho) + ' →' : ' '.repeat(ancho) + ' |';
       lineas.push(`${izquierda} ${a.texto}`);
     });
   });
+  return lineas;
+}
+
+/**
+ * El codigo intermedio en texto: el codigo de tres direcciones, con los
+ * renglones del programa como comentarios.
+ */
+function intermedioATexto (ci) {
+  if (!ci || ci.estado === 'vacio') return ['No hay código que traducir.'];
+  if (ci.estado === 'errores-previos') {
+    return ['No se generó: primero hay que corregir los errores del programa.'];
+  }
+  return [`${ci.instrucciones.length} instrucciones, ${ci.temporales} temporales y ` +
+    `${ci.etiquetas} etiquetas:`, ''].concat(codigoIntermedioATexto(ci.instrucciones));
+}
+
+/**
+ * El codigo optimizado en texto: de cuantas instrucciones a cuantas, las
+ * optimizaciones que se usaron, el codigo que quedo y cada cambio.
+ */
+function optimizacionATexto (o) {
+  if (!o || o.estado === 'vacio') return ['No hay código que optimizar.'];
+  if (o.estado === 'errores-previos') {
+    return ['No se optimizó: primero hay que corregir los errores del programa.'];
+  }
+
+  const lineas = [`De ${o.antes} instrucciones a ${o.instrucciones.length}, con ${o.temporales} ` +
+    `temporales y ${o.etiquetas} etiquetas.`];
+  lineas.push(o.porOptimizacion.length === 0
+    ? 'No hubo nada que mejorar.'
+    : 'Optimizaciones: ' + o.porOptimizacion.map((x) => `${x.nombre} (${x.veces})`).join(', ') + '.');
+  lineas.push('', ...codigoIntermedioATexto(o.instrucciones));
+
+  if (o.cambios.length > 0) {
+    lineas.push('', `Cambios, en el orden en que se hicieron (${o.cambios.length}):`);
+    o.cambios.forEach((c, k) =>
+      lineas.push(`   ${k + 1}. ${c.nombre}:  ${c.antes}  ->  ${c.despues || '(se quita)'}`));
+  }
   return lineas;
 }
 
@@ -265,8 +327,20 @@ function construirReporte (resultado, opciones = {}) {
   L.push('');
 
   // ---------------- 4. Análisis semántico ----------------
-  L.push(...seccion(4, 'ANÁLISIS SEMÁNTICO: GRAMÁTICA DEL CÓDIGO'));
+  L.push(...seccion(4, 'ANÁLISIS SEMÁNTICO'));
   L.push(...semanticoATexto(resultado.semantico).map((l) => linea(l)));
+  L.push('');
+  L.push('');
+
+  // ---------------- 5. Código intermedio ----------------
+  L.push(...seccion(5, 'CÓDIGO INTERMEDIO (TRES DIRECCIONES)'));
+  L.push(...intermedioATexto(resultado.intermedio).map((l) => linea(l)));
+  L.push('');
+  L.push('');
+
+  // ---------------- 6. Código optimizado ----------------
+  L.push(...seccion(6, 'CÓDIGO INTERMEDIO OPTIMIZADO'));
+  L.push(...optimizacionATexto(resultado.optimizacion).map((l) => linea(l)));
 
   L.push('');
   L.push(regla('='));
@@ -298,5 +372,7 @@ module.exports = {
   construirReporte,
   extraerCodigoFuente,
   arbolATexto,
-  semanticoATexto
+  semanticoATexto,
+  intermedioATexto,
+  optimizacionATexto
 };

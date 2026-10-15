@@ -85,7 +85,7 @@ function recorrer (n, fn) {
  * @param {HTMLElement} contenedor
  * @param {object} raiz  Arbol compacto ({ etiqueta, familia, hijos }).
  * @param {Function} [alElegirRama] Se llama con el nodo al que se le hizo clic.
- * @returns {{svg:Element, lienzo:Element, ancho:number, alto:number}|null}
+ * @returns {{svg:Element, lienzo:Element, ancho:number, alto:number, raizX:number}|null}
  */
 function dibujarArbol (contenedor, raiz, alElegirRama) {
   contenedor.textContent = '';
@@ -159,14 +159,15 @@ function dibujarArbol (contenedor, raiz, alElegirRama) {
   contenedor.appendChild(lienzo);
   contenedor.appendChild(construirLeyenda(familias));
 
-  return { svg, lienzo, ancho: tamano.ancho, alto: tamano.alto };
+  // raizX: donde quedo la raiz a lo ancho, para ponerla a la vista.
+  return { svg, lienzo, ancho: tamano.ancho, alto: tamano.alto, raizX: copia.x };
 }
 
 // ====================================================================
 // La vista: que rama se ve y que tan de cerca
 // ====================================================================
 
-const ZOOM_MINIMO = 0.3;
+const ZOOM_MINIMO = 0.1;   // un programa completo es muy ancho: hay que poder verlo entero
 const ZOOM_MAXIMO = 3;
 const ZOOM_PASO = 0.1;
 
@@ -194,8 +195,9 @@ class VistaArbol {
     this.dibujo = null;
     this.zoom = 1;
 
-    controles.menos.addEventListener('click', () => this.acercar(-ZOOM_PASO));
-    controles.mas.addEventListener('click', () => this.acercar(ZOOM_PASO));
+    // Con los botones, lo que queda quieto es el centro de la caja.
+    controles.menos.addEventListener('click', () => this.acercar(-ZOOM_PASO, this._centro()));
+    controles.mas.addEventListener('click', () => this.acercar(ZOOM_PASO, this._centro()));
     controles.ajustar.addEventListener('click', () => this.ajustar());
   }
 
@@ -226,9 +228,14 @@ class VistaArbol {
     this._dibujar(paso === 0 ? 1 : null);
   }
 
-  /** Acerca o aleja lo que ya esta en pantalla. */
-  acercar (paso) {
-    this._aplicarZoom(this.zoom + paso);
+  /**
+   * Acerca o aleja lo que ya esta en pantalla.
+   * @param {number} paso    Cuanto sube o baja el zoom (0.1 = 10 %).
+   * @param {object} [punto] { x, y } dentro de la caja: lo que esta ahi se
+   *                         queda en el mismo lugar, para no perderlo de vista.
+   */
+  acercar (paso, punto) {
+    this._aplicarZoom(this.zoom + paso, punto);
   }
 
   /** Zoom con el que el dibujo cabe a lo ancho, sin pasar del 100 %. */
@@ -236,6 +243,7 @@ class VistaArbol {
     if (!this.dibujo) return;
     const disponible = this.dibujo.lienzo.clientWidth - 32; // menos el relleno
     this._aplicarZoom(Math.min(1, disponible / this.dibujo.ancho));
+    this._centrarRaiz();
   }
 
   // ------------------------------------------------------------------
@@ -255,14 +263,19 @@ class VistaArbol {
 
     if (this.dibujo) {
       // Ctrl + rueda sobre el arbol tambien acerca y aleja.
-      this.dibujo.lienzo.addEventListener('wheel', (e) => {
+      // Lo que queda quieto es lo que esta bajo el mouse.
+      const lienzo = this.dibujo.lienzo;
+      lienzo.addEventListener('wheel', (e) => {
         if (!e.ctrlKey) return;
         e.preventDefault();
-        this.acercar(e.deltaY < 0 ? ZOOM_PASO : -ZOOM_PASO);
+        const caja = lienzo.getBoundingClientRect();
+        const mouse = { x: e.clientX - caja.left, y: e.clientY - caja.top };
+        this.acercar(e.deltaY < 0 ? ZOOM_PASO : -ZOOM_PASO, mouse);
       }, { passive: false });
     }
 
     this._aplicarZoom(zoom === null ? this._zoomQueLlenaElAncho() : zoom);
+    this._centrarRaiz();
     this._pintarCamino();
   }
 
@@ -282,15 +295,73 @@ class VistaArbol {
    * Cambia el tamano del dibujo. Se mueven el ancho y el alto del SVG dejando
    * fijo su viewBox: asi la imagen crece de verdad y las barras de
    * desplazamiento se ajustan solas.
+   *
+   * Si viene un punto, la caja se desplaza para que lo que estaba en ese
+   * punto siga ahi despues del zoom (si no, al agrandar, lo que se estaba
+   * viendo se iria hacia abajo y a la derecha):
+   *
+   *   1. antes de cambiar el tamano: que parte del dibujo esta en el punto;
+   *   2. se cambia el tamano;
+   *   3. se desplaza la caja hasta que esa parte vuelva a quedar en el punto.
    */
-  _aplicarZoom (zoom) {
+  _aplicarZoom (zoom, punto = null) {
+    const anterior = this.zoom;
     this.zoom = Math.min(ZOOM_MAXIMO, Math.max(ZOOM_MINIMO, zoom));
 
     if (this.dibujo) {
-      this.dibujo.svg.setAttribute('width', this.dibujo.ancho * this.zoom);
-      this.dibujo.svg.setAttribute('height', this.dibujo.alto * this.zoom);
+      const { svg, lienzo } = this.dibujo;
+      const enDibujo = punto ? this._puntoEnDibujo(punto, anterior) : null;   // 1
+
+      svg.setAttribute('width', this.dibujo.ancho * this.zoom);                 // 2
+      svg.setAttribute('height', this.dibujo.alto * this.zoom);
+
+      if (enDibujo) {                                                          // 3
+        const origen = this._origenDelDibujo();
+        lienzo.scrollLeft = origen.x + enDibujo.x * this.zoom - punto.x;
+        lienzo.scrollTop = origen.y + enDibujo.y * this.zoom - punto.y;
+      }
     }
     this._pintarNivel();
+  }
+
+  /** El centro de la caja que se ve, en pixeles: { x, y }. */
+  _centro () {
+    if (!this.dibujo) return null;
+    return { x: this.dibujo.lienzo.clientWidth / 2, y: this.dibujo.lienzo.clientHeight / 2 };
+  }
+
+  /**
+   * Donde empieza el dibujo dentro de todo lo que se puede desplazar de la
+   * caja (el relleno y el centrado lo recorren un poco).
+   */
+  _origenDelDibujo () {
+    const { svg, lienzo } = this.dibujo;
+    const s = svg.getBoundingClientRect();
+    const l = lienzo.getBoundingClientRect();
+    return { x: s.left - l.left + lienzo.scrollLeft, y: s.top - l.top + lienzo.scrollTop };
+  }
+
+  /** Un punto de la caja, pasado a coordenadas del dibujo (sin zoom). */
+  _puntoEnDibujo (punto, zoom) {
+    const origen = this._origenDelDibujo();
+    const lienzo = this.dibujo.lienzo;
+    return {
+      x: (lienzo.scrollLeft + punto.x - origen.x) / zoom,
+      y: (lienzo.scrollTop + punto.y - origen.y) / zoom
+    };
+  }
+
+  /**
+   * Desplaza la caja para que la raiz quede a la vista, centrada a lo ancho.
+   * En un arbol mas ancho que la caja, si no, se veria la orilla izquierda y
+   * la raiz quedaria fuera.
+   */
+  _centrarRaiz () {
+    if (!this.dibujo) return;
+    const { lienzo, raizX } = this.dibujo;
+    const origen = this._origenDelDibujo();
+    lienzo.scrollLeft = origen.x + raizX * this.zoom - lienzo.clientWidth / 2;
+    lienzo.scrollTop = 0;
   }
 
   /** Escribe el porcentaje y apaga los botones que ya no sirven. */

@@ -22,6 +22,25 @@ const REPORTE_PRUEBA = path.join(RAIZ, 'salida', 'prueba-reporte.html');
 /** Cuantas veces la interfaz pidio cerrar la aplicacion. */
 let vecesQuePidioSalir = 0;
 
+/** Un codigo dentro de su clase, como lo pide Java. */
+const enClase = (...renglones) =>
+  ['clase figuras {', '    clasePrincipal {', ...renglones.map((r) => '        ' + r), '    }', '}'].join('\n');
+
+/** Un ciclo, para ver etiquetas y temporales en la pestaña 4. */
+const EJEMPLO_INTERMEDIO = enClase('entero i = 0;', 'mientras (i < 3) {', '    i++;', '}', 'imprimirLn(i);');
+
+/**
+ * Un programa con valores que ya se saben, para la pestaña 5: usa las nueve
+ * optimizaciones.
+ */
+const EJEMPLO_OPTIMIZACION = enClase('entero base = 4;', 'entero altura = base * 2;',
+  'entero superficie = base * altura / 2;', 'entero lado;', 'leer(lado);',
+  'entero doble = lado * 2 + lado * 2;', 'si (superficie > 10) {', '    imprimirLn("Grande: " + superficie);',
+  '} sino {', '    imprimirLn("Chico");', '}', 'imprimirLn(doble * 1);');
+
+/** Un programa de geometria correcto, para la pestaña 3. */
+const EJEMPLO_SEMANTICO = enClase('decimal radio = 2.5;', 'decimal a = area.circulo(radio);', 'imprimirLn(a);');
+
 /**
  * Codigo (para correr dentro de la ventana) que lee una fila de la gramatica
  * con sus celdas separadas por un espacio:  "prop → id = exp"
@@ -94,19 +113,25 @@ app.whenReady().then(async () => {
       columnasTabla: qq('#panel-lexico .tabla-tokens th').map((th) => th.textContent).join(' | '),
       ordenLexico:   qq('#panel-lexico .cuerpo > *').map((e) => e.tagName).join(','),
       ordenSintactico: qq('#panel-sintactico .cuerpo > *').map((e) => e.tagName).join(','),
-      codigos:       ['lex-codigo', 'codigo', 'sem-codigo'].map((id) => document.getElementById(id).value),
+      codigos:       ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
       filasTabla:    qq('#lex-tabla tr').length,
       nodos:         qq('#salida-sintactico .arbol-nodo').length,
       notaSemantico: q('#sem-salida').textContent,
       botonesLexico: textos('#panel-lexico .btn'),
       botonesSemantico: textos('#panel-semantico .btn'),
+      botonesIntermedio: textos('#panel-intermedio .btn'),
+      notaIntermedio: q('#int-salida').textContent,
+      botonesOptimizacion: textos('#panel-optimizacion .btn'),
+      notaOptimizacion: q('#opt-salida').textContent,
+      tituloOptimizacion: q('#panel-optimizacion .titulo-semantico').textContent.replace(/\\s+/g, ' ').trim(),
+      logosOptimizacion: qq('#panel-optimizacion .logos-columna .logo').map((e) => e.dataset.logo).join(','),
       ordenSemantico: qq('#panel-semantico .cuerpo > *').map((e) => e.tagName).join(',')
     };
   })()`);
 
   // ---------- Pestaña 1: la tabla de tokens ----------
   await escribir('lex-codigo', 'a = b + c * 24');
-  const compartido = await js(`['lex-codigo', 'codigo', 'sem-codigo']
+  const compartido = await js(`['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo']
     .map((id) => document.getElementById(id).value)`);
   await clic('#lex-analizar');
   await esperar(400);
@@ -132,22 +157,43 @@ app.whenReady().then(async () => {
   const enSintactico = await js(`({
     visible: document.getElementById('panel-sintactico').offsetParent !== null,
     codigo:  document.getElementById('codigo').value,
-    lexica:  document.querySelector('#salida-lexico .linea-salida')
-               ? document.querySelector('#salida-lexico .linea-salida').textContent.trim() : '',
+    lexica:  document.querySelector('#salida-lexico .linea-salida .codigo-linea')
+               ? document.querySelector('#salida-lexico .linea-salida .codigo-linea').textContent.trim() : '',
     nodos:   document.querySelectorAll('#salida-sintactico .arbol-nodo').length
   })`);
 
   await pestana('semantico');
   await esperar(300);
+  // a = b + c * 24 es una expresion suelta: la pestaña 3 dice que falta la
+  // clase y no genera nada.
   const enSemantico = await js(`({
     visible:  document.getElementById('panel-semantico').offsetParent !== null,
     codigo:   document.getElementById('sem-codigo').value,
     insignia: document.getElementById('sem-estado').textContent,
-    prop:     document.querySelector('#sem-salida .gramatica tr')
-                ? (${TEXTO_FILA})(document.querySelector('#sem-salida .gramatica tr')) : ''
+    aviso:    document.querySelector('#sem-salida .veredicto.mal b')
+                ? document.querySelector('#sem-salida .veredicto.mal b').textContent : '',
+    gramatica: document.querySelectorAll('#sem-salida .gramatica').length
   })`);
 
-  // Ctrl+Tab vuelve a la primera pestaña; la tabla sigue ahi
+  // En la pestaña 4 tampoco se genera: a la expresion le falta la clase
+  await pestana('intermedio');
+  await esperar(300);
+  const enIntermedio = await js(`({
+    visible:  document.getElementById('panel-intermedio').offsetParent !== null,
+    codigo:   document.getElementById('int-codigo').value,
+    insignia: document.getElementById('int-estado').textContent
+  })`);
+
+  // En la pestaña 5 tampoco: no hay codigo intermedio que optimizar
+  await pestana('optimizacion');
+  await esperar(300);
+  const enOptimizacion = await js(`({
+    visible:  document.getElementById('panel-optimizacion').offsetParent !== null,
+    codigo:   document.getElementById('opt-codigo').value,
+    insignia: document.getElementById('opt-estado').textContent
+  })`);
+
+  // Ctrl+Tab desde la ultima pestaña vuelve a la primera; la tabla sigue ahi
   await js(`document.dispatchEvent(new KeyboardEvent('keydown',
     { key: 'Tab', ctrlKey: true, bubbles: true })); true`);
   await esperar(250);
@@ -157,39 +203,72 @@ app.whenReady().then(async () => {
     seleccionada: document.querySelectorAll('#lex-tabla tr.seleccionada').length
   })`);
 
-  // ---------- Pestaña 3: la gramatica del ejemplo del pizarron ----------
+  // ---------- Pestaña 3: un programa de geometria que tiene sentido ----------
   await pestana('semantico');
-  await escribir('sem-codigo', 'a1 = b5 / 20');
+  await escribir('sem-codigo', EJEMPLO_SEMANTICO);
   await clic('#sem-analiza');
   await esperar(400);
   const semantico = await js(`(function () {
     const qq = (s) => Array.from(document.querySelectorAll(s));
     return {
       insignia: document.getElementById('sem-estado').textContent,
-      resumen:  document.querySelector('#sem-salida .resumen-gramatica').textContent,
+      // Sin errores no hay recuadros: lo dice la insignia
+      recuadros: qq('#sem-salida .veredicto').length,
+      tablaSimbolos: qq('#sem-salida table').length - qq('#sem-salida table.gramatica').length,
+      titulos:  qq('#sem-salida .titulo-semantico-parte').map((h) => h.textContent),
       reglas:   qq('#sem-salida .gramatica tr').map(${TEXTO_FILA}),
       ejemplo:  qq('#sem-salida .gramatica .alternativa')
-                  .map((a) => a.title).find((t) => t === 'En el código: b5 / 20') || '',
+                  .map((a) => a.title).find((t) => t === 'En el código: area.circulo(radio)') || '',
       filasLexico: document.querySelectorAll('#lex-tabla tr').length
     };
   })()`);
 
-  await escribir('sem-codigo', 'si (a > 1) { romper; }');
+  // Un codigo bien escrito pero sin sentido: los errores semanticos
+  await escribir('sem-codigo', enClase('entero x = "hola";', 'imprimirLn(y);'));
+  await clic('#sem-analiza');
+  await esperar(400);
+  const semanticoErrores = await js(`(function () {
+    const qq = (s) => Array.from(document.querySelectorAll(s));
+    return {
+      insignia: document.getElementById('sem-estado').textContent,
+      titulo:   document.querySelector('#sem-salida .veredicto.mal b')
+                  ? document.querySelector('#sem-salida .veredicto.mal b').textContent : '',
+      errores:  qq('#sem-salida .veredicto.mal .error-linea').map((e) => e.textContent),
+      avisos:   qq('#sem-salida .veredicto.advertencia .error-linea').map((e) => e.textContent),
+      gramatica: qq('#sem-salida .gramatica').length
+    };
+  })()`);
+
+  await escribir('sem-codigo', enClase('entero a = 2;', 'si (a > 1) { romper; }'));
   await clic('#sem-analiza');
   await esperar(400);
   const semanticoSi = await js(`({
-    prop: (${TEXTO_FILA})(document.querySelector('#sem-salida .gramatica tr')),
+    inst: Array.from(document.querySelectorAll('#sem-salida .gramatica tr')).map(${TEXTO_FILA})
+            .find((f) => f.startsWith('inst')) || '',
     subrayadas: Array.from(document.querySelectorAll('#sem-salida .terminal.palabra')).map((e) => e.textContent)
   })`);
 
-  // Varias proposiciones, una por renglon, como las escribe el usuario
+  // Varias proposiciones, una por renglon: el lexico y el sintactico las
+  // aceptan, pero en el semantico, como en Java, falta la clase.
   await escribir('sem-codigo', 'a = b + c\na && b || c + f > d');
   await clic('#sem-analiza');
   await esperar(400);
   const semanticoVarias = await js(`({
     insignia: document.getElementById('sem-estado').textContent,
-    reglas:   Array.from(document.querySelectorAll('#sem-salida .gramatica tr')).slice(0, 3).map(${TEXTO_FILA}),
-    resumen:  document.querySelector('#sem-salida .resumen-gramatica').textContent,
+    insigniaVisible: getComputedStyle(document.getElementById('sem-estado')).display !== 'none',
+    // El recuadro va dentro de la caja de resultados, arriba, y no flotando
+    // como la notificacion de "guardado".
+    enSuLugar: (function () {
+      const caja = document.querySelector('#sem-salida .veredicto');
+      const salida = document.getElementById('sem-salida');
+      return !!caja && getComputedStyle(caja).position === 'static' &&
+        caja.getBoundingClientRect().top - salida.getBoundingClientRect().top < 40;
+    })(),
+    aviso:    document.querySelector('#sem-salida .veredicto.mal b')
+                ? document.querySelector('#sem-salida .veredicto.mal b').textContent : '',
+    ejemplo:  document.querySelector('#sem-salida .ejemplo-codigo')
+                ? document.querySelector('#sem-salida .ejemplo-codigo').textContent : '',
+    gramatica: document.querySelectorAll('#sem-salida .gramatica').length,
     nodos:    document.querySelectorAll('#salida-sintactico .arbol-nodo').length
   })`);
 
@@ -202,6 +281,107 @@ app.whenReady().then(async () => {
                 ? document.querySelector('#sem-salida .veredicto.mal b').textContent : '',
     errores:  document.querySelectorAll('#sem-salida .veredicto.mal .error-linea').length,
     gramatica: document.querySelectorAll('#sem-salida .gramatica').length
+  })`);
+
+  // ---------- Pestaña 4: el codigo intermedio de un ciclo ----------
+  await pestana('intermedio');
+  await escribir('int-codigo', EJEMPLO_INTERMEDIO);
+  await clic('#int-genera');
+  await esperar(400);
+  const intermedio = await js(`(function () {
+    const qq = (s) => Array.from(document.querySelectorAll(s));
+    return {
+      insignia: document.getElementById('int-estado').textContent,
+      resumen: document.querySelector('#int-salida .resumen-gramatica').textContent,
+      instrucciones: qq('#int-salida .codigo-intermedio td.instruccion').map((td) => td.textContent).join(' / '),
+      numeros: qq('#int-salida .codigo-intermedio tr:not(.comentario) td.num').map((td) => td.textContent).join(','),
+      comentarios: qq('#int-salida .codigo-intermedio tr.comentario').map((tr) => tr.textContent),
+      temporales: qq('#int-salida .ci-temporal').map((e) => e.textContent),
+      etiquetas: qq('#int-salida .ci-etiqueta').map((e) => e.textContent),
+      vistaActiva: document.querySelector('.btn-vista.activa').id
+    };
+  })()`);
+
+  await clic('#int-ver-cuadruplos');
+  await esperar(150);
+  Object.assign(intermedio, await js(`(function () {
+    const qq = (s) => Array.from(document.querySelectorAll(s));
+    const filas = qq('#int-salida .tabla-cuadruplos tbody tr');
+    return {
+      columnas: qq('#int-salida .tabla-cuadruplos th').map((th) => th.textContent).join(' | '),
+      cuadruplos: filas.length,
+      quinto: Array.from(filas[4].children).map((td) => td.textContent),
+      vistaCuadruplos: document.querySelector('.btn-vista.activa').id
+    };
+  })()`));
+  await clic('#int-ver-tres');
+
+  // Con errores no se genera: primero hay que corregirlos
+  await escribir('int-codigo', 'a = b + c');
+  await clic('#int-genera');
+  await esperar(400);
+  const intermedioMal = await js(`({
+    insignia: document.getElementById('int-estado').textContent,
+    titulo: document.querySelector('#int-salida .veredicto.mal b')
+              ? document.querySelector('#int-salida .veredicto.mal b').textContent : '',
+    errores: Array.from(document.querySelectorAll('#int-salida .error-linea')).map((e) => e.textContent)
+  })`);
+
+  // ---------- Pestaña 5: el codigo optimizado ----------
+  await pestana('optimizacion');
+  await escribir('opt-codigo', EJEMPLO_OPTIMIZACION);
+  await clic('#opt-optimiza');
+  await esperar(400);
+  const optimizacion = await js(`(function () {
+    const qq = (s) => Array.from(document.querySelectorAll(s));
+    const chip = document.querySelector('#opt-salida .chip-optimizacion');
+    return {
+      insignia: document.getElementById('opt-estado').textContent,
+      resumen: document.querySelector('#opt-salida .resumen-gramatica').textContent,
+      chips: qq('#opt-salida .chip-optimizacion').map((c) => c.textContent),
+      ayuda: chip ? chip.title : '',
+      instrucciones: qq('#opt-salida .codigo-intermedio td.instruccion').map((td) => td.textContent).join(' / '),
+      cambiadas: qq('#opt-salida .codigo-intermedio tr.cambiada td.ci-cambios').map((td) => td.textContent),
+      origen: qq('#opt-salida .codigo-intermedio tr.cambiada')[0].title,
+      vistaActiva: document.querySelector('#panel-optimizacion .btn-vista.activa').id
+    };
+  })()`);
+
+  await clic('#opt-ver-cambios');
+  await esperar(150);
+  Object.assign(optimizacion, await js(`(function () {
+    const qq = (s) => Array.from(document.querySelectorAll(s));
+    const filas = qq('#opt-salida .tabla-cambios tbody tr');
+    return {
+      columnasCambios: qq('#opt-salida .tabla-cambios th').map((th) => th.textContent).join(' | '),
+      cambios: filas.length,
+      primero: Array.from(filas[0].children).map((td) => td.textContent),
+      quitadas: qq('#opt-salida .tabla-cambios td.quitada').length,
+      vistaCambios: document.querySelector('#panel-optimizacion .btn-vista.activa').id
+    };
+  })()`));
+
+  await clic('#opt-ver-cuadruplos');
+  await esperar(150);
+  Object.assign(optimizacion, await js(`({
+    cuadruplos: document.querySelectorAll('#opt-salida .tabla-cuadruplos tbody tr').length,
+    segundo: Array.from(document.querySelectorAll('#opt-salida .tabla-cuadruplos tbody tr')[2].children)
+      .map((td) => td.textContent)
+  })`));
+  await clic('#opt-ver-optimizado');
+
+  // La pestaña 4 tiene el mismo programa, sin optimizar
+  optimizacion.enIntermedio = await js("document.getElementById('int-estado').textContent");
+
+  // Con errores tampoco se optimiza
+  await escribir('opt-codigo', 'a = b + c');
+  await clic('#opt-optimiza');
+  await esperar(400);
+  const optimizacionMal = await js(`({
+    insignia: document.getElementById('opt-estado').textContent,
+    titulo: document.querySelector('#opt-salida .veredicto.mal b')
+              ? document.querySelector('#opt-salida .veredicto.mal b').textContent : '',
+    errores: document.querySelectorAll('#opt-salida .error-linea').length
   })`);
 
   // ---------- Fuga: el equipo y la pregunta de salida ----------
@@ -235,7 +415,7 @@ app.whenReady().then(async () => {
   // ---------- Guardar el reporte visual y volver a abrirlo ----------
   if (fs.existsSync(REPORTE_PRUEBA)) fs.unlinkSync(REPORTE_PRUEBA);
   await pestana('semantico');
-  await escribir('sem-codigo', 'a1 = b5 / 20');
+  await escribir('sem-codigo', EJEMPLO_SEMANTICO);
   await clic('#sem-analiza');
   await esperar(300);
   await js('window.app.guardarReporte(); true');
@@ -255,7 +435,7 @@ app.whenReady().then(async () => {
   await esperar(600);
   const reabierto = await js(`({
     activa: document.querySelector('.pestana.activa').dataset.pestana,
-    codigos: ['lex-codigo', 'codigo', 'sem-codigo'].map((id) => document.getElementById(id).value),
+    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
     insignia: document.getElementById('sem-estado').textContent
   })`);
 
@@ -287,7 +467,7 @@ app.whenReady().then(async () => {
       textoBotones: Array.from(qq('#panel-sintactico .botonera .btn')).map((b) => b.textContent).join(' | '),
       titulos:      Array.from(qq('#panel-sintactico .bloque h2')).map((h) => h.firstChild.textContent.trim()).join(' | '),
       codigo:       q('#codigo').value,
-      salidaLexica: q('#salida-lexico').textContent.replace(/\\s+/g, ' ').trim(),
+      salidaLexica: q('#salida-lexico .codigo-linea').textContent.replace(/\\s+/g, ' ').trim(),
       nodosArbol:   qq('#salida-sintactico .arbol-nodo').length,
       ramasArbol:   qq('#salida-sintactico .arbol-rama').length,
       etiquetas:    Array.from(qq('#salida-sintactico .arbol-nodo text')).map((t) => t.textContent),
@@ -299,6 +479,181 @@ app.whenReady().then(async () => {
       hayIdentificadores: /IDENTIFICADORES/i.test(q('#salida-lexico').textContent)
     };
   })()`);
+
+  // ---------- Números de renglón y colores de Java ----------
+  await escribir('codigo', [
+    'entero edad = 20;   // la edad',
+    '',
+    'si (edad >= 18 Y verdadero) {',
+    '    imprimirLn("Mayor");',
+    '}'
+  ].join('\n'));
+  await clic('#btn-ambos');
+  await esperar(400);
+  const editor = await js(`(function () {
+    const caja = document.getElementById('codigo').closest('.editor-codigo');
+    const qq = (s) => Array.from(caja.querySelectorAll(s));
+    const textos = (s) => qq(s).map((e) => e.textContent).join(' ');
+    const color = (s) => caja.querySelector(s) ? getComputedStyle(caja.querySelector(s)).color : '';
+    const filas = Array.from(document.querySelectorAll('#salida-lexico .linea-salida'));
+    return {
+      enLosTres: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].every((id) => {
+        const c = document.getElementById(id).closest('.editor-codigo');
+        return !!c && !!c.querySelector('.editor-numeros') && !!c.querySelector('.editor-colores');
+      }),
+      numeros:     caja.querySelector('.editor-numeros-lista').textContent,
+      // Cada palabra con la clase que le da su color (como Java en VS Code)
+      clases: {
+        tipo: textos('.j-tipo'),
+        control: textos('.j-control'),
+        operador: textos('.j-operador'),
+        constante: textos('.j-constante'),
+        funcion: textos('.j-funcion'),
+        variable: textos('.j-variable'),
+        numero: textos('.j-numero')
+      },
+      cadenas:     qq('.j-cadena').map((e) => e.textContent),
+      comentarios: qq('.j-comentario').map((e) => e.textContent),
+      colores: {
+        control: color('.j-control'),
+        tipo: color('.j-tipo'),
+        constante: color('.j-constante'),
+        funcion: color('.j-funcion'),
+        variable: color('.j-variable'),
+        cadena: color('.j-cadena'),
+        numero: color('.j-numero'),
+        comentario: color('.j-comentario')
+      },
+      filasLexico: filas.map((f) => f.querySelector('.num').textContent + ':' +
+                                    f.querySelector('.codigo-linea').textContent.trim())
+    };
+  })()`);
+
+  // Veinte renglones: el cuadro se desplaza y los números y colores lo siguen
+  await escribir('codigo',
+    Array.from({ length: 20 }, (_, i) => `x${i + 1} = ${i + 1};`).join('\n'));
+  await esperar(200);
+  await js(`(function () {
+    const ta = document.getElementById('codigo');
+    ta.scrollTop = ta.scrollHeight;
+    return true;
+  })()`);
+  await esperar(200);
+  const alineado = await js(`(function () {
+    const ta = document.getElementById('codigo');
+    const caja = ta.closest('.editor-codigo');
+    const pre = caja.querySelector('.editor-colores');
+    const lista = caja.querySelector('.editor-numeros-lista');
+    // La letra y el alto de renglon de cada uno, y donde empieza el primer
+    // renglon: el texto y los colores tienen relleno arriba; la lista de
+    // numeros va encimada y se baja lo mismo con "top".
+    const estilo = (e, arriba) => {
+      const c = getComputedStyle(e);
+      return [c.fontFamily, c.fontSize, c.lineHeight, c.tabSize, c[arriba]].join(' | ');
+    };
+    const caracter = (nodo, i) => {
+      const r = document.createRange();
+      r.setStart(nodo, i);
+      r.setEnd(nodo, i + 1);
+      return r.getBoundingClientRect();
+    };
+    // El ultimo numero ("20") y el ultimo caracter del ultimo renglon (";").
+    // Se buscan en los nodos de texto: los renglones con error van en un
+    // <span> rojo, asi que la lista ya no es un solo texto.
+    const textosDe = (nodo) => {
+      const textos = [];
+      const recorrer = (n) => n.nodeType === 3 ? textos.push(n) : n.childNodes.forEach(recorrer);
+      recorrer(nodo);
+      return textos.filter((t) => t.textContent.trim() !== '');
+    };
+    const numeros = textosDe(lista).pop();
+    const ultimo = textosDe(pre).pop();
+    // La negrita no debe cambiar el ancho de las letras (desfase de lado)
+    const ancho = (negrita) => {
+      const s = document.createElement('span');
+      s.textContent = 'imprimirLn';
+      s.style.fontWeight = negrita ? '700' : '400';
+      pre.appendChild(s);
+      const w = s.getBoundingClientRect().width;
+      s.remove();
+      return w;
+    };
+    return {
+      desplazado: ta.scrollTop > 0,
+      mismasMedidas: estilo(ta, 'paddingTop') === estilo(pre, 'paddingTop') &&
+        estilo(pre, 'paddingTop') === estilo(lista, 'top')
+        ? 'iguales' : [estilo(ta, 'paddingTop'), estilo(pre, 'paddingTop'), estilo(lista, 'top')].join(' / '),
+      altoTexto: ta.scrollHeight,
+      altoColores: pre.offsetHeight,
+      altoUltimoNumero: caracter(numeros, numeros.length - 1).top,
+      altoUltimoRenglon: caracter(ultimo, ultimo.length - 1).top,
+      anchoNegrita: ancho(true),
+      anchoNormal: ancho(false)
+    };
+  })()`);
+
+  // ---------- Mucho codigo: el cuadro no se estira, se desplaza ----------
+  // (antes la columna de numeros crecia con cada renglon y estiraba el
+  // cuadro hasta el alto de la ventana)
+  const muchoCodigo = Array.from({ length: 80 }, (_, i) => `entero v${i + 1} = ${i + 1};`).join('\n');
+  const medirCuadro = (id) => js(`(function () {
+    const ta = document.getElementById(${JSON.stringify(id)});
+    const caja = ta.closest('.editor-codigo');
+    const numeros = caja.querySelector('.editor-numeros');
+    return {
+      altoCuadro: caja.getBoundingClientRect().height,
+      altoTexto: ta.getBoundingClientRect().height,
+      altoNumeros: numeros.getBoundingClientRect().height,
+      seDesplaza: ta.scrollHeight > ta.clientHeight,
+      ultimoNumero: caja.querySelector('.editor-numeros-lista').textContent.split('\\n').pop()
+    };
+  })()`);
+  await escribir('codigo', muchoCodigo);
+  await esperar(300);
+  const largo = { sintactico: await medirCuadro('codigo') };
+  await pestana('semantico');
+  await esperar(250);
+  largo.semantico = await medirCuadro('sem-codigo');
+  await pestana('lexico');
+  await esperar(250);
+  largo.lexico = await medirCuadro('lex-codigo');
+  await pestana('sintactico');
+  await esperar(250);
+
+  // ---------- El subrayado rojo de los errores mientras se escribe ----------
+  // Sin la clase, unas instrucciones sueltas son un error (como en Java).
+  await escribir('codigo', 'entero a = 5;\nimprimirLn(a);');
+  await esperar(100);
+  const subrayado = {
+    alEscribir: await js("document.getElementById('codigo').closest('.editor-codigo').querySelectorAll('.j-marca').length")
+  };
+  await esperar(700);
+  Object.assign(subrayado, await js(`(function () {
+    const ta = document.getElementById('codigo');
+    const caja = ta.closest('.editor-codigo');
+    // El mouse sobre el renglon 1 (relleno de arriba + medio renglon)
+    const r = ta.getBoundingClientRect();
+    ta.dispatchEvent(new MouseEvent('mousemove', { clientX: r.left + 40, clientY: r.top + 12 + 10, bubbles: true }));
+    return {
+      marcas: Array.from(caja.querySelectorAll('.j-marca')).map((e) => e.textContent),
+      renglones: Array.from(caja.querySelectorAll('.renglon-con-error')).map((e) => e.textContent),
+      ayuda: ta.title,
+      color: getComputedStyle(caja.querySelector('.j-marca')).textDecorationLine
+    };
+  })()`));
+  // En la pestaña 3 se subrayan tambien los errores semanticos
+  await pestana('semantico');
+  await escribir('sem-codigo', enClase('entero x = "hola";', 'imprimirLn(x);'));
+  await esperar(700);
+  Object.assign(subrayado, await js(`(function () {
+    const caja = document.getElementById('sem-codigo').closest('.editor-codigo');
+    return {
+      semantico: Array.from(caja.querySelectorAll('.j-marca')).map((e) => e.textContent),
+      renglonSemantico: Array.from(caja.querySelectorAll('.renglon-con-error')).map((e) => e.textContent)
+    };
+  })()`));
+  await pestana('sintactico');
+  await esperar(150);
 
   // ---------- La ventana del equipo ----------
   const equipo = await js(`(function () {
@@ -319,25 +674,25 @@ app.whenReady().then(async () => {
   await clic('#btn-limpiar');
   await esperar(300);
   const trasLimpiar = await js(`({
-    codigos: ['lex-codigo', 'codigo', 'sem-codigo'].map((id) => document.getElementById(id).value),
+    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
     nodos:  document.querySelectorAll('#salida-sintactico .arbol-nodo').length,
     filas:  document.querySelectorAll('#lex-tabla tr').length,
     gramatica: document.querySelectorAll('#sem-salida .gramatica').length
   })`);
 
-  await escribir('codigo', 'entero total = a + b * 2;');
+  await escribir('codigo', 'total = a + b * 2');
   await clic('#btn-lexico');
   await esperar(400);
   const soloLexico = await js(`({
-    lexica: document.querySelector('#salida-lexico .linea-salida')
-              ? document.querySelector('#salida-lexico .linea-salida').textContent.trim() : '',
+    lexica: document.querySelector('#salida-lexico .linea-salida .codigo-linea')
+              ? document.querySelector('#salida-lexico .linea-salida .codigo-linea').textContent.trim() : '',
     nodos:  document.querySelectorAll('#salida-sintactico .arbol-nodo').length
   })`);
 
   await clic('#btn-sintactico');
   await esperar(400);
   const soloSintactico = await js(`({
-    lexicaVacia: !document.querySelector('#salida-lexico .linea-salida'),
+    lexicaVacia: !document.querySelector('#salida-lexico .linea-salida .codigo-linea'),
     nodos:       document.querySelectorAll('#salida-sintactico .arbol-nodo').length
   })`);
 
@@ -357,7 +712,7 @@ app.whenReady().then(async () => {
       return Object.keys(filas).sort((a, b) => a - b).map((y) => filas[y]);
     };
     return {
-      lexica:     document.querySelector('#salida-lexico .linea-salida').textContent.trim(),
+      lexica:     document.querySelector('#salida-lexico .linea-salida .codigo-linea').textContent.trim(),
       logicos:    Array.from(qq('#salida-lexico .linea-salida .tk-logico')).map((e) => e.textContent),
       relacionales: Array.from(qq('#salida-lexico .linea-salida .tk-relacional')).map((e) => e.textContent),
       aritmeticos: Array.from(qq('#salida-lexico .linea-salida .tk-aritmetico')).map((e) => e.textContent),
@@ -376,7 +731,7 @@ app.whenReady().then(async () => {
     const nodos = qq('#salida-sintactico .arbol-nodo');
     const etiqueta = (g) => g.querySelector('text').textContent;
     return {
-      lexica: document.querySelector('#salida-lexico .linea-salida').textContent.trim(),
+      lexica: document.querySelector('#salida-lexico .linea-salida .codigo-linea').textContent.trim(),
       // Los simbolos nuevos deben salir en negro, con los aritmeticos
       aritmeticos: qq('#salida-lexico .linea-salida .tk-aritmetico').map((e) => e.textContent),
       etiquetas: nodos.map(etiqueta),
@@ -388,9 +743,9 @@ app.whenReady().then(async () => {
   await js(`window.app.cargarEjemplo({ nombre: '99-prueba.bs', contenido: 'x = a * 2' }); true`);
   await esperar(450);
   const ejemplo = await js(`({
-    codigos: ['lex-codigo', 'codigo', 'sem-codigo'].map((id) => document.getElementById(id).value),
+    codigos: ['lex-codigo', 'codigo', 'sem-codigo', 'int-codigo', 'opt-codigo'].map((id) => document.getElementById(id).value),
     nombre: window.app.nombreArchivo,
-    lexica: document.querySelector('#salida-lexico .linea-salida').textContent.trim(),
+    lexica: document.querySelector('#salida-lexico .linea-salida .codigo-linea').textContent.trim(),
     nodos:  document.querySelectorAll('#salida-sintactico .arbol-nodo').length,
     filas:  document.querySelectorAll('#lex-tabla tr').length
   })`);
@@ -421,6 +776,38 @@ app.whenReady().then(async () => {
     const viewBoxDespues = svg().getAttribute('viewBox');
 
     return { inicial, acercado, alejado, ajustado, viewBoxAntes, viewBoxDespues };
+  })()`);
+
+  // ---------- El zoom con un arbol ancho (el ejemplo de las variables) ----------
+  // Antes el dibujo se encogia para caber en la caja: el + no lo agrandaba a
+  // lo ancho y la parte izquierda no se podia ver.
+  const variables = fs.readFileSync(path.join(RAIZ, 'ejemplos', '02-variables.bs'), 'utf8');
+  await js(`window.app.cargarEjemplo({ nombre: '02-variables.bs', contenido: ${JSON.stringify(variables)} }); true`);
+  await esperar(500);
+  const medirArbol = () => js(`(function () {
+    const l = document.querySelector('#salida-sintactico .arbol-lienzo');
+    const s = l.querySelector('svg');
+    const raiz = document.querySelector('#salida-sintactico .arbol-nodo rect').getBoundingClientRect();
+    const caja = l.getBoundingClientRect();
+    return {
+      nivel: document.getElementById('zoom-nivel').textContent,
+      atributo: Math.round(Number(s.getAttribute('width'))),
+      dibujado: Math.round(s.getBoundingClientRect().width),
+      ancho: l.clientWidth,
+      desplazable: l.scrollWidth - l.clientWidth,
+      raizVisible: raiz.left >= caja.left && raiz.right <= caja.right,
+      // que tan lejos del centro de la caja quedo la raiz, en pixeles
+      centroRaiz: Math.round(raiz.left + raiz.width / 2 - caja.left - l.clientWidth / 2)
+    };
+  })()`);
+  const zoomGrande = { inicio: await medirArbol() };
+  await clic('#zoom-mas');
+  await clic('#zoom-mas');
+  zoomGrande.acercado = await medirArbol();
+  zoomGrande.orillaIzquierda = await js(`(function () {
+    const l = document.querySelector('#salida-sintactico .arbol-lienzo');
+    l.scrollLeft = 0;
+    return Math.round(l.querySelector('svg').getBoundingClientRect().left - l.getBoundingClientRect().left);
   })()`);
 
   // ---------- Abrir una rama del arbol ----------
@@ -531,7 +918,8 @@ app.whenReady().then(async () => {
     await capturar('rama');
 
     await analizarEn('sintactico', 'codigo', '#btn-ambos',
-      'si (edad >= 18) {\n    imprimirLn("Mayor");\n} sino {\n    imprimirLn("Menor");\n}');
+      enClase('entero edad = 20;', 'si (edad >= 18) {', '    imprimirLn("Mayor");', '} sino {',
+        '    imprimirLn("Menor");', '}'));
     await capturar('programa');
 
     await clic('#btn-equipo');
@@ -541,17 +929,49 @@ app.whenReady().then(async () => {
     await analizarEn('sintactico', 'codigo', '#btn-ambos', 'entero a = 4.;');
     await capturar('errores');
 
+    // El subrayado rojo: falta el ; al final del renglon 3
+    await analizarEn('sintactico', 'codigo', '#btn-ambos', enClase('entero edad = 20', 'imprimirLn(edad);'));
+    await esperar(800);
+    await capturar('subrayado');
+
     // Pestaña 3
-    await analizarEn('semantico', 'sem-codigo', '#sem-analiza', 'a1 = b5 / 20');
+    await analizarEn('semantico', 'sem-codigo', '#sem-analiza', EJEMPLO_SEMANTICO);
     await capturar('semantico');
 
     await analizarEn('semantico', 'sem-codigo', '#sem-analiza',
-      'opcion (a) {\n    caso 1: imprimir("Hola"); romper;\n}');
-    await capturar('semantico-opcion');
+      enClase('entero a = area.cuadrado(-4);', 'decimal p = perimetro.triangulo(1, 2, 10);',
+        'logico l = a > 0 && p > 0;', 'imprimirLn(total);'));
+    await capturar('semantico-errores');
 
     await analizarEn('semantico', 'sem-codigo', '#sem-analiza',
       'a = b + c\na && b || c + f > d');
     await capturar('semantico-proposiciones');
+
+    // Pestaña 4: el codigo intermedio, en sus dos vistas
+    await analizarEn('intermedio', 'int-codigo', '#int-genera', enClase(
+      'entero suma = 0;', 'para (entero i = 1; i <= 3; i++) {', '    si (i > 1 Y i < 3) {',
+      '        suma = suma + i * 2;', '    }', '}', 'imprimirLn(suma);'));
+    await capturar('intermedio');
+    await clic('#int-ver-cuadruplos');
+    await capturar('intermedio-cuadruplos');
+    await clic('#int-ver-tres');
+
+    // Pestaña 5: el codigo optimizado y sus cambios. La caja del resultado se
+    // desplaza para que se vea el codigo (o la tabla de cambios) desde arriba.
+    const verEnLaCaja = (selector) => js(`(function () {
+      const caja = document.getElementById('opt-salida');
+      const tabla = caja.querySelector(${JSON.stringify(selector)});
+      caja.scrollTop += tabla.getBoundingClientRect().top - caja.getBoundingClientRect().top - 10;
+      return true;
+    })()`);
+    await analizarEn('optimizacion', 'opt-codigo', '#opt-optimiza', EJEMPLO_OPTIMIZACION);
+    await capturar('optimizacion-resumen');
+    await verEnLaCaja('.codigo-intermedio');
+    await capturar('optimizacion');
+    await clic('#opt-ver-cambios');
+    await verEnLaCaja('.tabla-cambios');
+    await capturar('optimizacion-cambios');
+    await clic('#opt-ver-optimizado');
 
     // El reporte visual, abierto como lo veria un navegador. Se carga en la
     // misma ventana (ya no se necesita la aplicacion): una segunda ventana
@@ -565,10 +985,11 @@ app.whenReady().then(async () => {
 
   if (fs.existsSync(REPORTE_PRUEBA)) fs.unlinkSync(REPORTE_PRUEBA);
 
-  informar({ arranque, compartido, lexico, enSintactico, enSemantico, deRegreso,
-    semantico, semanticoSi, semanticoVarias, semanticoMal, fuga, guardado, reabierto, soltado, inicial, equipo,
-    trasLimpiar, soloLexico, soloSintactico, expresion, potencias, ejemplo, zoom,
-    rama, conError });
+  informar({ arranque, compartido, lexico, enSintactico, enSemantico, enIntermedio, intermedio, intermedioMal, deRegreso,
+    enOptimizacion, optimizacion, optimizacionMal,
+    semantico, semanticoErrores, semanticoSi, semanticoVarias, semanticoMal, fuga, guardado, reabierto,
+    soltado, inicial, equipo, trasLimpiar, soloLexico, soloSintactico, expresion, potencias, ejemplo, zoom,
+    rama, conError, editor, alineado, largo, zoomGrande, subrayado });
   ventana.destroy();
   app.quit();
 });
@@ -649,16 +1070,22 @@ function registrarIPC () {
 
 function informar (d) {
   const { arranque: ar, compartido: co, lexico: lx, enSintactico: es, enSemantico: em,
-    deRegreso: dr, semantico: se, semanticoSi: ss2, semanticoVarias: sv, semanticoMal: sm, fuga: fu, guardado: g, reabierto: ra,
+    enIntermedio: ei, intermedio: ci, intermedioMal: cm, deRegreso: dr,
+    enOptimizacion: eo, optimizacion: op, optimizacionMal: om, semantico: se, semanticoErrores: sx, semanticoSi: ss2, semanticoVarias: sv,
+    semanticoMal: sm, fuga: fu, guardado: g, reabierto: ra,
     soltado: so, inicial: i, equipo: eq, trasLimpiar: tl, soloLexico: sl,
     soloSintactico: ss, expresion: ex, potencias: po, ejemplo: ej2, zoom: z, rama: rm,
-    conError: ce } = d;
+    conError: ce, editor: ed, alineado: al, largo: lg, zoomGrande: zg, subrayado: sb } = d;
 
   const ORDEN_ESPERADO = [
     'Avalos Castillo', 'Borjas Arias', 'Pesina Santander',
     'Ramos Antonio', 'Vazquez Romo', 'Verlage Aceves'
   ];
-  const EJEMPLO_PIZARRON = 'a1 = b5 / 20';
+
+  // Con 80 renglones el cuadro mide lo mismo que su texto (no se estira),
+  // se desplaza por dentro, y la columna de numeros llega hasta el 80.
+  const noSeEstira = (m) => m.altoCuadro <= 320 && Math.abs(m.altoCuadro - m.altoTexto) <= 2 &&
+    Math.abs(m.altoNumeros - m.altoTexto) <= 1 && m.seDesplaza && m.ultimoNumero === '80';
 
   const comprobaciones = [
     ['la aplicacion se construyo', ar.appCreada === true],
@@ -667,7 +1094,8 @@ function informar (d) {
     ['pestaña 1: UAT a la izquierda y UAMM a la derecha', ar.logosLexico === 'uat,uamm'],
     ['pestaña 2: los tres logos arriba (UAT, UAMM, ISC)', ar.logosSintactico === 'uat,uamm,isc'],
     ['pestaña 3: los tres logos en columna a la izquierda', ar.logosSemantico === 'uat,uamm,isc'],
-    ['los ocho logos cargaron su imagen', ar.logosCargados === 8],
+    ['pestaña 5: los tres logos en columna a la izquierda', ar.logosOptimizacion === 'uat,uamm,isc'],
+    ['los catorce logos cargaron su imagen', ar.logosCargados === 14],
 
     // Encabezados y disposición de cada pestaña
     ['pestaña 1: el encabezado dice la carrera, el analizador, el grupo y el equipo',
@@ -683,23 +1111,32 @@ function informar (d) {
       ar.tituloSemantico === 'Programación de Sistemas de Base II Analizador Semántico “SwordByte”'],
 
     // Pestañas
-    ['hay tres pestañas, en el orden pedido',
-      ar.pestanas === 'Analizador Léxico | Analizador Léxico-Sintáctico | Analizador Semántico'],
+    ['hay cinco pestañas, en el orden de las fases',
+      ar.pestanas === 'Analizador Léxico | Analizador Léxico-Sintáctico | Analizador Semántico | ' +
+      'Código Intermedio | Optimización'],
     ['la aplicacion abre en la pestaña del analizador lexico',
       ar.activa === 'lexico' && ar.panelesVisibles === 'panel-lexico'],
     ['la pestaña 1 tiene sus cuatro botones',
       ar.botonesLexico === 'Realizar Análisis | Guardar | Borrar | Fuga'],
     ['la pestaña 3 tiene los botones del pizarron',
       ar.botonesSemantico === 'Limpieza | Analiza | Equipo | Termina'],
+    ['la pestaña 4 tiene sus botones y explica lo que ahi saldra',
+      ar.botonesIntermedio === 'Limpieza | Genera | Equipo | Termina' &&
+      /código de tres direcciones y en cuádruplos/.test(ar.notaIntermedio)],
+    ['la pestaña 5 tiene su título, sus botones y explica lo que ahi saldra',
+      ar.tituloOptimizacion === 'Programación de Sistemas de Base II Optimizador de Código Intermedio “SwordByte”' &&
+      ar.botonesOptimizacion === 'Limpieza | Optimiza | Equipo | Termina' &&
+      /ya optimizado/.test(ar.notaOptimizacion)],
 
     // Arranque limpio
-    ['la aplicacion abre con el codigo vacio en las tres pestañas',
+    ['la aplicacion abre con el codigo vacio en las cinco pestañas',
       ar.codigos.every((c) => c === '')],
     ['y sin tabla ni arbol', ar.filasTabla === 0 && ar.nodos === 0],
-    ['la pestaña semantica explica que ahi saldra la gramatica', /gramática/.test(ar.notaSemantico)],
+    ['la pestaña semantica explica lo que ahi saldra',
+      /errores semánticos/.test(ar.notaSemantico) && /gramática/.test(ar.notaSemantico)],
 
     // Codigo compartido
-    ['lo que se escribe en una pestaña aparece en las otras dos',
+    ['lo que se escribe en una pestaña aparece en las otras cuatro',
       co.every((c) => c === 'a = b + c * 24')],
 
     // Pestaña 1
@@ -719,30 +1156,84 @@ function informar (d) {
     ['la pestaña 2 ya tiene el mismo codigo', es.codigo === 'a = b + c * 24'],
     ['y ya trae el analisis hecho, sin volver a presionar nada',
       es.lexica === 'id1 = id2 + id3 * num(24)' && es.nodos > 0],
-    ['la pestaña 3 tambien tiene el codigo y su gramatica ya generada',
-      em.visible && em.codigo === 'a = b + c * 24' && em.prop === 'prop → id = exp'],
-    ['Ctrl+Tab cambia de pestaña', dr.activa === 'lexico'],
+    ['la pestaña 3 tambien tiene el codigo, y dice que a una expresion suelta le falta la clase',
+      em.visible && em.codigo === 'a = b + c * 24' && em.insignia === 'falta la clase' &&
+      /Falta la clase/.test(em.aviso) && em.gramatica === 0],
+    ['la pestaña 4 tambien tiene el codigo, y sin la clase pide corregir primero',
+      ei.visible && ei.codigo === 'a = b + c * 24' && ei.insignia === 'corrige primero'],
+    ['la pestaña 5 tambien tiene el codigo, y sin la clase pide corregir primero',
+      eo.visible && eo.codigo === 'a = b + c * 24' && eo.insignia === 'corrige primero'],
+    ['Ctrl+Tab cambia de pestaña (de la ultima vuelve a la primera)', dr.activa === 'lexico'],
+
+    // Pestaña 4: el codigo intermedio
+    ['el ciclo se traduce a codigo de tres direcciones',
+      ci.insignia === '11 instrucciones' && ci.resumen === '✓ 11 instrucciones · 1 temporal · 2 etiquetas' &&
+      ci.instrucciones === 'funcion clasePrincipal() / i = 0 / L1: / t1 = i < 3 / ifFalse t1 goto L2 / ' +
+      'i = i + 1 / goto L1 / L2: / param i / call imprimirLn, 1 / fin clasePrincipal'],
+    ['cada instruccion lleva su numero y cada grupo el renglon de donde sale',
+      ci.numeros === '1,2,3,4,5,6,7,8,9,10,11' &&
+      ci.comentarios.join(' | ') === '// clasePrincipal | // entero i = 0; | // mientras (i < 3) | // i++; | // imprimirLn(i);'],
+    ['los temporales y las etiquetas tienen su color',
+      ci.temporales.join() === 't1,t1' && ci.etiquetas.join() === 'L1:,L2,L1,L2:'],
+    ['la vista de cuadruplos es una tabla de cuatro campos',
+      ci.vistaActiva === 'int-ver-tres' && ci.vistaCuadruplos === 'int-ver-cuadruplos' &&
+      ci.columnas === '# | Operador | Arg 1 | Arg 2 | Resultado' && ci.cuadruplos === 11 &&
+      ci.quinto.join('|') === '5|ifFalse|t1||L2'],
+    ['con errores no se genera y se dice por que',
+      cm.insignia === 'corrige primero' && cm.titulo === '✕ No se pudo generar el código intermedio' &&
+      cm.errores.length === 1 && /Falta la clase/.test(cm.errores[0])],
+    // Pestaña 5: la optimizacion
+    ['lo que ya se sabe se calcula desde ahora y lo que sobra se quita',
+      op.insignia === '9 instrucciones (−17)' && op.enIntermedio === '26 instrucciones' &&
+      op.resumen === '✓ De 26 instrucciones a 9 (17 menos) · 1 temporal · 0 etiquetas' &&
+      op.instrucciones === 'funcion clasePrincipal() / leer lado / t4 = lado + lado / doble = t4 + t4 / ' +
+      'param "Grande: 16" / call imprimirLn, 1 / param doble / call imprimirLn, 1 / fin clasePrincipal'],
+    ['arriba van las nueve optimizaciones, con sus veces y lo que hace cada una',
+      op.chips.length === 9 && op.chips[0] === 'Plegado de constantes×5' && /^Calcula desde ahora/.test(op.ayuda)],
+    ['las instrucciones que cambiaron dicen que se les hizo',
+      op.cambiadas.join(' | ') === 'Reducción de fuerza | Propagación de copias | Propagación de constantes | ' +
+      'Propagación de copias' && /era la instrucción 9$/.test(op.origen) && op.vistaActiva === 'opt-ver-optimizado'],
+    ['la vista de cambios trae cada paso con su antes y su despues',
+      op.vistaCambios === 'opt-ver-cambios' && op.columnasCambios === '# | Optimización | Antes | Después | Línea' &&
+      op.cambios === 37 && op.quitadas === 16 &&
+      op.primero.join('|') === '1|Propagación de constantes|t1 = base * 2|t1 = 4 * 2|4'],
+    ['y la de cuadruplos, la tabla del codigo optimizado',
+      op.cuadruplos === 9 && op.segundo.join('|') === '3|+|lado|lado|t4'],
+    ['con errores no se optimiza y se dice por que',
+      om.insignia === 'corrige primero' && om.titulo === '✕ No se pudo optimizar el código intermedio' && om.errores === 1],
     ['al regresar nada se borro: la tabla y la fila marcada siguen',
       dr.filas === 7 && dr.seleccionada === 1],
 
-    // Pestaña 3: la gramatica del codigo dado
-    ['el ejemplo del pizarron genera su gramatica', se.insignia === '6 reglas' &&
-      /Gramática generada/.test(se.resumen)],
-    ['la gramatica es la del pizarron',
-      se.reglas.join(' / ') === 'prop → id = exp / exp → id | num | exp / exp / ' +
-      'id → let ( dig )* / num → dig ( dig )* / dig → 0-9 / let → a-z'],
-    ['cada produccion dice de que parte del codigo salio', se.ejemplo === 'En el código: b5 / 20'],
-    ['y la pestaña 1 se lleno con el mismo codigo', se.filasLexico === 5],
-    ['funciona con cualquier codigo del lenguaje',
-      ss2.prop === 'prop → si ( exp ) { inst }'],
-    ['funciona con varias proposiciones, una por renglon',
-      sv.reglas.join(' / ') === 'props → prop prop / prop → id = exp | exp || exp / ' +
-      'exp → id | exp + exp | exp && exp | exp > exp' && /varias proposiciones/.test(sv.resumen)],
-    ['y la pestaña 2 dibuja las dos proposiciones', sv.nodos === 15],
+    // Pestaña 3: el analisis semantico
+    ['un programa de geometria correcto no tiene errores semanticos',
+      se.insignia === 'sin errores'],
+    ['sin errores no hay recuadros ni tabla de simbolos: solo la gramatica',
+      se.recuadros === 0 && se.tablaSimbolos === 0 &&
+      se.titulos.join(' / ') === 'Gramática del código (9 reglas, 12 producciones)'],
+    ['la gramatica es la del codigo dado',
+      se.reglas.slice(0, 4).join(' / ') === 'prop → clase id { principal } / ' +
+      'principal → clasePrincipal { inst ( inst )* } / ' +
+      'inst → tipo id = exp ; | imprimirLn ( exp ) ; / exp → id | dec | area . circulo ( exp )'],
+    ['cada produccion dice de que parte del codigo salio',
+      se.ejemplo === 'En el código: area.circulo(radio)'],
+    ['y la pestaña 1 se lleno con el mismo codigo', se.filasLexico === 27],
+    ['un codigo bien escrito pero sin sentido muestra sus errores semanticos',
+      sx.insignia === '2 errores' && sx.titulo === '✕ 2 errores semánticos' &&
+      /'x' es entero y el valor es cadena/.test(sx.errores[0]) &&
+      /'y' no está declarada/.test(sx.errores[1])],
+    ['las advertencias van aparte y la gramatica se genera igual',
+      sx.avisos.length === 1 && /nunca se usa/.test(sx.avisos[0]) && sx.gramatica === 1],
+    ['funciona con cualquier programa del lenguaje',
+      ss2.inst === 'inst → romper ; | tipo id = exp ; | si ( exp ) { inst }'],
     ['las palabras terminales van subrayadas, como en el pizarron',
       ss2.subrayadas.includes('si') && ss2.subrayadas.includes('romper')],
-    ['con errores no se genera gramatica y se dicen los errores',
-      sm.insignia === 'sin gramática' && /No se pudo generar/.test(sm.titulo) &&
+    ['a las proposiciones sueltas les falta la clase en la pestaña 3',
+      sv.insignia === 'falta la clase' && sv.aviso === '✕ Falta la clase' && sv.gramatica === 0 &&
+      sv.ejemplo.startsWith('clase ejemplo {')],
+    ['el aviso se ve en su lugar, con su insignia', sv.enSuLugar && sv.insigniaVisible],
+    ['pero la pestaña 2 si dibuja las dos proposiciones', sv.nodos === 15],
+    ['con errores lexicos o sintacticos se piden corregir primero',
+      sm.insignia === 'corrige primero' && /No se pudo hacer el análisis semántico/.test(sm.titulo) &&
       sm.errores > 0 && sm.gramatica === 0],
 
     // Fuga
@@ -768,12 +1259,12 @@ function informar (d) {
         .every((t) => g.contenido.includes(t))],
     ['el reporte guarda el codigo para volver a abrirlo',
       g.contenido.includes('id="datos-swordbyte"') && g.contenido.includes('"pestana":"semantico"')],
-    ['al abrirlo regresa el codigo a las tres pestañas',
-      ra.codigos.every((c) => c === EJEMPLO_PIZARRON)],
+    ['al abrirlo regresa el codigo a las cinco pestañas',
+      ra.codigos.every((c) => c === EJEMPLO_SEMANTICO)],
     ['y regresa a la pestaña desde la que se guardo',
-      ra.activa === 'semantico' && ra.insignia === '6 reglas'],
+      ra.activa === 'semantico' && ra.insignia === 'sin errores'],
     ['soltar el reporte sobre la ventana tambien lo abre',
-      so.codigo === EJEMPLO_PIZARRON && so.filas === 5],
+      so.codigo === EJEMPLO_SEMANTICO && so.filas === 27],
 
     // Pestaña 2: columnas y botones
     ['la pestaña 2 tiene seis botones', i.botones === 6],
@@ -803,10 +1294,10 @@ function informar (d) {
       JSON.stringify(eq.apellidos) === JSON.stringify(ORDEN_ESPERADO)],
 
     // Botones
-    ['Limpiar vacia el codigo y los resultados de las tres pestañas',
+    ['Limpiar vacia el codigo y los resultados de las cinco pestañas',
       tl.codigos.every((c) => c === '') && tl.nodos === 0 && tl.filas === 0 && tl.gramatica === 0],
     ['Analisis Lexico solo llena la caja lexica',
-      sl.lexica.includes('entero id1 = id2 + id3 * num(2);') && sl.nodos === 0],
+      sl.lexica.includes('id1 = id2 + id3 * num(2)') && sl.nodos === 0],
     ['Analisis Sintactico solo dibuja el arbol',
       ss.lexicaVacia === true && ss.nodos > 3],
 
@@ -829,7 +1320,7 @@ function informar (d) {
     ['y la suma todavia mas abajo', ex.niveles[4].join() === 'id1,+'],
 
     // Cargar un ejemplo
-    ['un ejemplo del menu se carga en las tres pestañas y se analiza',
+    ['un ejemplo del menu se carga en las cuatro pestañas y se analiza',
       ej2.codigos.every((c) => c === 'x = a * 2') && ej2.lexica === 'id1 = id2 * num(2)' &&
       ej2.nodos > 0 && ej2.filas === 5],
     ['y queda registrado su nombre', ej2.nombre === '99-prueba.bs'],
@@ -875,7 +1366,55 @@ function informar (d) {
     // Errores
     ['los errores se muestran en la caja', ce.erroresMostrados > 0],
     ['la insignia avisa del error', /error/i.test(ce.insignia)],
-    ['en la tabla lexica el error sale en rojo', ce.filaError === 1]
+    ['en la tabla lexica el error sale en rojo', ce.filaError === 1],
+
+    // Numeros de renglon y colores de Java
+    ['los tres cuadros de codigo llevan numeros y colores', ed.enLosTres === true],
+    ['hay un numero por renglon, del 1 al 5', ed.numeros === '1\n2\n3\n4\n5'],
+    ['cada palabra se pinta mientras se escribe, segun lo que es (como Java)',
+      ed.clases.tipo === 'entero' && ed.clases.control === 'si' && ed.clases.operador === 'Y' &&
+      ed.clases.constante === 'verdadero' && ed.clases.funcion === 'imprimirLn' &&
+      ed.clases.variable === 'edad edad' && ed.clases.numero === '20 18'],
+    ['los textos y los comentarios tambien',
+      ed.cadenas.join() === '"Mayor"' && ed.comentarios.join() === '// la edad'],
+    ['con los colores de Java en VS Code (Light+)',
+      ed.colores.control === 'rgb(175, 0, 219)' && ed.colores.tipo === 'rgb(38, 127, 153)' &&
+      ed.colores.constante === 'rgb(0, 0, 255)' && ed.colores.funcion === 'rgb(121, 94, 38)' &&
+      ed.colores.variable === 'rgb(0, 16, 128)' && ed.colores.cadena === 'rgb(163, 21, 21)' &&
+      ed.colores.numero === 'rgb(9, 134, 88)' && ed.colores.comentario === 'rgb(0, 128, 0)'],
+    ['el analisis lexico lleva el mismo numero que su renglon de codigo',
+      ed.filasLexico.join(' / ') === '1:entero id1 = num(20); / 2: / ' +
+      '3:si (id1 >= num(18) Y verdadero) { / 4:imprimirLn("Mayor"); / 5:}'],
+    ['texto, colores y numeros usan las mismas medidas', al.mismasMedidas === 'iguales'],
+    ['el texto y sus colores miden lo mismo de alto', Math.abs(al.altoTexto - al.altoColores) < 1],
+    ['desplazado, el ultimo numero queda a la altura del ultimo renglon',
+      al.desplazado && Math.abs(al.altoUltimoNumero - al.altoUltimoRenglon) < 1],
+    ['las negritas no cambian el ancho de las letras', Math.abs(al.anchoNegrita - al.anchoNormal) < 0.5],
+    ['con mucho codigo el cuadro de la pestaña 2 no se estira: se desplaza', noSeEstira(lg.sintactico)],
+    ['tampoco el de la pestaña 3', noSeEstira(lg.semantico)],
+    ['ni el de la pestaña 1', noSeEstira(lg.lexico)],
+
+    // El zoom con el arbol ancho del ejemplo de las variables
+    ['un arbol ancho se dibuja de su tamaño real, sin encogerse para caber',
+      zg.inicio.dibujado === zg.inicio.atributo && zg.inicio.atributo > zg.inicio.ancho &&
+      zg.inicio.desplazable > 0],
+    ['al dibujarlo, la raiz queda a la vista y centrada',
+      zg.inicio.raizVisible && Math.abs(zg.inicio.centroRaiz) <= 2],
+    ['el + agranda el arbol de verdad, tambien a lo ancho',
+      zg.acercado.nivel === '120%' && zg.acercado.dibujado === zg.acercado.atributo &&
+      zg.acercado.dibujado > zg.inicio.dibujado * 1.15],
+    ['al acercar no se pierde de vista lo que estaba en el centro',
+      zg.acercado.raizVisible && Math.abs(zg.acercado.centroRaiz) <= 2],
+    ['se puede desplazar hasta la orilla izquierda del arbol',
+      zg.orillaIzquierda >= 0 && zg.orillaIzquierda <= 20],
+
+    // El subrayado rojo de los errores
+    ['mientras se escribe todavia no se subraya nada', sb.alEscribir === 0],
+    ['al hacer una pausa el error se subraya en rojo, con su renglon en rojo',
+      sb.marcas.join() === 'entero' && sb.renglones.join() === '1' && sb.color === 'underline'],
+    ['codigo sin clase: el error dice que falta la clase', /Falta la clase/.test(sb.ayuda)],
+    ['en la pestaña 3 se subrayan tambien los errores semanticos',
+      sb.semantico.join() === 'x' && sb.renglonSemantico.join() === '3']
   ];
 
   let fallas = 0;

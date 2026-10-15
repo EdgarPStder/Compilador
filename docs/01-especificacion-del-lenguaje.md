@@ -13,7 +13,9 @@ reservadas, los tipos de dato y cada instrucción con su equivalente en Java.
 ## 1. Estructura de un programa
 
 Todo programa vive dentro de una clase y necesita exactamente un bloque
-`clasePrincipal`, que es el punto de entrada.
+`clasePrincipal`, que es el punto de entrada. Como en Java, no se puede
+escribir código suelto: unas instrucciones sin la clase alrededor son un error
+(*Falta la clase*).
 
 ```swordbyte
 clase nombreDelPrograma {
@@ -37,6 +39,10 @@ public class nombreDelPrograma {
     public static void main(String[] args) { }
 }
 ```
+
+Y como en Java, el archivo se llama igual que la clase: `clase ejemplo` se
+guarda como `ejemplo` (`ejemplo.html` o `ejemplo.bs`), igual que
+`public class Ejemplo` va en `Ejemplo.java`.
 
 ---
 
@@ -122,9 +128,9 @@ Cualquier otro carácter produce un **error léxico**.
 | `longitud` | `.length()` / `.length` | 1 |
 | `aleatorio` | `Math.random` escalado | 2 (mín, máx) |
 | `potencia` | `Math.pow` | 2 |
-| `raiz` | `Math.sqrt` / `Math.pow(x, 1.0/n)` | 1 o 2 (número, índice) |
-| `raizCuadrada` | `Math.sqrt` | 1 |
-| `raizCubica` | `Math.cbrt` | 1 |
+| `raiz` ¹ | `Math.sqrt` / `Math.pow(x, 1.0/n)` | 1 o 2 (número, índice) |
+| `raizCuadrada` ¹ | `Math.sqrt` | 1 |
+| `raizCubica` ¹ | `Math.cbrt` | 1 |
 | `redondear` | `Math.round` | 1 |
 | `logaritmo` | `Math.log` | 1 o 2 (base, número) |
 | `logaritmo10` | `Math.log10` | 1 |
@@ -134,6 +140,10 @@ Cualquier otro carácter produce un **error léxico**.
 | `perimetro.figura` | fórmula | según la figura |
 | `area.figura` | fórmula | según la figura |
 | `volumen.figura` | fórmula | según la figura |
+
+¹ Sólo en las pestañas 1 y 2, para practicar. En el lenguaje las raíces se
+sacan con `potencia`: `potencia(x, 0.5)` es la raíz cuadrada de `x` (ver la
+sección 6).
 
 **Figuras admitidas**
 
@@ -149,13 +159,16 @@ Cualquier otro carácter produce un **error léxico**.
 |---|---|
 | `verdadero` | `true` |
 | `falso` | `false` |
-| `Y` · `AND` | `&&` |
-| `O` · `OR` | `\|\|` |
-| `NO` · `NOT` | `!` |
+| `Y` | `&&` |
+| `O` | `\|\|` |
+| `NO` | `!` |
 | `Null` | (marca de lista de parámetros vacía en `equipo`) |
 
-Los operadores lógicos aceptan tres formas equivalentes: la española, la
-inglesa y el símbolo. `a Y b`, `a AND b` y `a && b` son lo mismo.
+En el lenguaje los operadores lógicos son **`Y`, `O` y `NO`**. Los
+analizadores léxico y sintáctico (pestañas 1 y 2) reconocen también la forma
+inglesa (`AND`, `OR`, `NOT`) y el símbolo (`&&`, `||`, `!`), para practicar
+las expresiones; el análisis semántico (pestaña 3) las marca como error y dice
+cuál va.
 
 ---
 
@@ -199,23 +212,30 @@ es el que queda **arriba** en el árbol sintáctico:
 | **2. Relacionales** | `==` `!=` → `<` `<=` `>` `>=` | en medio |
 | **3. Aritméticos** | `=` → `+` `-` → `*` `/` `%` → `-` `+` `√` unarios → `^` `**` → `++` `--` → `( )` `[ ]`, identificadores y números | hasta abajo |
 
-Los operadores lógicos aceptan tres formas equivalentes: la española, la
-inglesa y el símbolo. `a Y b`, `a AND b` y `a && b` son lo mismo.
+En el lenguaje los lógicos son `Y`, `O` y `NO`. Las pestañas 1 y 2 reconocen
+también `AND` `&&`, `OR` `||` y `NOT` `!` con la misma jerarquía (ver la
+sección 3.6).
 
 ### Potencia y raíz
 
-Las dos van **por debajo** de `*` `/` `%`, o sea que se resuelven primero:
-`2 * 3 ^ 2` es `2 * (3 ^ 2) = 18`.
+En el lenguaje **las potencias y las raíces se sacan con una sola función,
+`potencia(base, exponente)`**, porque una raíz es una potencia con exponente
+fraccionario:
 
-| Operación | Formas de escribirla | Ejemplo |
+| Operación | Se escribe | Ejemplo |
 |---|---|---|
-| Potencia | `^`, `**`, `potencia(base, exponente)` | `2 ^ 10`, `2 ** 10`, `potencia(2, 10)` |
-| Raíz cuadrada | `√`, `raiz(x)`, `raizCuadrada(x)` | `√16`, `raiz(16)`, `raizCuadrada(16)` |
-| Raíz n-ésima | `raiz(x, n)` | `raiz(27, 3)` |
-| Raíz cúbica | `raizCubica(x)` | `raizCubica(27)` |
+| Potencia | `potencia(base, exponente)` | `potencia(2, 10)` = 1024 |
+| Raíz cuadrada | `potencia(x, 0.5)` | `potencia(16, 0.5)` = 4 |
+| Raíz cúbica | `potencia(x, 1.0 / 3)` | `potencia(27, 1.0 / 3)` = 3 |
+| Raíz n-ésima | `potencia(x, 1.0 / n)` | `potencia(81, 1.0 / 4)` = 3 |
 
-El símbolo `√` es un operador de un solo operando y se escribe pegado a él:
-`√16`, `√(a + b)`.
+Para practicar la jerarquía, las pestañas 1 y 2 reconocen también los
+operadores `^` y `**` (potencia) y `√` (raíz), y las funciones `raiz`,
+`raizCuadrada` y `raizCubica`; el análisis semántico (pestaña 3) los marca
+como error y dice cómo se escribe con `potencia`. En la jerarquía, `^` `**`
+y `√` van **por debajo** de `*` `/` `%`, o sea que se resuelven primero:
+`2 * 3 ^ 2` es `2 * (3 ^ 2) = 18`. El símbolo `√` es un operador de un solo
+operando y se escribe pegado a él: `√16`, `√(a + b)`.
 
 ### Asociatividad
 
@@ -295,7 +315,7 @@ matriz entero tabla[2][2] = {{1, 2}, {3, 4}};
 matriz entero t[3][3];
 ```
 
-### 8.3 Asignación y proposiciones simples
+### 8.3 Asignación
 
 ```swordbyte
 edad = 21;
@@ -304,15 +324,14 @@ tabla[1][1] = 7;
 contador++;
 ```
 
-Cualquier expresión seguida de `;` también es una instrucción (una
-**proposición simple**):
+Como en Java, una expresión sola con punto y coma no es una instrucción:
+`a > b;` es un error. Las instrucciones que empiezan con un nombre son la
+asignación, el incremento (`i++;`) y la llamada a una función
+(`sumar(5, 3);`).
 
-```swordbyte
-a && b || c + f > d;
-```
-
-Para revisar fragmentos, las proposiciones también se pueden escribir sueltas,
-una por renglón y sin punto y coma:
+Para practicar la forma en las pestañas 1 y 2, las expresiones también se
+pueden escribir sueltas, una por renglón y sin punto y coma. La pestaña 3, la
+semántica, sólo revisa programas: ahí les falta la clase.
 
 ```swordbyte
 a = b + c
@@ -438,6 +457,34 @@ especificación original dejaba abiertos. Así se resolvieron:
 
 5. **Un solo `clasePrincipal`.**
    Si hay más de uno, o ninguno, se reporta un error sintáctico.
+
+6. **Palabras de Java.**
+   El lenguaje está basado en Java, así que es fácil escribir por costumbre
+   `int`, `if`, `break` o `System.out.println`. Esas palabras no son de
+   SwordByte: el analizador sintáctico las rechaza y la sugerencia dice cuál
+   va en su lugar (`entero`, `si`, `romper`, `imprimirLn`…).
+
+7. **Reglas de sentido (análisis semántico).**
+   Como en Java, cada nombre se declara antes de usarse y no se repite en la
+   misma función; los tipos deben coincidir (un `decimal` no cabe en un
+   `entero`, `8.5` es `decimal` y para un `flotante` se escribe `8.5f`); las
+   condiciones son lógicas; una `Constante` no cambia; una función devuelve
+   el tipo que declara. Por ser un lenguaje de geometría, también se revisa
+   que las medidas escritas sean mayores que cero y que tres lados formen un
+   triángulo. `perimetro`, `area` y `volumen` devuelven `decimal`. Un
+   `caracter` no se usa como número (para eso está `convertir`). La lista
+   completa está en [08 — Analizador semántico](08-analizador-semantico.md).
+
+8. **Una sola forma para la lógica y las potencias.**
+   La lógica se escribe con `Y`, `O` y `NO`, y las potencias y las raíces
+   con `potencia(base, exponente)`. Las otras formas (`&&`, `AND`, `^`, `√`,
+   `raiz`…) las reconocen las pestañas 1 y 2 para practicar, pero no son del
+   lenguaje: la pestaña 3 las marca.
+
+9. **El código va dentro de una clase.**
+   Como en Java, unas instrucciones sueltas son un error (*Falta la clase*), y
+   el archivo se llama igual que su clase. Las expresiones sueltas
+   (`a = b + c`) se aceptan sólo en las pestañas 1 y 2.
 
 ---
 

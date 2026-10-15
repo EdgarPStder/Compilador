@@ -90,18 +90,32 @@ class PanelLexicoSintactico {
     }
 
     // Salida del curso:  a > b  ->  id1 > id2
-    const numerar = lineas.length > 1;
-    lineas.forEach((l) => caja.appendChild(this._filaLexica(l, numerar)));
+    // Una fila por renglón del código, con su número: la fila N de aquí es el
+    // renglón N del cuadro de código. Los renglones sin tokens (vacíos o con
+    // solo un comentario) salen vacíos, para que no se recorra la cuenta.
+    const porNumero = {};
+    lineas.forEach((l) => { porNumero[l.numero] = l; });
+    const ultimo = lineas[lineas.length - 1].numero;
+    for (let numero = 1; numero <= ultimo; numero++) {
+      caja.appendChild(this._filaLexica(numero, porNumero[numero]));
+    }
     caja.appendChild(this._leyendaLexica(lineas));
   }
 
-  /** Una línea de la salida léxica, con cada token en el color que le toca. */
-  _filaLexica (l, numerar) {
+  /**
+   * Una fila de la salida léxica: el número de renglón y el renglón ya
+   * analizado, con cada token en el color que le toca.
+   * @param {number} numero Número de renglón del código.
+   * @param {object} [l]    El renglón analizado; no viene si está vacío.
+   */
+  _filaLexica (numero, l) {
     const fila = Dom.crear('div', 'linea-salida');
+    fila.appendChild(Dom.crear('span', 'num', String(numero)));
 
-    if (numerar) fila.appendChild(Dom.crear('span', 'num', String(l.numero)));
+    const codigo = Dom.crear('span', 'codigo-linea');
+    fila.appendChild(codigo);
+    if (!l) return fila;
 
-    const codigo = Dom.crear('span');
     if (l.sangria) codigo.appendChild(document.createTextNode(l.sangria));
 
     l.piezas.forEach((p) => {
@@ -110,8 +124,6 @@ class PanelLexicoSintactico {
       trozo.title = `${p.lexema}\n${p.tipo}\n${p.descripcion}`;
       codigo.appendChild(trozo);
     });
-
-    fila.appendChild(codigo);
     return fila;
   }
 

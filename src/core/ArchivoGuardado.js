@@ -2,6 +2,7 @@
  * ArchivoGuardado.js
  * Las dos puntas de guardar un trabajo:
  *
+ *   nombreDelArchivo()      como se llama el archivo: igual que la clase
  *   contenidoParaGuardar()  arma el archivo: reporte visual .html o texto .bs
  *   leerArchivoGuardado()   lo vuelve a abrir y recupera el codigo
  *
@@ -19,6 +20,23 @@
 
 const { construirReporteHTML, extraerDatosHTML, pareceHTML } = require('./ReporteHTML');
 const { construirReporte, extraerCodigoFuente } = require('./Reporte');
+
+/**
+ * El nombre del archivo, sin extension. Como en Java, el archivo se llama
+ * igual que su clase:
+ *
+ *   clase ejemplo { ... }   ->   ejemplo.html   (o ejemplo.bs)
+ *
+ * Si el codigo no tiene clase (una expresion suelta), se llama "analisis".
+ *
+ * @param {object} resultado Resultado de Compilador.compilar().
+ * @returns {string}
+ */
+function nombreDelArchivo (resultado) {
+  const ast = resultado.sintactico ? resultado.sintactico.ast : null;
+  const tieneClase = ast && ast.tipo === 'Programa' && ast.nombre && ast.nombre !== '?';
+  return tieneClase ? ast.nombre : 'analisis';
+}
 
 /**
  * Arma el contenido del archivo que se va a guardar. El formato lo decide
@@ -68,4 +86,4 @@ function leerArchivoGuardado (texto) {
   return { ok: true, codigo: extraerCodigoFuente(contenido), pestana: null };
 }
 
-module.exports = { contenidoParaGuardar, leerArchivoGuardado };
+module.exports = { nombreDelArchivo, contenidoParaGuardar, leerArchivoGuardado };

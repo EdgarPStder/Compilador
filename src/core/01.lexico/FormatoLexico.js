@@ -7,7 +7,9 @@
  *
  * Reglas de presentacion:
  *   - Cada identificador se sustituye por id1, id2, id3... en orden de
- *     aparicion. El mismo nombre conserva siempre su etiqueta.
+ *     aparicion. El mismo nombre conserva siempre su etiqueta. Las etiquetas
+ *     las da la TABLA DE SIMBOLOS (comun/TablaSimbolos.js): aqui el lexico
+ *     anota cada identificador, y las otras dos fases usan la misma tabla.
  *   - Cada numero se envuelve como num(valor).
  *   - Cada pieza lleva la categoria a la que pertenece, para que la interfaz
  *     pueda pintar los operadores logicos en azul, los relacionales en rojo
@@ -15,6 +17,7 @@
  */
 
 const { TiposToken } = require('../comun/TiposToken');
+const { TablaSimbolos } = require('../comun/TablaSimbolos');
 
 /** Tokens que se pegan a lo que traen atras:   a , b   ->   a, b */
 const SE_PEGAN_ATRAS = [';', ',', ')', ']', '.', '++', '--'];
@@ -101,9 +104,11 @@ function categoriaDe (token) {
 
 /**
  * @param {Array} tokens Tokens del analizador lexico.
+ * @param {TablaSimbolos} [tabla] La tabla de simbolos del compilador, donde se
+ *                                anotan los identificadores.
  * @returns {{lineas:Array, texto:string, mapa:Object, identificadores:Array}}
  */
-function formatearSalidaLexica (tokens) {
+function formatearSalidaLexica (tokens, tabla = new TablaSimbolos()) {
   // Solo los tokens que llegan al analisis: sin comentarios ni fin de archivo.
   const utiles = (tokens || []).filter(
     (t) => t.tipo !== TiposToken.FIN_ARCHIVO && !t.ignorado
@@ -119,31 +124,13 @@ function formatearSalidaLexica (tokens) {
   const seRenombra = (t, i) =>
     t.tipo === TiposToken.IDENTIFICADOR && !esMiembro(i);
 
-  // --- 1. Numerar los identificadores por orden de aparicion ---
-  const mapa = {};              // nombre original -> etiqueta idN
-  const identificadores = [];   // detalle para la tabla de equivalencias
-  const porNombre = {};
-  let siguienteId = 1;
-
+  // --- 1. Anotar los identificadores en la tabla de simbolos ---
+  // La tabla le da a cada nombre su etiqueta (id1, id2...) por orden de
+  // aparicion y cuenta cuantas veces aparece.
   utiles.forEach((t, i) => {
-    if (!seRenombra(t, i)) return;
-
-    if (!Object.prototype.hasOwnProperty.call(mapa, t.lexema)) {
-      const etiqueta = 'id' + siguienteId++;
-      mapa[t.lexema] = etiqueta;
-      const registro = {
-        etiqueta,
-        nombre: t.lexema,
-        veces: 1,
-        linea: t.linea,
-        columna: t.columna
-      };
-      porNombre[t.lexema] = registro;
-      identificadores.push(registro);
-    } else {
-      porNombre[t.lexema].veces++;
-    }
+    if (seRenombra(t, i)) tabla.registrar(t.lexema, t.linea, t.columna);
   });
+  const mapa = tabla.mapa();   // nombre original -> etiqueta idN
 
   /** Texto con el que se muestra un token en la salida. */
   const textoDe = (t, i) => {
@@ -195,7 +182,7 @@ function formatearSalidaLexica (tokens) {
     lineas,
     texto: lineas.map((l) => l.texto).join('\n'),
     mapa,
-    identificadores
+    identificadores: tabla.identificadores
   };
 }
 

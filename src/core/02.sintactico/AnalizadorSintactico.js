@@ -14,7 +14,7 @@
 const { TiposToken } = require('../comun/TiposToken');
 const { ErrorCompilacion, ErrorSintacticoFatal, FASES } = require('../comun/ErrorCompilacion');
 const { nodo, aArbolCompacto, medirArbol } = require('./NodosAST');
-const { FIGURAS } = require('../lexico/PalabrasReservadas');
+const { FIGURAS, equivalenteJava } = require('../01.lexico/PalabrasReservadas');
 
 /** Palabras que pueden iniciar una instruccion (para la recuperacion). */
 const INICIO_INSTRUCCION = [
@@ -98,7 +98,11 @@ class AnalizadorSintactico {
    */
   exigir (lexema, contexto) {
     if (this.es(lexema)) return this.consumir();
-    this.fallar(`Falta '${lexema}' ${contexto}.`, lexema);
+    // El ';' falta al final de lo anterior, asi que el error se marca justo
+    // despues de eso (como en Java) y no en lo que sigue, que muchas veces
+    // ya esta en el renglon de abajo.
+    const anterior = lexema === ';' && this.i > 0 ? this.tokens[this.i - 1] : null;
+    this.fallar(`Falta '${lexema}' ${contexto}.`, lexema, anterior);
   }
 
   /** Exige un token de cierto tipo (IDENTIFICADOR, LIT_ENTERO...). */
@@ -111,8 +115,12 @@ class AnalizadorSintactico {
   // Errores
   // ==================================================================
 
-  /** Crea el error, lo guarda y lanza la excepcion de recuperacion. */
-  fallar (mensaje, esperado) {
+  /**
+   * Crea el error, lo guarda y lanza la excepcion de recuperacion.
+   * @param {object} [despuesDe] Si viene, el error se marca justo despues de
+   *                             ese token (ver exigir) y no en el actual.
+   */
+  fallar (mensaje, esperado, despuesDe = null) {
     const t = this.actual;
     const encontrado = t.tipo === TiposToken.FIN_ARCHIVO
       ? 'el final del archivo'
@@ -121,8 +129,8 @@ class AnalizadorSintactico {
     const err = new ErrorCompilacion(
       FASES.SINTACTICA,
       mensaje,
-      t.linea,
-      t.columna,
+      despuesDe ? despuesDe.linea : t.linea,
+      despuesDe ? despuesDe.columna + despuesDe.lexema.length : t.columna,
       {
         lexema: t.lexema,
         esperado,
@@ -135,6 +143,8 @@ class AnalizadorSintactico {
   }
 
   _sugerir (esperado, token) {
+    const java = token.tipo === TiposToken.IDENTIFICADOR ? equivalenteJava(token.lexema) : null;
+    if (java) return `'${token.lexema}' es de Java: en SwordByte se usa ${java}.`;
     if (esperado === ';') return 'Toda instruccion termina con punto y coma.';
     if (esperado === '}') return 'Revisa que cada { tenga su } correspondiente.';
     if (esperado === ')') return 'Revisa que cada ( tenga su ) correspondiente.';
@@ -157,6 +167,24 @@ class AnalizadorSintactico {
       if (this.actual.tipo === TiposToken.TIPO_DATO && this.i > inicio) return;
       this.i++;
     }
+  }
+
+  /**
+   * Como en Java, todo el codigo va dentro de una clase:
+   *   clase ejemplo { clasePrincipal { ... } }
+   * Este error no detiene el analisis: se sigue revisando lo demas.
+   */
+  faltaLaClase (t, mensaje) {
+    this.errores.push(new ErrorCompilacion(
+      FASES.SINTACTICA,
+      mensaje || 'Falta la clase: todo el código va dentro de una clase.',
+      t.linea, t.columna,
+      {
+        lexema: t.lexema,
+        esperado: 'clase',
+        sugerencia: 'Escríbelo así:  clase ejemplo { clasePrincipal { ... } }'
+      }
+    ));
   }
 
   // ==================================================================
@@ -233,8 +261,13 @@ class AnalizadorSintactico {
   /**
    * Analiza una o varias instrucciones sueltas, sin la clase que las envuelve.
    * Por ejemplo:  entero a = 5;  o  si (a > b) { imprimirLn("mayor"); }
+   *
+   * Como en Java, eso es un error: falta la clase. Aun asi se revisan las
+   * instrucciones, para reportar de una vez los demas errores.
    */
   analizarInstrucciones () {
+    this.faltaLaClase(this.actual);
+
     let ast = null;
     try {
       ast = this.bloqueInstrucciones();
@@ -279,6 +312,19 @@ class AnalizadorSintactico {
   /** <programa> ::= "clase" IDENT "{" <miembros> "}" */
   programa () {
     const inicio = this.actual;
+
+    // clasePrincipal { ... }  o  funcion ...  sin la clase que los envuelve
+    if (this.es('clasePrincipal') || this.es('funcion')) {
+      this.faltaLaClase(inicio,
+        `Falta la clase: '${inicio.lexema}' va dentro de  clase nombre { }.`);
+      const miembros = this.miembros();
+      return nodo('Programa', inicio, {
+        nombre: '?',
+        funciones: miembros.funciones,
+        principal: miembros.principal
+      });
+    }
+
     this.exigir('clase', 'al inicio del programa');
     const nombre = this.exigirTipo(TiposToken.IDENTIFICADOR, 'el nombre de la clase', 'despues de "clase"');
     this.exigir('{', 'para abrir el cuerpo de la clase');
@@ -475,10 +521,27 @@ class AnalizadorSintactico {
       default: break;
     }
 
-    // a = b + c;   sumar(1, 2);   i++;   a && b || c;
+    // break;  int x;  System.out...  son de Java, no instrucciones de SwordByte
+    this.rechazarPalabraDeJava(t);
+
+    // a = b + c;   i++;   sumar(5, 3);
     if (this.puedeIniciarExpresion(t)) return this.proposicion();
 
     this.fallar(`'${t.lexema}' no puede iniciar una instruccion.`, 'una instruccion');
+  }
+
+  /**
+   * El lenguaje esta basado en Java, pero con sus propias palabras. Si aparece
+   * una de Java (break, int, System, true...), se reporta y se dice cual es la
+   * de SwordByte.
+   */
+  rechazarPalabraDeJava (t) {
+    if (t.tipo !== TiposToken.IDENTIFICADOR) return;
+    const equivalente = equivalenteJava(t.lexema);
+    if (!equivalente) return;
+    // El mensaje dice que no es del lenguaje; la sugerencia (ver _sugerir)
+    // dice cual se usa en su lugar.
+    this.fallar(`'${t.lexema}' no es una palabra de SwordByte.`, 'una palabra de SwordByte');
   }
 
   /**
@@ -584,18 +647,23 @@ class AnalizadorSintactico {
   }
 
   /**
-   * <proposicion> ::= <expresion> ";"
+   * <proposicion> ::= <destino> "=" <expresion> ";"
+   *                 | <destino> ( "++" | "--" ) ";"
+   *                 | IDENT "(" [ <argumentos> ] ")" ";"
    *
-   * Una instruccion que empieza como expresion (con un nombre, un valor, un
-   * parentesis...) se lee completa y se clasifica por lo que resulto:
+   * Una instruccion que empieza con un nombre se lee completa como expresion y
+   * despues se revisa que sea una de las tres que el lenguaje permite:
    *
-   *   a = b + c;          -> Asignacion
-   *   i++;                -> IncrementoStmt
-   *   sumar(5, 3);        -> ExpresionInstruccion (una llamada)
-   *   a && b || c > d;    -> ExpresionInstruccion (una proposicion simple)
+   *   a = b + c;      -> Asignacion
+   *   i++;            -> IncrementoStmt
+   *   sumar(5, 3);    -> ExpresionInstruccion (llamada a una funcion)
+   *
+   * Cualquier otra cosa (a > b;  a + 1;  raiz(16);) no es una instruccion del
+   * lenguaje, igual que en Java: una expresion sola no hace nada.
    */
   proposicion () {
     const inicio = this.actual;
+    const desde = this.i;
     const expresion = this.expresion();
 
     // "a b;" : despues de una variable sola lo que mas seguido falta es el "=".
@@ -619,11 +687,27 @@ class AnalizadorSintactico {
       return nodo('IncrementoStmt', inicio, { operador: expresion.operador, destino: operando });
     }
 
-    // sumar(5, 3);   a && b || c > d;
-    this.exigir(';', expresion.tipo === 'Llamada'
-      ? 'al final de la llamada'
-      : 'al final de la instruccion');
-    return nodo('ExpresionInstruccion', inicio, { expresion });
+    // sumar(5, 3);
+    if (expresion.tipo === 'Llamada') {
+      this.exigir(';', 'al final de la llamada');
+      return nodo('ExpresionInstruccion', inicio, { expresion });
+    }
+
+    // Cualquier otra cosa no es una instruccion. Se reporta donde empieza y
+    // se sigue con la siguiente.
+    const texto = this.tokens.slice(desde, this.i).map((t) => t.lexema).join(' ');
+    this.errores.push(new ErrorCompilacion(
+      FASES.SINTACTICA,
+      `'${texto}' no es una instruccion del lenguaje: una expresion sola no hace nada.`,
+      inicio.linea, inicio.columna,
+      {
+        lexema: inicio.lexema,
+        esperado: 'una instruccion',
+        sugerencia: 'Guarda el resultado en una variable (x = ...;) o usalo en una condicion: si (...) { }'
+      }
+    ));
+    this.aceptar(';');
+    return null;
   }
 
   /** <destino> ::= IDENT [ "[" e "]" [ "[" e "]" ] ] */
@@ -783,6 +867,7 @@ class AnalizadorSintactico {
   /** <inicioPara> ::= <tipo> IDENT "=" e  |  <destino> "=" e */
   inicioPara () {
     const inicio = this.actual;
+    this.rechazarPalabraDeJava(inicio);   // para (int i = 0; ...)
 
     if (this.esTipo(TiposToken.TIPO_DATO)) {
       const tipoDato = this.consumir().lexema;
@@ -927,7 +1012,10 @@ class AnalizadorSintactico {
     this.exigir('{', 'para abrir el bloque capturar');
     const manejo = this.bloqueInstrucciones();
     this.exigir('}', 'para cerrar el bloque capturar');
-    return nodo('Intentar', inicio, { cuerpo, variableError: variable.lexema, manejo });
+    // Donde se escribio el nombre del error: el semantico lo anota en la tabla de simbolos.
+    return nodo('Intentar', inicio, {
+      cuerpo, variableError: variable.lexema, lineaError: variable.linea, columnaError: variable.columna, manejo
+    });
   }
 
   /** <retornar> ::= "retornar" [ e ] ";" */
@@ -1182,8 +1270,9 @@ class AnalizadorSintactico {
     if (t.lexema === 'convertir') return this.convertir();
     if (t.lexema === 'perimetro' || t.lexema === 'area' || t.lexema === 'volumen') return this.geometrica();
 
-    // Llamada a funcion del usuario o variable
+    // Llamada a funcion del usuario o variable (true, null, Math... son de Java)
     if (t.tipo === TiposToken.IDENTIFICADOR) {
+      this.rechazarPalabraDeJava(t);
       if (this.ver(1).lexema === '(') return this.llamadaUsuario();
       return this.destino();
     }
@@ -1332,10 +1421,13 @@ function analizarSintactico (tokens, modo = 'auto') {
 /**
  * Decide que se escribio, mirando los tokens. Son cuatro reglas en orden:
  *
- *   1. Empieza con "clase"                -> un programa completo
+ *   1. Empieza con "clase" (o con
+ *      "clasePrincipal" o "funcion", que
+ *      van dentro de una clase)           -> un programa completo
  *   2. Empieza con un tipo o con una
- *      palabra que inicia instruccion     -> instrucciones sueltas
- *   3. Contiene ";" o "{"                 -> instrucciones sueltas
+ *      palabra que inicia instruccion     -> instrucciones sueltas (error:
+ *                                            falta la clase)
+ *   3. Contiene ";" o "{"                 -> instrucciones sueltas (error)
  *   4. En cualquier otro caso             -> proposiciones sueltas, una por
  *                                            renglon y sin punto y coma
  *
@@ -1344,7 +1436,6 @@ function analizarSintactico (tokens, modo = 'auto') {
  *   entero a = 5;          regla 2 (empieza con un tipo)
  *   si (a > b) { ... }     regla 2 (empieza con "si")
  *   x = 5;                 regla 3 (lleva punto y coma)
- *   a && b || c > d;       regla 3 (una proposicion simple con punto y coma)
  *   a = b + c > 9 AND d    regla 4
  *   a = b + c              regla 4 (dos proposiciones, una por renglon)
  *   a && b || c + f > d
@@ -1355,7 +1446,7 @@ function analizarSintactico (tokens, modo = 'auto') {
 function elegirModo (tokens) {
   const primero = tokens[0];
 
-  if (primero.lexema === 'clase') return 'programa';
+  if (['clase', 'clasePrincipal', 'funcion'].indexOf(primero.lexema) !== -1) return 'programa';
 
   if (primero.tipo === TiposToken.TIPO_DATO ||
       INICIO_INSTRUCCION.indexOf(primero.lexema) !== -1) {

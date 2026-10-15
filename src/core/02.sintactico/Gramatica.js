@@ -50,7 +50,14 @@ const GRAMATICA = [
       { nombre: 'matriz', ebnf: '<matriz> ::= "matriz" <tipo> IDENT "[" [ <expresion> ] "]" "[" [ <expresion> ] "]" [ "=" <inicializador> ] ";"' },
       { nombre: 'inicializador', ebnf: '<inicializador> ::= "{" [ <valorInicial> { "," <valorInicial> } ] "}"' },
       { nombre: 'valorInicial', ebnf: '<valorInicial> ::= <expresion> | <inicializador>' },
-      { nombre: 'proposicion', ebnf: '<proposicion> ::= <expresion> ";"       (a = b + c;  i++;  sumar(1, 2);  a && b || c;)' },
+      {
+        nombre: 'proposicion',
+        ebnf: [
+          '<proposicion> ::= <destino> "=" <expresion> ";"',
+          '                | <destino> ( "++" | "--" ) ";"',
+          '                | IDENT "(" [ <argumentos> ] ")" ";"'
+        ].join('\n')
+      },
       { nombre: 'destino', ebnf: '<destino> ::= IDENT [ "[" <expresion> "]" [ "[" <expresion> "]" ] ]' }
     ]
   },

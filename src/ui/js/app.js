@@ -1,26 +1,28 @@
 /**
  * app.js
- * Conecta las tres pestañas con el compilador.
+ * Conecta las cinco pestañas con el compilador.
  *
- * La regla principal: las tres pestañas trabajan sobre el MISMO código.
- *   - Lo que se escribe en una pestaña se copia al momento a las otras dos.
+ * La regla principal: las cinco pestañas trabajan sobre el MISMO código.
+ *   - Lo que se escribe en una pestaña se copia al momento a las demás.
  *   - Al analizar desde cualquier pestaña se analiza todo de una vez y se
- *     llenan los tres paneles. Al cambiar de pestaña el resultado ya está ahí.
+ *     llenan los cinco paneles. Al cambiar de pestaña el resultado ya está ahí.
  *   - Cambiar de pestaña no borra nada. Solo Borrar / Limpiar / Limpieza
- *     vacían el código, y lo vacían en las tres.
+ *     vacían el código, y lo vacían en las cinco.
  *
  * Botones de cada pestaña:
  *   1. Léxico            Realizar Análisis · Guardar · Borrar · Fuga
  *   2. Léxico-Sintáctico Limpiar · Análisis Léxico · Análisis Sintáctico ·
  *                        Análisis Léxico-Sintáctico · Equipo · Salir
  *   3. Semántico         Limpieza · Analiza · Equipo · Termina
+ *   4. Código intermedio Limpieza · Genera · Equipo · Termina
+ *   5. Optimización      Limpieza · Optimiza · Equipo · Termina
  *
  * Fuga, Salir y Termina abren la misma ventana: el equipo y la pregunta
  * "¿Quieres salir del compilador?".
  */
 
-/* global window, document, VentanaEquipo, VentanaSalir, Pestanas,
-          PanelLexico, PanelLexicoSintactico, PanelSemantico */
+/* global window, document, VentanaEquipo, VentanaSalir, Pestanas, EditorCodigo,
+          PanelLexico, PanelLexicoSintactico, PanelSemantico, PanelIntermedio, PanelOptimizacion */
 
 /** Nombre completo de cada institución, para el alt de su logo. */
 const INSTITUCIONES = {
@@ -34,16 +36,22 @@ const TAMANO_MAXIMO_ARCHIVO = 5 * 1024 * 1024;
 
 class Aplicacion {
   constructor () {
-    // El cuadro de código de cada pestaña. Los tres llevan siempre lo mismo.
+    // El cuadro de código de cada pestaña. Los cinco llevan siempre lo mismo.
     this.editores = {
       lexico: document.getElementById('lex-codigo'),
       sintactico: document.getElementById('codigo'),
-      semantico: document.getElementById('sem-codigo')
+      semantico: document.getElementById('sem-codigo'),
+      intermedio: document.getElementById('int-codigo'),
+      optimizacion: document.getElementById('opt-codigo')
     };
+    // A cada cuadro se le ponen sus números de renglón y los colores de Java.
+    this.cuadros = Object.values(this.editores).map((ta) => new EditorCodigo(ta));
 
     this.panelLexico = new PanelLexico();
     this.panelSintactico = new PanelLexicoSintactico();
     this.panelSemantico = new PanelSemantico();
+    this.panelIntermedio = new PanelIntermedio();
+    this.panelOptimizacion = new PanelOptimizacion();
 
     this.ventanaEquipo = new VentanaEquipo();
     this.ventanaSalir = new VentanaSalir();
@@ -137,6 +145,18 @@ class Aplicacion {
     boton('sem-equipo', () => this.ventanaEquipo.abrir());
     boton('sem-termina', () => this.salir());
 
+    // Pestaña 4: Generador de Código Intermedio
+    boton('int-limpieza', () => this.limpiar());
+    boton('int-genera', () => this.analizar('intermedio'));
+    boton('int-equipo', () => this.ventanaEquipo.abrir());
+    boton('int-termina', () => this.salir());
+
+    // Pestaña 5: Optimizador de Código Intermedio
+    boton('opt-limpieza', () => this.limpiar());
+    boton('opt-optimiza', () => this.analizar('optimizacion'));
+    boton('opt-equipo', () => this.ventanaEquipo.abrir());
+    boton('opt-termina', () => this.salir());
+
     // El botón del aviso (por ejemplo "Abrir reporte")
     boton('aviso-accion', () => {
       if (this._accionAviso) this._accionAviso();
@@ -167,13 +187,10 @@ class Aplicacion {
     });
   }
 
-  /** Los tres cuadros de código: se copian entre sí y crecen con el texto. */
+  /** Los cinco cuadros de código: se copian entre sí y crecen con el texto. */
   _conectarEditores () {
     Object.values(this.editores).forEach((editor) => {
-      editor.addEventListener('input', () => {
-        this._copiarCodigoDesde(editor);
-        this._ajustarAltos();
-      });
+      editor.addEventListener('input', () => this._copiarCodigoDesde(editor));
 
       // Tab dentro del código inserta espacios en vez de cambiar el foco.
       editor.addEventListener('keydown', (e) => {
@@ -217,27 +234,28 @@ class Aplicacion {
   // El código compartido
   // ------------------------------------------------------------------
 
-  /** El código de la pestaña que se está viendo (es el mismo en las tres). */
+  /** El código de la pestaña que se está viendo (es el mismo en las cinco). */
   codigo () {
     return this.editores[this.pestanas.activa].value;
   }
 
-  /** Copia el código de un cuadro a los otros dos. */
+  /** Copia el código de un cuadro a los demás. */
   _copiarCodigoDesde (origen) {
     Object.values(this.editores).forEach((editor) => {
       if (editor !== origen) editor.value = origen.value;
     });
+    this._acomodarEditores();
   }
 
-  /** Pone el mismo texto en los tres cuadros. */
+  /** Pone el mismo texto en los cinco cuadros. */
   _ponerCodigo (texto) {
     Object.values(this.editores).forEach((editor) => { editor.value = texto; });
-    this._ajustarAltos();
+    this._acomodarEditores();
   }
 
   _alCambiarPestana (nombre) {
     // Un cuadro escondido no sabe cuánto mide: se ajusta al hacerse visible.
-    this._ajustarAltos();
+    this._acomodarEditores();
     this.editores[nombre].focus();
   }
 
@@ -245,21 +263,23 @@ class Aplicacion {
   // Acciones
   // ------------------------------------------------------------------
 
-  /** Borra el código y los resultados de las tres pestañas. */
+  /** Borra el código y los resultados de las cinco pestañas. */
   limpiar () {
     this._ponerCodigo('');
     this.nombreArchivo = null;
     this.panelLexico.limpiar();
     this.panelSintactico.limpiar();
     this.panelSemantico.limpiar();
+    this.panelIntermedio.limpiar();
+    this.panelOptimizacion.limpiar();
     if (this.pestanas.activa) this.editores[this.pestanas.activa].focus();
   }
 
   /**
-   * Analiza el código y llena las tres pestañas.
+   * Analiza el código y llena las cinco pestañas.
    *
    * @param {string} desde Pestaña cuyo botón se presionó. Su código es el
-   *                       que se analiza (y se copia a las otras dos).
+   *                       que se analiza (y se copia a las demás).
    * @param {string} [que] Solo para la pestaña 2: 'lexico' | 'sintactico' |
    *                       'ambos'. Desde las otras pestañas siempre es 'ambos'.
    */
@@ -274,6 +294,8 @@ class Aplicacion {
       this.panelLexico.limpiar(aviso);
       this.panelSintactico.limpiar(aviso);
       this.panelSemantico.limpiar(aviso);
+      this.panelIntermedio.limpiar(aviso);
+      this.panelOptimizacion.limpiar(aviso);
       return;
     }
 
@@ -287,6 +309,8 @@ class Aplicacion {
     this.panelLexico.pintar(r);
     this.panelSintactico.pintar(r, desde === 'sintactico' ? que : 'ambos');
     this.panelSemantico.pintar(r);
+    this.panelIntermedio.pintar(r);
+    this.panelOptimizacion.pintar(r);
   }
 
   /** Fuga, Salir y Termina: pregunta antes de cerrar. */
@@ -365,17 +389,19 @@ class Aplicacion {
   // ------------------------------------------------------------------
 
   /**
-   * Ajusta el alto de cada cuadro de código a lo que se escribió, entre un
-   * mínimo y un máximo. Pasado el máximo el cuadro se desplaza.
-   * El de la pestaña 3 es más bajo (data-alto-minimo): ahí se escribe una
-   * sola proposición, como en el pizarrón.
+   * Deja los cinco cuadros de código al día con su texto:
+   *   - el alto, según lo que se escribió, entre un mínimo y un máximo
+   *     (pasado el máximo el cuadro se desplaza). Los de las pestañas 3, 4 y 5
+   *     empiezan más bajos (data-alto-minimo), para dejar lugar al resultado;
+   *   - los números de renglón y los colores (ver editor.js).
    */
-  _ajustarAltos () {
+  _acomodarEditores () {
     Object.values(this.editores).forEach((ta) => {
       const minimo = Number(ta.dataset.altoMinimo) || 130;
       ta.style.height = 'auto';
-      ta.style.height = Math.min(Math.max(ta.scrollHeight + 2, minimo), 300) + 'px';
+      ta.style.height = Math.min(Math.max(ta.scrollHeight, minimo), 300) + 'px';
     });
+    this.cuadros.forEach((cuadro) => cuadro.refrescar());
   }
 
   /**

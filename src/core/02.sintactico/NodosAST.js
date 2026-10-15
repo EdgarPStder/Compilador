@@ -149,13 +149,6 @@ function familiaNodo (n) {
 function aArbolCompacto (n, mapa = {}) {
   if (!esNodo(n)) return null;
 
-  // Una proposicion simple con punto y coma (a && b || c;) se dibuja
-  // directamente con su expresion: el nodo que la envuelve no dice nada mas.
-  // Las llamadas (sumar(1, 2);) conservan su nodo "llamada".
-  if (n.tipo === 'ExpresionInstruccion' && n.expresion && n.expresion.tipo !== 'Llamada') {
-    return aArbolCompacto(n.expresion, mapa);
-  }
-
   const hijos = [];
   for (const clave of Object.keys(n)) {
     if (CAMPOS_META.indexOf(clave) !== -1) continue;

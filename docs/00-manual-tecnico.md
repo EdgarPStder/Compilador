@@ -54,11 +54,16 @@ Integrantes (orden alfabético por apellidos):
 20. [Recuperación de errores: modo pánico](#20-recuperación-de-errores-modo-pánico)
 
 **[Parte V bis — El analizador semántico](#parte-v-bis--el-analizador-semántico)**
-20 bis. [Qué hace: la gramática del código](#20-bis-qué-hace-la-gramática-del-código)
-20 ter. [Cómo genera la gramática](#20-ter-cómo-genera-la-gramática)
+20 bis. [Qué hace: revisar que el código tenga sentido](#20-bis-qué-hace-revisar-que-el-código-tenga-sentido)
+20 ter. [La tabla de símbolos y los ámbitos](#20-ter-la-tabla-de-símbolos-y-los-ámbitos)
+20 quater. [La revisión de tipos](#20-quater-la-revisión-de-tipos)
+20 quinquies. [Cómo genera la gramática](#20-quinquies-cómo-genera-la-gramática)
+
+**[Parte V ter — El código intermedio](#parte-v-ter--el-código-intermedio)**
+20 sexies. [Código de tres direcciones y cuádruplos](#20-sexies-código-de-tres-direcciones-y-cuádruplos)
 
 **[Parte VI — La aplicación](#parte-vi--la-aplicación)**
-21. [La ventana y sus tres pestañas](#21-la-ventana-y-sus-tres-pestañas)
+21. [La ventana y sus cuatro pestañas](#21-la-ventana-y-sus-cuatro-pestañas)
 22. [El dibujo del árbol](#22-el-dibujo-del-árbol)
 23. [El zoom y la vista por ramas](#23-el-zoom-y-la-vista-por-ramas)
 24. [El reporte visual (.html)](#24-el-reporte-visual-html)
@@ -96,7 +101,7 @@ partes I y II. Si vas a modificar el código, lee todo.
 | **Apéndices** | Tablas de consulta rápida | Consulta |
 
 **Convención:** los nombres de archivo aparecen como enlaces, por ejemplo
-[`AnalizadorLexico.js`](../src/core/lexico/AnalizadorLexico.js). Los bloques de
+[`AnalizadorLexico.js`](../src/core/01.lexico/AnalizadorLexico.js). Los bloques de
 código con fondo gris son código real del proyecto, no pseudocódigo.
 
 ---
@@ -111,8 +116,8 @@ Es un **compilador** para un lenguaje de programación propio llamado
 escritorio para Windows.
 
 En una frase: **le das código y te dice si está bien escrito, mostrándote el
-proceso paso a paso.** La aplicación tiene tres pestañas, una por analizador,
-que trabajan sobre el mismo código.
+proceso paso a paso.** La aplicación tiene cuatro pestañas, una por fase, que
+trabajan sobre el mismo código.
 
 | | |
 |---|---|
@@ -140,22 +145,28 @@ jalón: lo hace en **fases**, y cada fase recibe lo que produjo la anterior.
         │
         ▼
  ┌──────────────────┐
- │ 1. LÉXICO        │  parte el texto en piezas (tokens)
+ │ 1. LÉXICO        │  parte el texto en piezas (tokens)   ──┐
+ └──────────────────┘                                        │
+        │  tokens                                            │
+        ▼                                                    │   ┌──────────────────────┐
+ ┌──────────────────┐                                        ├──►│  TABLA DE SÍMBOLOS   │
+ │ 2. SINTÁCTICO    │  revisa que las piezas formen frases ──┤   │                      │
+ └──────────────────┘  válidas y arma el árbol               │   │  MANEJO DE ERRORES   │
+        │  árbol (AST)                                       │   └──────────────────────┘
+        ▼                                                    │    las usan todas las fases
+ ┌──────────────────┐                                        │
+ │ 3. SEMÁNTICO     │  revisa que tenga sentido            ──┤
+ └──────────────────┘                                        │
+        │                                                    │
+        ▼                                                    │
+ ┌──────────────────┐                                        │
+ │ 4. CÓDIGO INTERM.│  lo traduce a tres direcciones       ──┘
  └──────────────────┘
-        │  tokens
-        ▼
- ┌──────────────────┐
- │ 2. SINTÁCTICO    │  revisa que las piezas formen frases válidas
- └──────────────────┘   y arma el árbol
-        │  árbol (AST)
+        │  t1 = c * d ...
         ▼
  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─┐
- │ 3. SEMÁNTICO     │  ┐
- ├ ─ ─ ─ ─ ─ ─ ─ ─ ─┤  │
- │ 4. CÓDIGO INTERM.│  ├─ fuera del alcance de esta entrega
- ├ ─ ─ ─ ─ ─ ─ ─ ─ ─┤  │
- │ 5. OPTIMIZACIÓN  │  │
- ├ ─ ─ ─ ─ ─ ─ ─ ─ ─┤  │
+ │ 5. OPTIMIZACIÓN  │  ┐
+ ├ ─ ─ ─ ─ ─ ─ ─ ─ ─┤  ├─ fuera del alcance de esta entrega
  │ 6. GENERACIÓN    │  ┘
  └ ─ ─ ─ ─ ─ ─ ─ ─ ─┘
         │
@@ -163,12 +174,28 @@ jalón: lo hace en **fases**, y cada fase recibe lo que produjo la anterior.
     Código Java
 ```
 
-**Este proyecto implementa las fases 1 y 2 para el lenguaje SwordByte**, y
-sobre ellas un **analizador semántico** que, dado cualquier código del
-lenguaje, **genera su gramática**: las reglas que producen exactamente ese
-código (ver la [Parte V bis](#parte-v-bis--el-analizador-semántico)). No valida
-tipos ni variables declaradas. Las fases 4 a 6 no están: ni el código ni las
-carpetas, porque código vacío que nadie usa sólo estorba al leer.
+**Este proyecto implementa las fases 1, 2, 3 y 4 para el lenguaje SwordByte.**
+El **analizador semántico** revisa que el código tenga sentido (nombres
+declarados, tipos que coinciden) y además **genera su gramática**: las reglas
+que producen exactamente ese código (ver la
+[Parte V bis](#parte-v-bis--el-analizador-semántico)). El **generador de
+código intermedio** traduce el programa a código de tres direcciones y
+cuádruplos (ver la [Parte V ter](#parte-v-ter--el-código-intermedio)). Las
+fases 5 y 6 no están: ni el código ni las carpetas, porque código vacío que
+nadie usa sólo estorba al leer.
+
+### Las dos piezas que comparten todas las fases
+
+Como se ve en el esquema, la **tabla de símbolos** y el **manejo de errores**
+no son de una fase: los usan todas. Por eso viven en `src/core/comun/`:
+
+| Pieza | Archivo | Qué hace cada fase con ella |
+|---|---|---|
+| Tabla de símbolos | [`TablaSimbolos.js`](../src/core/comun/TablaSimbolos.js) | El léxico anota cada identificador y le da su etiqueta (`edad → id1`); el sintáctico usa esas etiquetas en el árbol; el semántico completa cada nombre con su tipo y su ámbito |
+| Manejo de errores | [`ErrorCompilacion.js`](../src/core/comun/ErrorCompilacion.js) | Las tres reportan sus errores con el mismo formato (fase, mensaje, línea, columna, sugerencia); `Compilador.js` los junta y la interfaz los muestra y los subraya igual |
+
+[`Compilador.js`](../src/core/Compilador.js) crea **una** tabla de símbolos
+por cada código que se analiza y se la pasa a las tres fases.
 
 ### La diferencia entre las fases, con una analogía
 
@@ -178,14 +205,19 @@ Piensa en la oración *"el gato come pescado"*:
 |---|---|---|---|
 | **Léxica** | Que cada **palabra** exista | ¿"gato" es una palabra? Sí | ¿`mientras` existe en el lenguaje? Sí |
 | **Sintáctica** | Que las palabras formen una **frase válida** | *"gato el pescado come"* tiene palabras válidas pero está mal armada | `si (a > b` tiene tokens válidos pero falta el `)` |
-| **Semántica** (pestaña 3) | **De qué reglas** está hecha la frase | *oración → sujeto verbo complemento* | `a1 = b5 / 20` está hecho de `prop → id = exp` y `exp → exp / exp` |
+| **Semántica** (pestaña 3) | Que la frase **tenga sentido** | *"el pescado come gato"* está bien armada, pero no tiene sentido | `entero x = "hola";` está bien escrito, pero un texto no cabe en un `entero` |
 
-Por eso un error léxico y uno sintáctico son cosas distintas:
+Por eso los tres errores son cosas distintas:
 
 ```swordbyte
-entero a = 5 @ 3;     // error LÉXICO:    '@' no existe en el lenguaje
+entero a = 5 @ 3;     // error LÉXICO:     '@' no existe en el lenguaje
 entero a = 5          // error SINTÁCTICO: falta el ';'
+entero a = "cinco";   // error SEMÁNTICO:  'a' es entero y el valor es cadena
 ```
+
+La pestaña 3 también escribe **de qué reglas está hecho** el código, como en el
+pizarrón: `a1 = b5 / 20;` está hecho de `prop → id = exp ;` y
+`exp → exp / exp`.
 
 ---
 
@@ -207,7 +239,7 @@ Para la computadora esto no son tres cosas: son **cinco caracteres**,
 
 ### Paso 2 — El análisis léxico lo parte en tokens
 
-[`AnalizadorLexico.js`](../src/core/lexico/AnalizadorLexico.js) recorre el texto
+[`AnalizadorLexico.js`](../src/core/01.lexico/AnalizadorLexico.js) recorre el texto
 carácter por carácter y agrupa lo que va junto:
 
 | # | Lexema | Categoría | Línea | Columna | Estado del AFD |
@@ -219,9 +251,9 @@ carácter por carácter y agrupa lo que va junto:
 
 ### Paso 3 — Se numeran los identificadores
 
-[`FormatoLexico.js`](../src/core/lexico/FormatoLexico.js) reescribe el código
-sustituyendo cada nombre por una etiqueta `idN`, que es la salida clásica del
-análisis léxico:
+[`FormatoLexico.js`](../src/core/01.lexico/FormatoLexico.js) anota cada nombre
+en la **tabla de símbolos**, que le da una etiqueta `idN`, y reescribe el código
+con esas etiquetas, que es la salida clásica del análisis léxico:
 
 ```
 Código fuente:    a > b
@@ -230,7 +262,7 @@ Salida léxica:    id1 > id2
 
 ### Paso 4 — El análisis sintáctico arma el árbol
 
-[`AnalizadorSintactico.js`](../src/core/sintactico/AnalizadorSintactico.js)
+[`AnalizadorSintactico.js`](../src/core/02.sintactico/AnalizadorSintactico.js)
 recibe los tokens y verifica que formen algo válido. Como lo logra, construye el
 **árbol de sintaxis abstracta (AST)**:
 
@@ -240,16 +272,20 @@ recibe los tokens y verifica que formen algo válido. Como lo logra, construye e
      id1     id2
 ```
 
-### Paso 5 — Se muestra en las tres pestañas
+### Paso 5 — Se muestra en las cuatro pestañas
 
-Con el mismo resultado se llenan las tres pestañas a la vez:
+Con el mismo resultado se llenan las cuatro pestañas a la vez:
 
 - **Pestaña 1:** la tabla de tokens (`a` → identificador, `>` → operador mayor
   que, `b` → identificador).
 - **Pestaña 2:** [`arbol.js`](../src/ui/js/arbol.js) convierte el árbol en un
   SVG y lo pinta con colores según la categoría de cada nodo.
-- **Pestaña 3:** la gramática del código: `prop → exp > exp`, `exp → id`,
-  `id → let`, `let → a-z`.
+- **Pestaña 3:** dice *Falta la clase*: como en Java, el análisis semántico
+  sólo revisa programas, `clase nombre { clasePrincipal { ... } }` (ver la
+  [Parte V bis](#parte-v-bis--el-analizador-semántico)). Las expresiones
+  sueltas como `a > b` son para practicar en las pestañas 1 y 2.
+- **Pestaña 4:** tampoco genera código intermedio: sin un programa correcto
+  pide corregir primero.
 
 ### El mismo recorrido, en una sola llamada
 
@@ -263,7 +299,7 @@ resultado.ok                  // true
 resultado.lexico.salida       // 'id1 > id2'
 resultado.lexico.tabla        // [{ lexema: 'a', token: 'identificador', ... }, ...]
 resultado.sintactico.arbol    // { etiqueta: '>', hijos: [...] }
-resultado.semantico.reglas    // [{ regla: 'prop', alternativas: [...] }, ...]
+resultado.semantico.estado    // 'sin-clase' (con un programa: 'analizado')
 resultado.errores             // []  (sólo errores de SwordByte)
 ```
 
@@ -347,7 +383,7 @@ léxico.
 
 Hay **53 palabras reservadas**: 10 tipos de dato y 43 del resto del lenguaje.
 Están todas en un solo diccionario,
-[`PalabrasReservadas.js`](../src/core/lexico/PalabrasReservadas.js), cada una con
+[`PalabrasReservadas.js`](../src/core/01.lexico/PalabrasReservadas.js), cada una con
 la descripción que aparece al pasar el mouse en la aplicación.
 
 **Tipos de dato (10)**
@@ -525,7 +561,7 @@ Compilador/
 │
 ├── src/
 │   ├── core/                    EL COMPILADOR (JavaScript puro)
-│   │   ├── Compilador.js             Une los tres análisis en una llamada
+│   │   ├── Compilador.js             Une las cuatro fases en una llamada
 │   │   ├── ReporteHTML.js            El reporte visual (.html) y su lectura
 │   │   ├── Reporte.js                El reporte en texto (.bs)
 │   │   ├── ArchivoGuardado.js        Elige el formato al guardar y lee al abrir
@@ -534,36 +570,45 @@ Compilador/
 │   │   │   ├── Token.js                  estructura de un token
 │   │   │   ├── TiposToken.js             catálogo de categorías léxicas
 │   │   │   ├── Equipo.js                 datos del equipo y de la materia
-│   │   │   └── ErrorCompilacion.js       formato uniforme de errores
+│   │   │   ├── ErrorCompilacion.js       manejo de errores: el formato de las 3 fases
+│   │   │   └── TablaSimbolos.js          tabla de símbolos: la usan las 3 fases
 │   │   │
-│   │   ├── lexico/              FASE 1
+│   │   ├── 01.lexico/           FASE 1
 │   │   │   ├── AnalizadorLexico.js       recorre el fuente y produce tokens
 │   │   │   ├── FormatoLexico.js          la salida id1 > num(9) y sus colores
 │   │   │   ├── TablaLexica.js            la tabla Lexema | Token | Descripción
 │   │   │   └── PalabrasReservadas.js     diccionario del lenguaje
 │   │   │
-│   │   ├── sintactico/          FASE 2
+│   │   ├── 02.sintactico/       FASE 2
 │   │   │   ├── AnalizadorSintactico.js   descenso recursivo y AST
 │   │   │   ├── Gramatica.js              gramática EBNF como dato
 │   │   │   └── NodosAST.js               nodos del AST y árbol dibujable
 │   │   │
-│   │   └── semantico/           PESTAÑA 3
-│   │       ├── AnalizadorSemantico.js    genera la gramática del código
-│   │       └── TextoDeNodo.js            vuelve a escribir un nodo como código
+│   │   ├── 03.semantico/        FASE 3
+│   │   │   ├── AnalizadorSemantico.js    punto de entrada: estado y resultado
+│   │   │   ├── VerificadorSemantico.js   declaraciones, tipos, errores y advertencias
+│   │   │   ├── GeneradorGramatica.js     genera la gramática del código
+│   │   │   └── TextoDeNodo.js            vuelve a escribir un nodo como código
+│   │   │
+│   │   └── 04.intermedio/       FASE 4
+│   │       ├── Instrucciones.js          las formas del código de tres direcciones
+│   │       └── GeneradorIntermedio.js    traduce el árbol a tres direcciones
 │   │
 │   └── ui/                      INTERFAZ GRÁFICA
-│       ├── index.html                encabezado, pestañas y los tres paneles
-│       ├── css/estilos.css           una sola paleta para las tres pestañas
+│       ├── index.html                encabezado, pestañas y los cuatro paneles
+│       ├── css/estilos.css           una sola paleta para las cuatro pestañas
 │       ├── img/                      logos UAT, UAMM e ISC
 │       └── js/
 │           ├── dom.js                ayudas: errores, notas, insignias
 │           ├── equipo.js             ventana emergente del equipo
 │           ├── salir.js              ventana de Fuga / Salir / Termina
 │           ├── arbol.js              dibuja el árbol, el zoom y las ramas
+│           ├── editor.js             números, colores y errores subrayados en el código
 │           ├── pestanas.js           cambia de pestaña sin borrar nada
 │           ├── panel-lexico.js       pinta la pestaña 1
 │           ├── panel-sintactico.js   pinta la pestaña 2
 │           ├── panel-semantico.js    pinta la pestaña 3
+│           ├── panel-intermedio.js   pinta la pestaña 4
 │           └── app.js                código compartido, botones, menú, archivos
 │
 ├── electron/                    APLICACIÓN DE ESCRITORIO
@@ -573,8 +618,8 @@ Compilador/
 │
 ├── ejemplos/                    7 programas .bs de demostración
 ├── pruebas/
-│   ├── ejecutar.js                   118 pruebas del compilador
-│   └── verificar-ui.js               109 comprobaciones sobre la ventana real
+│   ├── ejecutar.js                   161 pruebas del compilador
+│   └── verificar-ui.js               142 comprobaciones sobre la ventana real
 ├── herramientas/
 │   ├── generar-icono.js              genera el icono de la app
 │   └── generar-gramatica.js          regenera docs/04 desde Gramatica.js
@@ -590,7 +635,7 @@ Es JavaScript puro, sin `require('electron')`, sin `document`, sin `window`. Se
 puede usar desde Node, desde una prueba o desde otra aplicación. Eso tiene dos
 consecuencias prácticas:
 
-1. Las **118 pruebas del compilador corren sin abrir ninguna ventana**, en menos
+1. Las **161 pruebas del compilador corren sin abrir ninguna ventana**, en menos
    de un segundo.
 2. Si algún día se quisiera una versión web o de línea de comandos, `src/core/`
    se reusa tal cual.
@@ -628,7 +673,7 @@ ni una más:
 
 | Función expuesta | Qué hace |
 |---|---|
-| `window.api.analizar(fuente, opciones)` | Compila y devuelve el resultado de los tres análisis |
+| `window.api.analizar(fuente, opciones)` | Compila y devuelve el resultado de las cuatro fases |
 | `window.api.equipo()` | Devuelve los datos del equipo |
 | `window.api.abrirArchivo()` | Abre el diálogo de abrir; devuelve el código y, si es un reporte `.html`, su pestaña |
 | `window.api.leerArchivo(texto)` | Lo mismo, para un archivo soltado sobre la ventana |
@@ -654,7 +699,7 @@ Más `window.api.alMenu(manejador)`, que recibe las órdenes del menú superior.
                      panelSemantico.pintar(r)         → pestaña 3
 ```
 
-El paso 8 llena **las tres pestañas** con el mismo resultado. Por eso, al
+El paso 8 llena **las cuatro pestañas** con el mismo resultado. Por eso, al
 cambiar de pestaña, el análisis ya está ahí.
 
 > **Por qué el resultado debe ser un objeto plano:** lo que viaja por IPC se
@@ -739,7 +784,7 @@ El campo `sugerencia` es el que convierte un error en algo útil. Se calcula en
 **Sale:** una lista de tokens, una lista de errores y unas estadísticas.
 
 ```js
-const { analizarLexico } = require('./src/core/lexico/AnalizadorLexico');
+const { analizarLexico } = require('./src/core/01.lexico/AnalizadorLexico');
 const r = analizarLexico('entero a = 5;');
 
 r.tokens          // [Token, Token, ...] sin comentarios, con el centinela <FIN>
@@ -898,7 +943,7 @@ problema real.
 ## 12. La salida `id1 > num(9)`
 
 Es la salida clásica del análisis léxico y la produce
-[`FormatoLexico.js`](../src/core/lexico/FormatoLexico.js).
+[`FormatoLexico.js`](../src/core/01.lexico/FormatoLexico.js).
 
 ### 12.1 Las reglas
 
@@ -984,7 +1029,7 @@ id1[num(1)][num(2)] = longitud(id2) + area.circulo(num(5));
 
 La pestaña 1 muestra los mismos tokens, pero como tabla: un renglón por token
 con su **lexema**, su **token** y su **descripción**. La arma
-[`TablaLexica.js`](../src/core/lexico/TablaLexica.js) y llega lista en
+[`TablaLexica.js`](../src/core/01.lexico/TablaLexica.js) y llega lista en
 `resultado.lexico.tabla`:
 
 ```js
@@ -1061,7 +1106,7 @@ Si no se filtraran, un solo `@` provocaría además un error sintáctico falso.
 **Sale:** el AST, el modo de análisis usado, los errores y las estadísticas.
 
 ```js
-const { analizarSintactico } = require('./src/core/sintactico/AnalizadorSintactico');
+const { analizarSintactico } = require('./src/core/02.sintactico/AnalizadorSintactico');
 const r = analizarSintactico(tokens, 'auto');
 
 r.ast            // el árbol de sintaxis abstracta
@@ -1142,34 +1187,42 @@ Y `fallar(mensaje, esperado)` construye el `ErrorCompilacion`, lo guarda y
 
 ## 17. Los tres modos de análisis
 
-No siempre se quiere escribir un programa completo para revisar una idea. El
-analizador acepta tres formas de entrada:
+Como en Java, un programa va dentro de una clase. Para practicar la forma de
+las expresiones (el ejercicio de `a > b`), el analizador acepta también
+expresiones sueltas. Son tres formas de entrada:
 
-| Modo | Entrada | Ejemplo |
-|---|---|---|
-| `programa` | clase completa | `clase p { clasePrincipal { ... } }` |
-| `instrucciones` | una o varias instrucciones sueltas, cada una con su `;` | `entero a = 5;` · `a && b \|\| c;` |
-| `expresion` | una o varias proposiciones sueltas, una por renglón y sin `;` | `a > b` · `a = b + c` |
+| Modo | Entrada | Ejemplo | Resultado |
+|---|---|---|---|
+| `programa` | Clase completa | `clase p { clasePrincipal { ... } }` | Se analiza |
+| `expresion` | Una o varias proposiciones sueltas, una por renglón y sin `;` | `a > b` · `a = b + c` | Se analiza (sólo en las pestañas 1 y 2) |
+| `instrucciones` | Instrucciones sueltas, con su `;` | `entero a = 5;` | Error: **Falta la clase** |
+
+En el modo `instrucciones` se reporta *Falta la clase* (`faltaLaClase()`),
+pero las instrucciones se revisan igual, para reportar de una vez los demás
+errores. Lo mismo pasa si el código empieza con `clasePrincipal` o
+`funcion` sin la clase alrededor.
 
 En el modo `expresion`, varias proposiciones (una por renglón) cuelgan de un
-nodo `proposiciones`. En el modo `instrucciones`, una expresión seguida de `;`
-(`a && b || c;`) también es una instrucción: la lee `proposicion()`, que
-después la clasifica como asignación, incremento, llamada o proposición simple.
+nodo `proposiciones`. Dentro de un bloque sólo valen las instrucciones del
+lenguaje: las que empiezan con un nombre las lee `proposicion()` y tienen que
+ser una asignación, un incremento o una llamada. `a > b;` es un error, igual
+que en Java, y una palabra de Java (`break`, `int`, `System`…) se rechaza
+diciendo cuál es la de SwordByte.
 
 El modo lo decide `elegirModo()` mirando el texto **antes** de analizarlo, con
 cuatro reglas en orden:
 
 | # | Si… | Modo |
 |---|---|---|
-| 1 | el primer token es `clase` | `programa` |
-| 2 | el primer token es un tipo (`entero`, `cadena`…) o una palabra que empieza instrucción (`si`, `para`, `imprimirLn`…) | `instrucciones` |
-| 3 | en algún lado hay un `;` o un `{` | `instrucciones` |
+| 1 | el primer token es `clase` (o `clasePrincipal` o `funcion`, que van dentro de una clase) | `programa` |
+| 2 | el primer token es un tipo (`entero`, `cadena`…) o una palabra que empieza instrucción (`si`, `para`, `imprimirLn`…) | `instrucciones` (error: falta la clase) |
+| 3 | en algún lado hay un `;` o un `{` | `instrucciones` (error: falta la clase) |
 | 4 | en cualquier otro caso | `expresion` (una o varias proposiciones) |
 
 ```js
 function elegirModo (tokens) {
   const primero = tokens[0];
-  if (primero.lexema === 'clase') return 'programa';
+  if (['clase', 'clasePrincipal', 'funcion'].indexOf(primero.lexema) !== -1) return 'programa';
   if (primero.tipo === TiposToken.TIPO_DATO ||
       INICIO_INSTRUCCION.indexOf(primero.lexema) !== -1) return 'instrucciones';
   const tieneSeparadores = tokens.some((t) => t.lexema === ';' || t.lexema === '{');
@@ -1191,7 +1244,7 @@ no una expresión suelta.
 > | Entrada | Regla | Mensaje |
 > |---|---|---|
 > | `5 = a` | 4 → `expresion` | *A la izquierda de "=" debe ir una variable* |
-> | `entero a = 5` | 2 → `instrucciones` | *Falta ';' al final de la declaración* |
+> | `entero a = 5` | 2 → `instrucciones` | *Falta la clase* y *Falta ';' al final de la declaración* |
 
 **Detalle de presentación:** cuando el fragmento es una sola instrucción, el
 nodo `Bloque` que la envuelve se descarta y la instrucción queda como raíz del
@@ -1353,7 +1406,7 @@ suyos propios:
 ```
 
 Los construye la función `nodo()` de
-[`NodosAST.js`](../src/core/sintactico/NodosAST.js), que copia la línea y la
+[`NodosAST.js`](../src/core/02.sintactico/NodosAST.js), que copia la línea y la
 columna desde un token.
 
 ### 19.2 Del AST al árbol dibujable
@@ -1510,42 +1563,156 @@ Al corregir el primer error y volver a analizar, el segundo sale a la luz. En la
 práctica se trabaja así: corregir, volver a analizar, repetir.
 
 ---
----
 
 # PARTE V bis — EL ANALIZADOR SEMÁNTICO
 
-## 20 bis. Qué hace: la gramática del código
+## 20 bis. Qué hace: revisar que el código tenga sentido
 
-La pestaña 3 recibe **cualquier código del lenguaje** y escribe la gramática
-que lo produce. Es lo mismo que se hizo en el pizarrón con `a1 = b5 / 20`:
+El sintáctico dice si el código **está bien escrito**; el semántico, si
+**tiene sentido**. Una gramática libre de contexto no puede expresar reglas
+como «este nombre se declaró antes» o «los dos lados son del mismo tipo»,
+porque para eso hay que recordar lo que ya se vio. La fase semántica recorre el
+árbol del sintáctico con dos herramientas: la **tabla de símbolos** (la que
+comparten las tres fases) y la **revisión de tipos**.
+
+```swordbyte
+clase figuras {
+    clasePrincipal {
+        decimal radio = 2.5;
+        entero a = area.circulo(radio);     // ERROR: area.circulo devuelve decimal
+        imprimirLn(total);                  // ERROR: 'total' no está declarada
+    }
+}
+```
+
+Para cada programa, la pestaña 3 muestra los **errores semánticos** (y, aparte,
+las advertencias) y la **gramática del código**. Si no hay errores, no hay
+recuadro: lo dice la insignia *sin errores*.
+
+Como en Java, **sólo trabaja con programas**. Una expresión suelta
+(`a = b + c`) se acepta en las pestañas 1 y 2 para practicar la forma, pero en
+la pestaña 3 el resultado trae `estado: 'sin-clase'` y el error *Falta la
+clase*. Si el código tiene errores léxicos o sintácticos (entre ellos, las
+instrucciones sin clase), el estado es `'errores-previos'` y no se revisa nada.
+
+En el lenguaje la lógica se escribe sólo con `Y`, `O` y `NO`, y las potencias y
+las raíces sólo con `potencia(base, exponente)` (una raíz es una potencia con
+exponente fraccionario: `potencia(x, 0.5)`). Las pestañas 1 y 2 reconocen
+también `&&`, `||`, `!`, `AND`, `OR`, `NOT`, `^`, `**`, `√` y las funciones de
+raíz; el semántico las marca como error y dice qué se escribe en su lugar (la
+tabla `NO_SON_DEL_LENGUAJE`).
 
 ```
-prop → id = exp
-exp  → id | num | exp / exp
-id   → let ( dig )*
-num  → dig ( dig )*
-dig  → 0-9
-let  → a-z
+  AnalizadorSemantico.js  ── decide el estado
+        │
+        ├── VerificadorSemantico.js  ── recorre el árbol
+        │         └── comun/TablaSimbolos.js   declara y busca nombres
+        │
+        └── GeneradorGramatica.js    ── escribe la gramática
 ```
 
-Trabaja con **el mismo lenguaje y las mismas reglas** que las otras pestañas:
-no lee el código por su cuenta, sino que recorre el árbol que armó el
-analizador sintáctico (que a su vez usa los tokens del léxico). Por eso acepta
-exactamente lo que acepta la pestaña 2, y si el código tiene errores léxicos o
-sintácticos **no genera nada**: muestra los errores para corregirlos primero.
-
-El código está en
-[`AnalizadorSemantico.js`](../src/core/semantico/AnalizadorSemantico.js) y el
-detalle completo, con más ejemplos, en
+El detalle completo, con cada regla y su mensaje, está en
 [08 — Analizador semántico](08-analizador-semantico.md).
 
 ---
 
-## 20 ter. Cómo genera la gramática
+## 20 ter. La tabla de símbolos y los ámbitos
 
-**Paso 1 — Cada nodo aporta su forma.** El generador recorre el árbol y, por
-cada nodo, agrega una alternativa a una regla con la forma en que se escribió.
-Las partes que son otra cosa se cambian por su no terminal:
+[`TablaSimbolos.js`](../src/core/comun/TablaSimbolos.js) está en `comun/`
+porque la usan las tres fases (ver la sección 2):
+
+1. El **léxico** llama a `registrar(nombre)` por cada identificador: la primera
+   vez le da su etiqueta (`id1`, `id2`…) y después sólo cuenta las apariciones.
+2. El **sintáctico** usa `mapa()` (`{ edad: 'id1' }`) para escribir el árbol.
+3. El **semántico** declara cada nombre con `declarar()` y lo busca con
+   `buscar()`. Cada declaración también se anota en el registro que hizo el
+   léxico (`declaraciones`), así que al final cada identificador sabe su
+   etiqueta, sus apariciones, su tipo y su ámbito.
+
+Los **ámbitos** forman una pila. Al entrar a un bloque `{ }` se abre uno
+(`tabla.abrir('si')`); al salir se cierra (`tabla.cerrar()`) y sus variables
+dejan de existir. Un nombre se busca **del ámbito actual hacia afuera**:
+
+```js
+buscar (nombre) {
+  for (let i = this.pila.length - 1; i >= 0; i--) {
+    const simbolo = this.pila[i].simbolos.get(nombre);
+    if (simbolo) return simbolo;
+  }
+  return null;
+}
+```
+
+Como en Java, al declarar se busca en **toda** la pila de la función: un nombre
+no se repite dentro de la misma función aunque esté en un bloque de adentro.
+
+Las **funciones** se guardan aparte y se anotan **antes** de revisar ningún
+cuerpo (dos pasos), para poder llamar a una función declarada más abajo.
+
+Cada uso de una variable pasa por `lugar(nodo, uso)` del verificador, con tres
+usos posibles: `'leer'` (suma un uso y exige que ya tenga valor), `'escribir'`
+(le da valor; si es `Constante`, es error) y `'cambiar'` (las dos cosas, como
+`x++`). Al cerrar un ámbito, las variables con cero usos se juntan para una
+sola advertencia.
+
+---
+
+## 20 quater. La revisión de tipos
+
+`tipoDe(nodo)` devuelve el tipo de cada expresión, con un `case` por tipo de
+nodo, y `null` si adentro ya hubo un error (así un error no provoca otros en
+cadena):
+
+```js
+case 'Literal':   return this.literal(n);       // 20 -> 'entero', 2.5f -> 'flotante'
+case 'Variable':  return this.lugar(n, 'leer');  // el tipo declarado
+case 'Binaria':   return this.binaria(n);        // según el operador
+case 'Llamada':   return this.llamada(n);        // el tipo de retorno
+case 'Geometrica': return this.geometrica(n);    // siempre 'decimal'
+```
+
+Para saber si un valor se puede guardar en un lugar, `cabe(destino, origen)`
+aplica tres reglas: el mismo tipo; un numérico en otro igual o más grande
+(`byte < corto < entero < largo < flotante < decimal`); o un entero escrito tal
+cual que cabe en `byte` o `corto`. La misma función se usa al declarar, al
+asignar, al pasar valores a una función, al `retornar` y en los `{ }` de un
+arreglo.
+
+Las operaciones siguen a Java: `a + b` entre números da el tipo más grande y
+como mínimo `entero`; con una `cadena` junta textos; los relacionales y los
+lógicos dan `logico` y revisan que sus lados sean números o lógicos.
+
+Además, como SwordByte está especializado en geometría, se revisan los valores
+**escritos tal cual**: medidas mayores que cero, lados que formen un triángulo,
+raíz de un negativo (`potencia(-4, 0.5)`), logaritmo de cero, índices fuera del
+arreglo.
+
+---
+
+## 20 quinquies. Cómo genera la gramática
+
+La gramática es la que se hacía en el pizarrón, ahora para un programa
+completo. Para `clase p { clasePrincipal { a1 = b5 / 20; } }`:
+
+```
+prop      → clase id { principal }
+principal → clasePrincipal { inst }
+inst      → id = exp ;
+exp       → id | num | exp / exp
+id        → let ( dig )*
+num       → dig ( dig )*
+dig       → 0-9
+let       → a-z
+```
+
+Se genera aunque haya errores semánticos (en el ejemplo, `a1` y `b5` no están
+declaradas): describe la forma del código, y la forma ya es correcta.
+
+**Paso 1 — Cada nodo aporta su forma.** El generador
+([`GeneradorGramatica.js`](../src/core/03.semantico/GeneradorGramatica.js))
+recorre el árbol y, por cada nodo, agrega una alternativa a una regla con la
+forma en que se escribió. Las partes que son otra cosa se cambian por su no
+terminal:
 
 ```js
 case 'Binaria': return [exp(n.izquierda), T(n.operador), exp(n.derecha)];
@@ -1558,16 +1725,15 @@ instrucción (`formaInstruccion()`) y por cada tipo de expresión
 (`formaExpresion()`). Las alternativas repetidas se guardan una sola vez, así
 que sólo salen **las que aparecen en el código**.
 
-La raíz es `prop`: la forma de la expresión o de la instrucción si es una
-sola, o `clase id { … }` si es un programa completo. Si son **varias
-proposiciones** (una por renglón, o con `;`), arriba va `props → prop prop …` y
-cada una aporta su forma como alternativa de `prop`:
-`a = b + c` y `a && b || c + f > d` dan `prop → id = exp | exp || exp`.
+La raíz es `prop`, la forma del programa: `clase id { … }`. Cada instrucción del
+programa aporta su forma como alternativa de `inst`: `a = 1; i++;` da
+`inst → id ++ ; | id = exp ;`.
 
 **Paso 2 — Las palabras y los caracteres.** Mientras recorre, el generador
 anota los nombres, números y textos que encuentra. Al final escribe sus reglas
-**sólo con los caracteres que se usaron**: `a1` y `b5` dan `id → let ( dig )*`;
-un texto `"Hola mundo"` da `TEXTO → ( LET | let | simb )*` y `simb → ␣`.
+**sólo con los caracteres que se usaron**: `p`, `a1` y `b5` dan
+`id → let ( dig )*`; un texto `"Hola mundo"` da `TEXTO → ( LET | let | simb )*` y
+`simb → ␣`.
 
 **Paso 3 — El orden.** `prop` va primero; luego las reglas de estructura de
 arriba hacia abajo (cada una después de la primera que la nombra); luego las
@@ -1579,22 +1745,78 @@ primero: `exp → id | num | exp / exp`, como en el pizarrón.
 símbolos con su clase (`terminal`, `no-terminal`, `meta` para `( )* | [ ]` y
 `rango` para `0-9`), su texto y un **ejemplo**: el pedazo de código del que
 salió, que la pestaña muestra al pasar el mouse. El ejemplo lo escribe
-[`TextoDeNodo.js`](../src/core/semantico/TextoDeNodo.js), que vuelve a
-escribir un nodo del árbol como código.
+[`TextoDeNodo.js`](../src/core/03.semantico/TextoDeNodo.js), que vuelve a
+escribir un nodo del árbol como código (también lo usan los mensajes de
+error: *'s \* 2' es cadena \* entero*).
 
 Para escribir `exp → ( exp )` y `equipo ( Null ) ;`, el analizador sintáctico
 anota en el árbol dos datos que antes descartaba: `parentesis: true` en una
 expresión que iba entre paréntesis y `conNull` en `equipo`. Son datos sueltos,
-no nodos, así que el árbol dibujado no cambia.
+no nodos, así que el árbol dibujado no cambia. Por la misma razón el nodo
+`Intentar` guarda `lineaError` y `columnaError`: dónde se escribió el nombre
+del error capturado, para la tabla de símbolos.
 
 ---
+
+# PARTE V ter — EL CÓDIGO INTERMEDIO
+
+## 20 sexies. Código de tres direcciones y cuádruplos
+
+La fase 4 ([`src/core/04.intermedio/`](../src/core/04.intermedio/)) traduce un
+programa sin errores a **código de tres direcciones**: una lista de
+instrucciones donde cada una hace una sola operación, con a lo más dos valores
+y un resultado. Los resultados a medio camino van en **temporales** y las
+decisiones y los ciclos se vuelven **saltos** a **etiquetas**:
+
+```
+entero a = b + c * d;                  t1 = c * d
+                                       t2 = b + t1
+                                       a = t2
+
+mientras (i < 3) { i++; }            L1:
+                                       t1 = i < 3
+                                       ifFalse t1 goto L2
+                                       i = i + 1
+                                       goto L1
+                                     L2:
+```
+
+Cada instrucción es también un **cuádruplo**, (operador, arg1, arg2,
+resultado): `t1 = c * d` es `( *, c, d, t1 )`. La pestaña 4 muestra las dos
+vistas.
+
+**Cómo se genera.** [`GeneradorIntermedio.js`](../src/core/04.intermedio/GeneradorIntermedio.js)
+recorre el árbol del sintáctico con dos ideas:
+
+- `expresion(nodo)` **devuelve dónde quedó el valor**: un nombre (`edad`), un
+  número (`20`) o un temporal nuevo. Una suma primero traduce sus dos lados,
+  y luego emite `t = izquierda + derecha`.
+- Cada instrucción tiene su método (`si()`, `mientras()`, `opcion()`…) que
+  emite sus instrucciones y sus saltos. `romper` salta a la salida del ciclo u
+  `opcion` de más adentro (una pila `salidas`).
+
+Tres detalles:
+1. `Y` y `O` usan **corto circuito**, como Java: si con el primer valor ya se
+   sabe el resultado, el segundo ni se calcula.
+2. Las etiquetas se crean conforme se necesitan y al final se **renumeran en
+   el orden en que aparecen** (`renumerarEtiquetas()`), para que `L1` sea
+   siempre la primera que se ve.
+3. Si el programa ya usa un nombre como `t1` o `L1`, los temporales y las
+   etiquetas cambian de prefijo (`tt1`, `LL1`) para no confundirse.
+
+La primera instrucción de cada renglón del programa lleva ese renglón como
+**comentario** (`// entero a = b + c * d;`), y cada instrucción su número de
+línea. Las formas, con su cuádruplo, están en
+[`Instrucciones.js`](../src/core/04.intermedio/Instrucciones.js) y el detalle
+de cada traducción en [09 — Código intermedio](09-codigo-intermedio.md).
+
 ---
 
 # PARTE VI — LA APLICACIÓN
 
-## 21. La ventana y sus tres pestañas
+## 21. La ventana y sus cuatro pestañas
 
-Hasta arriba van las tres pestañas. Debajo, la pestaña activa, **cada una con
+Hasta arriba van las cuatro pestañas. Debajo, la pestaña activa, **cada una con
 su propio diseño**: sus logos, sus botones y sus cuadros van donde los pide su
 diseño. Lo que comparten es el estilo (la paleta, los botones, las cajas).
 
@@ -1621,6 +1843,7 @@ diseño. Lo que comparten es el estilo (la paleta, los botones, las cajas).
 | **1 · Analizador Léxico** | El de la captura: UAT, título y UAMM en un recuadro arriba; código y tabla *Lexema · Token · Descripción*; pie con el equipo | A la derecha: Realizar Análisis · Guardar · Borrar · Fuga |
 | **2 · Analizador Léxico-Sintáctico** | El anterior, sin cambios: los tres logos arriba; código, salida `id1 > id2` y árbol | A la izquierda: Limpiar · Análisis Léxico · Análisis Sintáctico · Análisis Léxico-Sintáctico · Equipo · Salir |
 | **3 · Analizador Semántico** | El del pizarrón: los tres logos en columna a la izquierda; título; código para analizar; análisis del código dado | A la derecha, repartidos: Limpieza · Analiza · Equipo · Termina |
+| **4 · Código Intermedio** | El de la pestaña 3; el cuadro del resultado tiene dos vistas: *Tres direcciones* y *Cuádruplos* | A la derecha, repartidos: Limpieza · Genera · Equipo · Termina |
 
 En el HTML cada panel trae su propio encabezado
 (`.encabezado-lexico`, `.encabezado`, `.logos-columna`). Los textos que
@@ -1630,7 +1853,7 @@ dependen del equipo llevan `data-dato="equipo"`, `"grupo"`, `"carrera"` o
 
 La aplicación **abre en blanco y en la pestaña 1**.
 
-### 21.1 Un solo código para las tres pestañas
+### 21.1 Un solo código para las cuatro pestañas
 
 Cada pestaña tiene su propio cuadro de código, pero los tres llevan siempre lo
 mismo. [`app.js`](../src/ui/js/app.js) los guarda en un objeto y, cuando uno
@@ -1651,11 +1874,66 @@ _copiarCodigoDesde (origen) {
 ```
 
 Al analizar desde cualquier pestaña se compila una vez y el resultado se pinta
-en los tres paneles. Cambiar de pestaña sólo esconde un panel y muestra otro
+en los cuatro paneles. Cambiar de pestaña sólo esconde un panel y muestra otro
 (`.panel` vs `.panel.activo` en el CSS), así que **nada se borra al cambiar**:
 la fila marcada, la rama abierta del árbol y el zoom siguen ahí al regresar.
 
-### 21.2 La ventana de salida
+### 21.2 Los cuadros de código: números y colores de Java
+
+Cada cuadro de código se arma con [`editor.js`](../src/ui/js/editor.js), que
+le pone tres cosas al `<textarea>`:
+
+1. **Números de renglón** en una columna a la izquierda.
+2. **Los colores de Java**, los de VS Code (tema *Light+*): control de flujo
+   (`si`, `para`, `retornar`) en morado, tipos y clases (`entero`, `area`)
+   en verde azulado, declaraciones y constantes (`clase`, `funcion`,
+   `verdadero`) en azul, funciones en café, variables en azul marino, números
+   en verde, textos en rojo oscuro, comentarios en verde y errores léxicos
+   subrayados en rojo. Los decide `claseDe()` en
+   [`ResaltadoCodigo.js`](../src/core/01.lexico/ResaltadoCodigo.js), con el
+   token y lo que tiene al lado (un nombre seguido de `(` es una función).
+3. **El subrayado rojo de los errores.** Medio segundo después de la última
+   tecla, `window.api.revisar(texto, pestaña)` compila el código y devuelve
+   el HTML con cada error subrayado (`<span class="j-marca">`). El número de
+   ese renglón se pone en rojo y, al pasar el mouse sobre él, el mensaje sale
+   como ayuda (`title`). Cada cuadro marca los errores de su pestaña y de las
+   fases anteriores (`data-revision` en `index.html` y `erroresDe()` en
+   `Compilador.js`). Mientras se escribe no se subraya nada: el código está a
+   medias y casi todo sería error.
+
+Un `<textarea>` no puede tener colores, así que se encima: atrás va un
+`<pre>` con el texto ya coloreado y adelante el `<textarea>` con el texto
+transparente (sólo se ve su cursor y la selección):
+
+```
+┌────┬──────────────────────────────┐
+│  1 │ entero a = 5;                │  <pre> coloreado (atrás)
+│  2 │ si (a > 3) { ... }           │  <textarea> transparente (adelante)
+└────┴──────────────────────────────┘
+ números
+```
+
+**Por qué no hay desfase.** Las tres piezas usan la misma letra, el mismo
+tamaño (`--codigo-letra`), el mismo alto de renglón (`--codigo-renglon`) y el
+mismo relleno de arriba (`--codigo-relleno`). Cuando el `<textarea>` se
+desplaza, el `<pre>` y los números se mueven lo mismo (`translate`). Las
+negritas no cambian el ancho porque la letra es monoespaciada. Las pruebas de
+interfaz miden en pantalla que el último número quede a la altura del último
+renglón con el cuadro desplazado.
+
+**De dónde salen los colores.**
+[`ResaltadoCodigo.js`](../src/core/01.lexico/ResaltadoCodigo.js) corre el mismo
+analizador léxico y envuelve cada token en un `<span class="j-…">` según su
+categoría: lo que se pinta de palabra reservada es exactamente lo que la
+pestaña 1 llama palabra reservada. Se llama en cada tecla, así que
+`preload.js` lo expone como `window.api.resaltar()`, una llamada directa sin
+IPC. El reporte `.html` usa la misma función para su sección de código.
+
+La salida del análisis léxico de la pestaña 2 también va numerada: una fila
+por renglón del código, con su número, y los renglones sin tokens vacíos, para
+que la fila N sea siempre el renglón N.
+
+### 21.3 La ventana de salida
 
 Fuga, Salir, Termina y `Ctrl+Q` abren la misma ventana
 ([`salir.js`](../src/ui/js/salir.js)): el nombre del equipo, sus seis
@@ -1718,7 +1996,7 @@ Hay **dos formas** de ver el árbol de cerca, y son distintas.
 ### 23.1 Zoom general
 
 Los botones `−` / `+` / **Ajustar**, o `Ctrl` + rueda del mouse, agrandan todo el
-dibujo entre el 30 % y el 300 %.
+dibujo entre el 10 % y el 300 %.
 
 Técnicamente: se cambian el `width` y el `height` del SVG **dejando fijo el
 `viewBox`**. Así la imagen escala de verdad y las barras de desplazamiento se
@@ -1728,6 +2006,23 @@ ajustan solas.
 this.dibujo.svg.setAttribute('width', this.dibujo.ancho * this.zoom);
 this.dibujo.svg.setAttribute('height', this.dibujo.alto * this.zoom);
 ```
+
+Tres detalles hacen que el zoom funcione con árboles anchos, como el de un
+programa completo (el del ejemplo de las variables mide 2266 px):
+
+1. **El dibujo nunca se encoge para caber.** El lienzo es una caja flexible, y
+   un SVG dentro de ella se encogía para caber a lo ancho: el `+` sólo agregaba
+   espacio en blanco arriba y abajo. Con `flex-shrink: 0` mide lo que dice su
+   `width`.
+2. **Se puede llegar a las dos orillas.** Centrar con
+   `justify-content: center` deja fuera de alcance la parte izquierda de algo
+   más ancho que la caja. El dibujo se centra con `margin: 0 auto`, que sólo
+   centra mientras cabe.
+3. **No se pierde de vista lo que se estaba viendo.** `_aplicarZoom(zoom,
+   punto)` mira qué parte del dibujo está en un punto de la caja (el centro
+   con los botones, el mouse con `Ctrl` + rueda), cambia el tamaño y desplaza
+   la caja para que esa parte siga ahí. Al dibujar un árbol, la raíz queda
+   centrada a la vista (`_centrarRaiz()`).
 
 ### 23.2 Ver una rama de cerca
 
@@ -1773,7 +2068,16 @@ de lupa. La raíz no se puede abrir, porque ya se está viendo completa.
 Al guardar (`Ctrl+S`, *Archivo → Guardar reporte* o el botón **Guardar** de la
 pestaña 1), lo que sale **no** es sólo el código: es un reporte completo. El
 diálogo ofrece dos formatos y el primero es el **reporte visual**, una página
-web que arma [`ReporteHTML.js`](../src/core/ReporteHTML.js):
+web que arma [`ReporteHTML.js`](../src/core/ReporteHTML.js).
+
+**El archivo se llama igual que la clase**, como en Java: `clase ejemplo` se
+guarda como `ejemplo.html` (o `ejemplo.bs`). Ese es el nombre que propone el
+diálogo (`nombreDelArchivo()` en
+[`ArchivoGuardado.js`](../src/core/ArchivoGuardado.js)); si se escribe otro,
+`electron/main.js` avisa y lo guarda con el nombre de la clase. Si el código
+no tiene clase (una expresión suelta), se llama `analisis`.
+
+Sus partes:
 
 ![Reporte visual](capturas/reporte.png)
 
@@ -1799,8 +2103,14 @@ web que arma [`ReporteHTML.js`](../src/core/ReporteHTML.js):
    listas `<ul>` anidadas; las ramas las dibuja el CSS (bordes de los
    `::before` y `::after` de cada `<li>`), así que no hace falta JavaScript.
    Abajo, desplegable, el mismo árbol en texto con sangría.
-6. **4. Análisis semántico**: la gramática generada del código, con los
-   terminales subrayados como en la pestaña 3.
+6. **4. Análisis semántico**: los errores y las advertencias, si hay, y la
+   gramática generada del código, con los terminales subrayados como en la
+   pestaña 3.
+7. **5. Código intermedio**: el código de tres direcciones, con el renglón
+   del programa de donde sale cada grupo, y la tabla de cuádruplos.
+
+En la sección 1, el código lleva sus errores (de las tres fases) subrayados en
+rojo, igual que en el editor.
 
 La página **no lleva JavaScript**: sólo HTML y CSS. Todo texto que viene del
 código pasa por `esc()`, para que un `<b>` escrito en el código se vea como
@@ -1903,15 +2213,28 @@ a = b + c > 9 AND d > e OR f <= 30
 //  Errores sintácticos: 0   Tiempo: 1 ms
 
 // --------------------------------------------------------------------------
-//  4. ANÁLISIS SEMÁNTICO: GRAMÁTICA DEL CÓDIGO
+//  4. ANÁLISIS SEMÁNTICO
 // --------------------------------------------------------------------------
 
-//  Gramática generada del código dado (6 reglas):
+//  Falta la clase: el código va dentro de una clase:
+//    clase ejemplo { clasePrincipal { ... } }
+```
+
+Con un programa, la sección 4 trae los errores y las advertencias, si hay, y la
+gramática:
+
+```
+//  Sin errores semánticos: el código tiene sentido.
 //
-//  prop → exp OR exp
-//  exp  → id
-//       | num
-//       | exp + exp
+//  Gramática del código (9 reglas):
+//
+//  prop      → clase id { principal }
+//  principal → clasePrincipal { inst ( inst )* }
+//  inst      → tipo id = exp ;
+//            | imprimirLn ( exp ) ;
+//  exp       → id
+//            | dec
+//            | area . circulo ( exp )
 //  ...
 ```
 
@@ -1970,8 +2293,8 @@ Hay dos suites, y son complementarias.
 
 | Comando | Qué hace | Cuántas |
 |---|---|---|
-| `npm run pruebas` | Prueba el compilador sin abrir ventana | 118 |
-| `npm run pruebas:ui` | Abre la aplicación de verdad y la revisa | 109 |
+| `npm run pruebas` | Prueba el compilador sin abrir ventana | 161 |
+| `npm run pruebas:ui` | Abre la aplicación de verdad y la revisa | 142 |
 
 ### 25.1 Las pruebas del compilador
 
@@ -1987,9 +2310,16 @@ Cubren:
 - Los tres modos de análisis
 - La recuperación de errores
 - La tabla de tokens de la pestaña 1
-- El analizador semántico: que el ejemplo del pizarrón dé la gramática del
-  pizarrón, cada tipo de instrucción, las listas, el orden de las reglas, los
-  caracteres, los errores y que todos los ejemplos generen su gramática
+- El analizador semántico: cada regla (nombres sin declarar o repetidos,
+  ámbitos, tipos, condiciones, `Constante`, arreglos, funciones, `romper` y
+  `retornar`, `opcion`, `imprimirF`, nativas, geometría), que sólo valgan
+  `Y`, `O`, `NO` y `potencia`, las advertencias, la tabla de símbolos que
+  comparten las tres fases, que sin la clase no se analice y que los ejemplos
+  no tengan errores semánticos
+- Los errores subrayados mientras se escribe, en cada pestaña
+- Que el archivo se llame igual que la clase
+- La gramática generada: el ejemplo del pizarrón, cada tipo de instrucción,
+  las listas, el orden de las reglas y los caracteres
 - Los dos reportes y su ida y vuelta, incluido código con `<`, `&` y
   `</script>`
 - Que los 7 ejemplos compilen
@@ -2006,11 +2336,20 @@ DOM resultante. Verifican, entre otras cosas:
 - Que los colores por categoría sean los correctos
 - Que el `OR` quede hasta arriba del árbol
 - Que el zoom y la vista por ramas funcionen
-- Que las tres pestañas compartan el código y el resultado, y que **cambiar de
+- Que las cuatro pestañas compartan el código y el resultado, y que **cambiar de
   pestaña no borre nada**
 - Que cada pestaña tenga sus logos y sus botones donde los pide su diseño
-- La tabla de tokens, la gramática generada (y que con errores no se genere) y
-  la ventana de Fuga (Cancelar no sale, *Sí, salir* sí)
+- La tabla de tokens, el análisis semántico (errores, advertencias y
+  gramática, sin recuadro ni tabla de símbolos cuando no hay errores; que a
+  una expresión suelta le falte la clase y que con errores sintácticos pida
+  corregir primero) y la ventana de Fuga (Cancelar no sale, *Sí, salir* sí)
+- Los cuadros de código: números alineados con su renglón, los colores de
+  Java de VS Code, que con 80 renglones el cuadro **no se estire** en ninguna
+  de las pestañas y que los errores se subrayen en rojo al hacer una
+  pausa (con su renglón en rojo y el mensaje al pasar el mouse)
+- El zoom con un árbol ancho (el del ejemplo de las variables): que el dibujo
+  no se encoja, que el `+` lo agrande de verdad, que la raíz quede a la vista
+  y que se pueda llegar a la orilla izquierda
 - Que el reporte `.html` traiga sus secciones y sus logos, y que al **volver a
   abrirlo** (o soltarlo sobre la ventana) regrese el código y la pestaña
 
@@ -2067,12 +2406,12 @@ Tres recetas para los cambios más probables.
 ### 27.1 Agregar una palabra reservada
 
 1. Agregarla al diccionario de
-   [`PalabrasReservadas.js`](../src/core/lexico/PalabrasReservadas.js) con su
+   [`PalabrasReservadas.js`](../src/core/01.lexico/PalabrasReservadas.js) con su
    descripción.
 2. Si empieza una instrucción, agregarla a `INICIO_INSTRUCCION` en el parser
    (para la recuperación de errores) y al `switch` de `instruccion()`.
 3. Escribir el método de su producción.
-4. Agregar la regla a [`Gramatica.js`](../src/core/sintactico/Gramatica.js) y
+4. Agregar la regla a [`Gramatica.js`](../src/core/02.sintactico/Gramatica.js) y
    correr `npm run gramatica`.
 5. Agregar una prueba.
 
@@ -2116,9 +2455,10 @@ Vale la pena tenerlas claras, porque son preguntas probables en la revisión.
 
 | Limitación | Por qué |
 |---|---|
-| No valida tipos (`entero a = "hola";` pasa) | La pestaña 3 genera la gramática del código; validar tipos sería otra parte del análisis semántico que no se pidió |
-| No detecta variables sin declarar | Mismo motivo |
+| «Se usa antes de recibir un valor» se revisa en el orden del código | Java además sigue los caminos (un valor dado sólo dentro de un `si` sin `sino` no cuenta). Aquí basta con que se haya dado antes en el texto: nunca marca un error que Java no marcaría |
+| Las reglas de geometría (medidas positivas, triángulos) sólo revisan números escritos tal cual | Con una variable, el valor se conoce hasta ejecutar |
 | La gramática generada describe **este** código, no todo el lenguaje | Es lo que se pide: sólo salen las alternativas y los caracteres que aparecen. La gramática completa del lenguaje está en [04 — Gramática EBNF](04-gramatica-ebnf.md) |
+| No optimiza el código intermedio | Es la fase 5: el código de tres direcciones sale tal cual, con todas sus copias y temporales |
 | No genera código Java | Es la fase 6 |
 | No ejecuta el programa | Un compilador traduce; ejecutar es otra cosa |
 | Sólo Windows | El empaquetado está configurado para `.exe`. El compilador en sí es multiplataforma |
@@ -2167,8 +2507,8 @@ Las 17 categorías de
 | Comando | Qué hace |
 |---|---|
 | `npm start` | Abre la aplicación desde el código |
-| `npm run pruebas` | 118 pruebas del compilador |
-| `npm run pruebas:ui` | 109 comprobaciones sobre la ventana real |
+| `npm run pruebas` | 161 pruebas del compilador |
+| `npm run pruebas:ui` | 142 comprobaciones sobre la ventana real |
 | `npm run capturas` | Igual que la anterior + regenera `docs/capturas/` |
 | `npm run gramatica` | Regenera `docs/04-gramatica-ebnf.md` |
 | `npm run icono` | Regenera el icono de la aplicación |
@@ -2192,7 +2532,13 @@ Las 17 categorías de
 | **Asociatividad** | Hacia qué lado agrupa un operador cuando se repite |
 | **IPC** | Inter-Process Communication. Cómo hablan los dos procesos de Electron |
 | **SVG** | Formato de imagen vectorial. Con él se dibuja el árbol |
-| **Análisis semántico** | En la pestaña 3: escribir la gramática de la que está hecho el código dado |
+| **Análisis semántico** | En la pestaña 3: revisar que el código tenga sentido (nombres declarados, tipos que coinciden) y escribir la gramática de la que está hecho |
+| **Tabla de símbolos** | Donde se anota cada nombre del código. La usan las tres fases: el léxico le da su etiqueta `idN`, el sintáctico la usa en el árbol y el semántico le agrega su tipo y su ámbito |
+| **Manejo de errores** | La forma común en que las tres fases reportan sus errores (`ErrorCompilacion`) |
+| **Ámbito** | La parte del código donde existe un nombre: el bloque `{ }` donde se declaró y los de adentro |
+| **Código de tres direcciones** | El código intermedio: cada instrucción hace una sola operación con a lo más tres direcciones (`t1 = a + b`) |
+| **Cuádruplo** | Una instrucción de tres direcciones guardada en cuatro campos: (operador, arg1, arg2, resultado) |
+| **Temporal** | Un nombre nuevo (`t1`, `t2`…) que guarda un resultado a medio camino |
 | **Producción** | Una regla de la gramática: `exp → exp / exp` dice que una expresión puede ser dos expresiones con `/` en medio |
 | **Terminal** | Símbolo que aparece tal cual en el código, como `si`, `(` o `;` |
 | **No terminal** | El nombre de otra regla, como `exp` o `id`: se sustituye por alguna de sus alternativas |
@@ -2210,7 +2556,8 @@ Las 17 categorías de
 | [05 — Arquitectura](05-arquitectura.md) | Decisiones de diseño y estructura |
 | [06 — Manual de usuario](06-manual-de-usuario.md) | Cómo usar la aplicación |
 | [07 — Mantenimiento](07-mantenimiento.md) | Tareas de mantenimiento paso a paso |
-| [08 — Analizador semántico](08-analizador-semantico.md) | Cómo se genera la gramática del código, con más ejemplos |
+| [09 — Código intermedio](09-codigo-intermedio.md) | La fase 4: las formas del código de tres direcciones, los cuádruplos y cómo se traduce cada instrucción |
+| [08 — Analizador semántico](08-analizador-semantico.md) | Cada regla que revisa la pestaña 3 con su mensaje, la tabla de símbolos, los tipos y cómo se genera la gramática |
 
 ---
 

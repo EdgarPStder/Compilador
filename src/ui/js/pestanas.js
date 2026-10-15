@@ -1,20 +1,22 @@
 /**
  * pestanas.js
- * Cambia entre las tres pestañas de la aplicacion:
+ * Cambia entre las cinco pestañas de la aplicacion:
  *
  *   1. Analizador Léxico               (panel-lexico)
  *   2. Analizador Léxico-Sintáctico    (panel-sintactico)
  *   3. Analizador Semántico            (panel-semantico)
+ *   4. Generador de Código Intermedio  (panel-intermedio)
+ *   5. Optimizador de Código Intermedio (panel-optimizacion)
  *
  * Cambiar de pestaña solo ESCONDE un panel y MUESTRA otro: nada se borra.
- * Los tres paneles existen todo el tiempo, asi que lo que se hizo en uno
+ * Los cinco paneles existen todo el tiempo, asi que lo que se hizo en uno
  * sigue ahi al regresar.
  */
 
 /* global document */
 
 /** Las pestañas, en orden (para Ctrl+Tab). */
-const PESTANAS = ['lexico', 'sintactico', 'semantico'];
+const PESTANAS = ['lexico', 'sintactico', 'semantico', 'intermedio', 'optimizacion'];
 
 class Pestanas {
   /**
@@ -31,7 +33,7 @@ class Pestanas {
     });
   }
 
-  /** Muestra una pestaña por su nombre: 'lexico', 'sintactico' o 'semantico'. */
+  /** Muestra una pestaña por su nombre: 'lexico', 'sintactico', 'semantico', 'intermedio' u 'optimizacion'. */
   mostrar (nombre) {
     if (PESTANAS.indexOf(nombre) === -1) return;
 

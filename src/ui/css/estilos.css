@@ -36,6 +36,8 @@
   --rojo:         #c0392b;
   --rojo-claro:   #fdeceb;
   --morado:       #5b3fbf;
+  --ambar:        #8a5b12;
+  --ambar-claro:  #fdf3e0;
 
   --radio:        8px;
   --mono: 'Cascadia Mono', Consolas, 'Courier New', monospace;
@@ -74,6 +76,7 @@ body {
 }
 
 .pestana {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -107,6 +110,12 @@ body {
   color: var(--texto-2);
 }
 .pestana.activa .pestana-num { background: var(--azul); color: #fff; }
+
+/* En una ventana angosta las cinco pestañas se juntan un poco */
+@media (max-width: 1080px) {
+  .pestanas { padding: 0 8px; gap: 0; overflow-x: auto; }
+  .pestana { padding: 9px 10px 8px; font-size: 12.5px; }
+}
 
 /* ==========================================================================
    Paneles: uno por pestaña. Solo se ve el activo; los demás se esconden
@@ -367,26 +376,154 @@ body {
   line-height: 1.55;
 }
 
+/* ==========================================================================
+   Los cuadros de código: números de renglón y colores de Java
+
+   Cada cuadro tiene tres piezas encimadas (ver js/editor.js):
+     - la columna de números,
+     - un <pre> con el texto ya coloreado, atrás,
+     - el <textarea> donde se escribe, adelante y con el texto transparente.
+
+   Las tres usan la MISMA letra, el mismo tamaño, el mismo alto de renglón y
+   el mismo relleno de arriba (las variables de aquí abajo). Eso es lo que
+   evita el desfase entre el texto, sus colores y sus números.
+   ========================================================================== */
+:root {
+  --codigo-letra:   14px;
+  --codigo-renglon: 21px;
+  --codigo-relleno: 12px;
+
+  /* El resaltado de sintaxis de Java: los colores del tema claro de VS Code
+     (Light+) con la clasificación de su gramática de Java. Ver
+     src/core/01.lexico/ResaltadoCodigo.js para qué palabra va en cada grupo. */
+  --java-control:     #af00db;   /* si, para, retornar...      (if, for, return)  */
+  --java-tipo:        #267f99;   /* entero, cadena...          (int, String)      */
+  --java-palabra:     #0000ff;   /* clase, funcion, verdadero  (class, true)      */
+  --java-funcion:     #795e26;   /* imprimirLn, raiz, sumar    (println, pow)     */
+  --java-variable:    #001080;   /* edad, total                                   */
+  --java-cadena:      #a31515;   /* "textos" y 'caracteres'                       */
+  --java-numero:      #098658;   /* 20, 3.5                                       */
+  --java-comentario:  #008000;   /* comentarios                                   */
+  --java-error:       #cd3131;   /* errores léxicos, subrayados                   */
+}
+
+.editor-codigo {
+  display: flex;
+  background: var(--panel);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+.editor-codigo:focus-within {
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px var(--azul-claro);
+}
+
+/* Lo que comparten el texto, sus colores y sus números */
+.editor-numeros,
+.editor-colores,
 .caja-editable {
-  height: 130px;
-  min-height: 90px;
-  padding: 12px 14px;
-  resize: vertical;
-  outline: none;
-  color: var(--texto);
-  white-space: pre;
-  overflow: auto;
+  font-family: var(--mono);
+  font-size: var(--codigo-letra);
+  line-height: var(--codigo-renglon);
+  font-variant-ligatures: none;
   tab-size: 4;
 }
+
+/* La columna de números, a la izquierda. La lista va encimada (absolute):
+   así sus renglones NO cuentan para el alto del cuadro, que lo pone el
+   textarea. Si contaran, con mucho código el cuadro crecería sin fin. */
+.editor-numeros {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 46px;
+  text-align: right;
+  color: var(--texto-3);
+  background: var(--caja);
+  border-right: 1px solid var(--borde);
+  overflow: hidden;
+  user-select: none;
+}
+.editor-numeros-lista {
+  position: absolute;
+  top: var(--codigo-relleno);
+  right: 10px;
+  white-space: pre;
+}
+
+/* Donde se encima el texto con sus colores */
+.editor-zona {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editor-colores {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 100%;
+  margin: 0;
+  padding: var(--codigo-relleno) 14px;
+  white-space: pre;
+  color: var(--texto);
+  pointer-events: none;
+}
+
+/* El textarea: se escribe aquí, pero su texto es transparente para que se
+   vea el texto coloreado de atrás. El cursor y la selección sí se ven. */
+.caja-editable {
+  display: block;
+  width: 100%;
+  height: 130px;
+  min-height: 90px;
+  margin: 0;
+  padding: var(--codigo-relleno) 14px;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--texto);
+  resize: vertical;
+  outline: none;
+  white-space: pre;
+  overflow: auto;
+}
+.caja-editable::selection { color: transparent; background: rgba(31, 78, 156, .22); }
+.caja-editable::placeholder { color: var(--texto-3); font-family: var(--sans); }
 /* El cuadro de la pestaña 3 es de una sola proposición: puede ser más bajo */
 #sem-codigo { min-height: 60px; }
-.caja-editable:focus { border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-claro); }
-.caja-editable::placeholder { color: var(--texto-3); font-family: var(--sans); }
+
+/* Los colores de Java (cada clase la pone ResaltadoCodigo.js) */
+.j-control     { color: var(--java-control); }
+.j-tipo,
+.j-clase       { color: var(--java-tipo); }
+.j-declaracion,
+.j-constante,
+.j-operador    { color: var(--java-palabra); }
+.j-funcion     { color: var(--java-funcion); }
+.j-variable    { color: var(--java-variable); }
+.j-cadena      { color: var(--java-cadena); }
+.j-numero      { color: var(--java-numero); }
+.j-comentario  { color: var(--java-comentario); }
+.j-error       { text-decoration: underline wavy var(--java-error); }
+
+/* Donde hay un error (de cualquier fase), subrayado rojo como en un editor de
+   Java, y el número de su renglón en rojo. El subrayado no cambia el ancho de
+   las letras, así que no mueve nada. */
+.j-marca {
+  text-decoration: underline wavy var(--java-error);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+.renglon-con-error { color: var(--java-error); font-weight: 700; }
 
 .caja-salida {
   min-height: 92px;
   max-height: 260px;
-  padding: 12px 14px;
+  padding: var(--codigo-relleno) 14px;
+  font-size: var(--codigo-letra);
+  line-height: var(--codigo-renglon);
   overflow: auto;
   background: var(--caja);
   white-space: pre-wrap;
@@ -409,9 +546,17 @@ body {
   min-height: 0;
   overflow: auto;
   display: flex;
-  justify-content: center;
   align-items: flex-start;
   padding: 16px;
+}
+/* El dibujo nunca se encoge para caber en la caja: si se encogiera, el zoom
+   no lo agrandaria a lo ancho. Se centra con margenes automaticos mientras
+   cabe; cuando es mas ancho que la caja, empieza en la orilla izquierda y se
+   puede desplazar hasta las dos orillas. (Con justify-content: center, la
+   parte izquierda quedaria fuera y no se podria ver.) */
+.arbol-lienzo svg {
+  flex-shrink: 0;
+  margin: 0 auto;
 }
 
 /* ==========================================================================
@@ -464,6 +609,7 @@ body {
 .insignia.visible { display: inline-block; }
 .insignia.ok    { background: var(--verde-claro); color: var(--verde); }
 .insignia.error { background: var(--rojo-claro); color: var(--rojo); }
+.insignia.advertencia { background: var(--ambar-claro); color: var(--ambar); }
 
 /* ==========================================================================
    Salida léxica
@@ -483,13 +629,19 @@ body {
   margin: 10px 0;
 }
 
-.linea-salida { display: flex; gap: 12px; }
+/* Una fila por renglón del código: el número a la izquierda, igual que en el
+   cuadro de código, para comparar renglón por renglón. */
+.linea-salida { display: flex; gap: 12px; min-height: var(--codigo-renglon); }
 .linea-salida .num {
+  flex-shrink: 0;
+  min-width: 32px;
+  padding-right: 10px;
+  border-right: 1px solid var(--borde);
   color: var(--texto-3);
-  min-width: 26px;
   text-align: right;
   user-select: none;
 }
+.linea-salida .codigo-linea { white-space: pre; }
 
 /* Colores por categoría: lógicos en azul, relacionales en rojo,
    aritméticos en negro. Son los mismos que usan los nodos del árbol. */
@@ -842,7 +994,7 @@ body {
 .linea-estado.error { color: var(--rojo); }
 
 /* ==========================================================================
-   Pestaña 3: la gramática generada del código
+   Pestaña 3: análisis semántico (veredicto, tabla de símbolos y gramática)
    ========================================================================== */
 .caja-semantica {
   flex: 1;
@@ -857,15 +1009,123 @@ body {
 /* Arriba de la gramática: cuántas reglas salieron y de qué tipo de código */
 .resumen-gramatica { font-size: 13px; color: var(--verde); margin-bottom: 12px; }
 
-/* Cuando el código tiene errores y no se puede generar la gramática */
+/* Los recuadros: rojo con los errores y ámbar con las advertencias. */
 .veredicto {
   border: 1px solid;
   border-radius: 8px;
   padding: 10px 14px;
 }
+.veredicto + .veredicto { margin-top: 8px; }
 .veredicto p { margin-top: 3px; }
-.veredicto.mal { background: var(--rojo-claro); border-color: var(--rojo); color: var(--rojo); }
-.veredicto .error-linea { padding: 3px 0 0; }
+.veredicto.mal   { background: var(--rojo-claro);  border-color: var(--rojo);  color: var(--rojo); }
+.veredicto.advertencia { background: var(--ambar-claro); border-color: var(--ambar); color: var(--ambar); }
+.veredicto .error-linea { padding: 3px 0 0; color: inherit; }
+.veredicto .ejemplo-codigo {
+  margin: 8px 0 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--texto);
+  font: 13px/1.5 var(--mono);
+}
+
+/* El título de la gramática del código */
+.titulo-semantico-parte {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--azul);
+}
+/* Si no hay errores, es lo primero de la caja: sin espacio de más arriba */
+.caja-semantica > .titulo-semantico-parte:first-child { margin-top: 0; }
+
+
+/* ==========================================================================
+   Pestaña 4: el código intermedio
+   ========================================================================== */
+
+/* Los botones "Tres direcciones | Cuádruplos": el de la vista que se ve, azul */
+.btn-vista.activa,
+.btn-vista.activa:hover { background: var(--azul); border-color: var(--azul); color: #fff; }
+
+/* El código de tres direcciones: número · instrucción, y los comentarios en
+   verde (el renglón del programa de donde sale cada grupo) */
+.codigo-intermedio {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.codigo-intermedio td { padding: 0 10px; white-space: pre; vertical-align: top; }
+.codigo-intermedio td.num {
+  color: var(--texto-3);
+  text-align: right;
+  user-select: none;
+  border-right: 1px solid var(--borde);
+}
+.codigo-intermedio td.instruccion { padding-left: 34px; }      /* con sangría... */
+.codigo-intermedio tr.etiqueta td.instruccion { padding-left: 10px; }   /* ...menos las etiquetas */
+.codigo-intermedio tr.comentario td { color: var(--java-comentario); padding-top: 6px; }
+.ci-palabra  { color: var(--java-control); }
+.ci-temporal { color: var(--morado); }
+.ci-etiqueta { color: var(--azul); font-weight: 700; }
+
+/* Los cuádruplos: (operador, arg 1, arg 2, resultado) */
+.tabla-cuadruplos {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--panel);
+}
+.tabla-cuadruplos th {
+  text-align: left;
+  padding: 5px 16px;
+  background: var(--azul-claro);
+  color: var(--azul);
+  border: 1px solid var(--borde);
+  font-family: var(--sans);
+  font-weight: 600;
+}
+.tabla-cuadruplos td { padding: 3px 16px; border: 1px solid var(--borde); white-space: pre; }
+.tabla-cuadruplos td.num { text-align: right; color: var(--texto-3); }
+.tabla-cuadruplos td.op { font-weight: 700; color: var(--java-control); }
+.tabla-cuadruplos tbody tr:hover td { background: #f0f4fa; }
+
+
+/* ==========================================================================
+   Pestaña 5: la optimización
+   ========================================================================== */
+
+/* Arriba: de cuántas instrucciones a cuántas, y cada optimización usada */
+.resumen-optimizacion { margin-bottom: 12px; }
+.resumen-optimizacion .resumen-gramatica { margin-bottom: 8px; }
+.chips-optimizacion { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-optimizacion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--texto-2);
+  cursor: help;
+}
+.chip-optimizacion b { color: var(--verde); }
+
+/* Las instrucciones que cambiaron: en verde, con lo que se les hizo */
+.codigo-intermedio tr.cambiada td.instruccion { background: var(--verde-claro); box-shadow: inset 3px 0 0 var(--verde); }
+.codigo-intermedio td.ci-cambios {
+  padding-left: 16px;
+  font-family: var(--sans);
+  font-size: 11.5px;
+  color: var(--verde);
+}
+
+/* Los cambios, uno por fila: antes y después */
+.tabla-cambios td.optimizacion { font-family: var(--sans); color: var(--azul); white-space: nowrap; cursor: help; }
+.tabla-cambios td.quitada { color: var(--texto-3); font-style: italic; }
 
 /* La gramática, como en el pizarrón:   regla  →  alternativa | alternativa */
 .gramatica {

@@ -9,6 +9,12 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+// El coloreado del codigo y el subrayado de errores corren aqui mismo (no
+// por IPC) porque se llaman mientras se escribe: asi aparecen al instante,
+// sin esperar respuesta.
+const { resaltarCodigo } = require('../src/core/01.lexico/ResaltadoCodigo');
+const { erroresParaMarcar } = require('../src/core/Compilador');
+
 /** Ordenes que el menu de la aplicacion manda a la interfaz. */
 const CANALES_MENU = [
   'menu:abrir', 'menu:guardar', 'menu:limpiar',
@@ -20,6 +26,20 @@ contextBridge.exposeInMainWorld('api', {
   // --- Compilador ---
   analizar: (fuente, opciones) => ipcRenderer.invoke('compilador:analizar', fuente, opciones),
   equipo: () => ipcRenderer.invoke('compilador:equipo'),
+  /** El codigo en HTML con los colores de Java (ver ResaltadoCodigo.js). */
+  resaltar: (texto) => resaltarCodigo(texto),
+  /**
+   * El codigo con colores y sus errores subrayados en rojo.
+   * @param {string} pestana 'lexico' | 'sintactico' | 'semantico': que
+   *                         errores se marcan (ver erroresParaMarcar).
+   * @returns {{html: string, errores: Array}}
+   */
+  revisar: (texto, pestana) => {
+    const errores = erroresParaMarcar(texto, pestana).map((e) => ({
+      fase: e.fase, linea: e.linea, columna: e.columna, mensaje: e.mensaje, sugerencia: e.sugerencia
+    }));
+    return { html: resaltarCodigo(texto, errores), errores };
+  },
 
   // --- Archivos ---
   abrirArchivo: () => ipcRenderer.invoke('archivo:abrir'),

@@ -2,11 +2,11 @@
 
 Gramática libre de contexto del lenguaje en notación **EBNF**. Es la
 especificación que implementa
-[`AnalizadorSintactico.js`](../src/core/sintactico/AnalizadorSintactico.js):
+[`AnalizadorSintactico.js`](../src/core/02.sintactico/AnalizadorSintactico.js):
 cada no terminal de esta lista es un método con el mismo nombre en esa clase.
 
 > Este archivo se genera a partir de
-> [`src/core/sintactico/Gramatica.js`](../src/core/sintactico/Gramatica.js),
+> [`src/core/02.sintactico/Gramatica.js`](../src/core/02.sintactico/Gramatica.js),
 > así que el documento y el código nunca se desincronizan.
 
 ## Notación
@@ -63,7 +63,9 @@ sin `;`). Cuál se usa lo decide `elegirModo()`; ver
 <matriz> ::= "matriz" <tipo> IDENT "[" [ <expresion> ] "]" "[" [ <expresion> ] "]" [ "=" <inicializador> ] ";"
 <inicializador> ::= "{" [ <valorInicial> { "," <valorInicial> } ] "}"
 <valorInicial> ::= <expresion> | <inicializador>
-<proposicion> ::= <expresion> ";"       (a = b + c;  i++;  sumar(1, 2);  a && b || c;)
+<proposicion> ::= <destino> "=" <expresion> ";"
+                | <destino> ( "++" | "--" ) ";"
+                | IDENT "(" [ <argumentos> ] ")" ";"
 <destino> ::= IDENT [ "[" <expresion> "]" [ "[" <expresion> "]" ] ]
 ```
 

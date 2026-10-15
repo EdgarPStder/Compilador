@@ -113,6 +113,63 @@ const LITERALES_LOGICOS = ['verdadero', 'falso'];
 const OPERADORES_PALABRA = ['Y', 'AND', 'O', 'OR', 'NO', 'NOT'];
 
 /**
+ * El lenguaje esta basado en Java, pero con sus propias palabras. Si alguien
+ * escribe la de Java por costumbre, el analizador sintactico no la reconoce
+ * como instruccion y dice cual es la de SwordByte.
+ *
+ *   break;   ->   'break' es de Java. En SwordByte se escribe 'romper'.
+ */
+const EQUIVALENTES_JAVA = {
+  // Tipos
+  int: 'entero',
+  double: 'decimal',
+  float: 'flotante',
+  long: 'largo',
+  short: 'corto',
+  char: 'caracter',
+  boolean: 'logico',
+  String: 'cadena',
+  void: 'vacio',
+  // Valores
+  true: 'verdadero',
+  false: 'falso',
+  null: 'Null',
+  // Estructura y declaraciones
+  class: 'clase',
+  final: 'Constante',
+  // Control de flujo
+  if: 'si',
+  else: 'sino',
+  for: 'para',
+  while: 'mientras',
+  do: 'hacer',
+  switch: 'opcion',
+  case: 'caso',
+  default: 'porDefecto',
+  break: 'romper',
+  return: 'retornar',
+  try: 'intentar',
+  catch: 'capturar',
+  // Entrada, salida y matematicas
+  System: 'imprimir, imprimirLn o imprimirF',
+  print: 'imprimir',
+  println: 'imprimirLn',
+  printf: 'imprimirF',
+  Scanner: 'leer',
+  Math: 'una función nativa (potencia, raiz, redondear, seno...)'
+};
+
+/**
+ * Si la palabra es de Java, devuelve como se escribe en SwordByte; si no,
+ * null.
+ */
+function equivalenteJava (palabra) {
+  return Object.prototype.hasOwnProperty.call(EQUIVALENTES_JAVA, palabra)
+    ? EQUIVALENTES_JAVA[palabra]
+    : null;
+}
+
+/**
  * Clasifica una palabra ya reconocida por el automata.
  * @param {string} lexema
  * @returns {{tipo:string, descripcion:string}|null} null si es un identificador.
@@ -133,4 +190,4 @@ function clasificarPalabra (lexema) {
   return null;
 }
 
-module.exports = { FIGURAS, clasificarPalabra };
+module.exports = { FIGURAS, clasificarPalabra, equivalenteJava };

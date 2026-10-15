@@ -30,7 +30,7 @@ npm start
 
 ## 2. La ventana
 
-Hasta arriba están **las tres pestañas**, una por analizador. Debajo, la
+Hasta arriba están **las cuatro pestañas**, una por fase. Debajo, la
 pestaña que se está viendo, **cada una con su propio diseño**: sus logos, sus
 botones y sus cuadros van donde los pide su diseño.
 
@@ -39,16 +39,57 @@ botones y sus cuadros van donde los pide su diseño.
 | **1 · Analizador Léxico** | El de la captura del analizador léxico | UAT a la izquierda y UAMM a la derecha, con la carrera, el analizador, el grupo y el equipo en medio | A la derecha |
 | **2 · Analizador Léxico-Sintáctico** | El anterior | Los tres (UAT, UAMM, ISC) arriba | A la izquierda |
 | **3 · Analizador Semántico** | El del pizarrón | Los tres en columna, a la izquierda | A la derecha |
+| **4 · Código Intermedio** | El de la pestaña 3 | Los tres en columna, a la izquierda | A la derecha |
 
-Lo que comparten las tres es el **estilo**: los colores, los botones, las cajas
+Lo que comparten las cuatro es el **estilo**: los colores, los botones, las cajas
 y los tipos de letra son los del analizador léxico-sintáctico.
 
-Para cambiar de pestaña: un clic en ella, `Ctrl+1` / `Ctrl+2` / `Ctrl+3`, o
+Para cambiar de pestaña: un clic en ella, `Ctrl+1` a `Ctrl+4`, o
 `Ctrl+Tab` para pasar a la siguiente (`Ctrl+Shift+Tab` regresa).
 
 > Lo que aparece dentro de los cuadros en los diseños (`a = b + c * 24`,
 > `w = x + 3 > y`, `switch a case 1: …`) es sólo un ejemplo: se puede escribir
 > cualquier código del lenguaje.
+
+### Los cuadros de código: números, colores y errores
+
+Los tres cuadros donde se escribe el código tienen:
+
+- **Números de renglón** a la izquierda. Se mueven junto con el texto cuando el
+  cuadro se desplaza, así que el número siempre queda a la altura de su
+  renglón. Con mucho código el cuadro **no se estira**: mantiene su alto y se
+  desplaza por dentro.
+- **Los colores de Java**, los mismos que usa VS Code para Java (tema
+  *Light+*), que se ponen mientras se escribe. Como SwordByte está basado en
+  Java, cada palabra lleva el color de su equivalente:
+
+| Qué | Color | SwordByte | En Java |
+|---|---|---|---|
+| Control de flujo | morado | `si`, `sino`, `para`, `mientras`, `opcion`, `caso`, `romper`, `retornar`, `intentar` | `if`, `for`, `return`… |
+| Tipos de dato y clases | verde azulado | `entero`, `decimal`, `cadena`, `area`, `perimetro`, `Error`, el nombre de la clase | `int`, `double`, `String`, `Math` |
+| Declaraciones, constantes y operadores con palabra | azul | `clase`, `funcion`, `Constante`, `Arreglo`, `verdadero`, `Null`, `Y`, `NO` | `class`, `final`, `true` |
+| Funciones | café | `imprimirLn`, `potencia`, `circulo`, `sumar(…)` | `println`, `pow` |
+| Variables | azul marino | `edad`, `radio` | |
+| Números | verde | `20`, `3.5` | |
+| Textos y caracteres | rojo oscuro | `"Hola"`, `'A'` | |
+| Comentarios | verde | `// nota`, `/* … */` | |
+| Errores léxicos | subrayados en rojo | un `@`, una cadena sin cerrar | |
+
+Los colores salen del mismo analizador léxico de la pestaña 1: lo que se pinta
+como palabra del lenguaje es exactamente lo que ahí se llama *palabra
+reservada* o *tipo de dato*.
+
+- **El subrayado rojo de los errores**, como en un editor de Java. Cuando
+  dejas de escribir medio segundo, el código se revisa y cada error queda
+  subrayado en rojo, con el número de su renglón también en rojo. **Pasa el
+  mouse sobre ese renglón** para ver el mensaje y la sugerencia. Mientras
+  escribes no se subraya nada (el código está a medias).
+
+![Subrayado rojo](capturas/subrayado.png)
+
+Cada pestaña subraya los errores de su análisis y los de las fases que van
+antes: la 1, los léxicos; la 2, los léxicos y los sintácticos (por ejemplo,
+*Falta la clase* o un `;` que falta); la 3, los de las tres fases.
 
 ---
 
@@ -66,9 +107,9 @@ empezar:
 
 ---
 
-## 3. Las tres pestañas trabajan juntas
+## 3. Las cuatro pestañas trabajan juntas
 
-Las tres pestañas comparten **el mismo código**:
+Las cuatro pestañas comparten **el mismo código**:
 
 - Lo que escribes en una pestaña aparece al momento en las otras dos.
 - Al analizar desde cualquier pestaña se analiza todo de una vez. Si analizas
@@ -77,7 +118,7 @@ Las tres pestañas comparten **el mismo código**:
 - **Cambiar de pestaña no borra nada.** Al regresar sigue ahí la tabla, la fila
   que marcaste, la rama del árbol que abriste y el zoom.
 - Sólo **Borrar**, **Limpiar** o **Limpieza** vacían el código, y lo vacían en
-  las tres pestañas.
+  las cuatro pestañas.
 
 Las tres trabajan con **el mismo lenguaje (SwordByte) y las mismas reglas**: lo
 que es correcto en una es correcto en las otras.
@@ -97,7 +138,7 @@ Grupo: 9° F*.
 |---|---|
 | **Realizar Análisis** | Analiza el código y llena la tabla (y las otras dos pestañas) |
 | **Guardar** | Guarda el reporte, igual que `Ctrl+S` (ver la sección 12) |
-| **Borrar** | Vacía el código y los resultados de las tres pestañas |
+| **Borrar** | Vacía el código y los resultados de las cuatro pestañas |
 | **Fuga** | Muestra al equipo y pregunta si quieres salir (sección 11) |
 
 La tabla **Resultados Análisis** tiene un renglón por token, en el orden en que
@@ -147,7 +188,7 @@ botones a la izquierda.
 
 | Botón | Qué hace |
 |---|---|
-| **Limpiar** | Vacía el código y los resultados de las tres pestañas |
+| **Limpiar** | Vacía el código y los resultados de las cuatro pestañas |
 | **Análisis Léxico** | Llena sólo el cuadro de análisis léxico |
 | **Análisis Sintáctico** | Dibuja sólo el árbol |
 | **Análisis Léxico-Sintáctico** | Llena los dos cuadros |
@@ -194,8 +235,11 @@ id1 > id2
 ■ Relacional   ■ Identificador
 ```
 
-Si el código tiene varias líneas, cada una lleva su número. La lista completa
-de equivalencias (`id1 = a`, `id2 = b`…) va en el **reporte que se guarda**.
+Cada renglón lleva el **mismo número que su renglón en el cuadro de código**:
+el renglón 3 del análisis léxico es el renglón 3 del código. Los renglones sin
+tokens (vacíos, o con sólo un comentario) salen vacíos para que la cuenta no se
+recorra. La lista completa de equivalencias (`id1 = a`, `id2 = b`…) va en el
+**reporte que se guarda**.
 
 ---
 
@@ -235,7 +279,8 @@ Quedan **por debajo** de `*` `/` `%`, o sea que se resuelven antes. Para
              /           num(3)  num(2)
 ```
 
-Se pueden escribir de varias formas, todas válidas:
+En esta pestaña se pueden escribir de varias formas, para practicar la
+jerarquía:
 
 | Operación | Cómo se escribe |
 |---|---|
@@ -244,13 +289,19 @@ Se pueden escribir de varias formas, todas válidas:
 | Raíz n-ésima | `raiz(27, 3)` |
 | Raíz cúbica | `raizCubica(27)` |
 
+En el **lenguaje** (y por eso en la pestaña 3) sólo se usa `potencia`: las
+raíces salen de ella, `potencia(16, 0.5)` es la raíz cuadrada de 16 y
+`potencia(27, 1.0 / 3)` la cúbica de 27. Lo mismo con la lógica: en el lenguaje
+es `Y`, `O` y `NO`, no `&&`, `AND`, `||`, `OR`, `!` ni `NOT`.
+
 Dos detalles: la potencia se agrupa de derecha a izquierda (`2 ^ 3 ^ 2` es
 `2 ^ (3 ^ 2) = 512`) y el menos funciona como en matemáticas (`-2 ^ 2` es
 `-(2 ^ 2) = -4`).
 
 **Cómo escribir el símbolo `√`:** mantén `Alt` y teclea `251` en el teclado
-numérico, o cópialo del ejemplo *06-potencias-y-raices.bs* del menú **Ejemplos**.
-Si no lo tienes a la mano, `raiz(16)` hace exactamente lo mismo.
+numérico. Si no lo tienes a la mano, `raiz(16)` hace exactamente lo mismo. El
+ejemplo *06-potencias-y-raices.bs* del menú **Ejemplos** muestra cómo se
+escriben en el lenguaje, con `potencia`.
 
 Para `a = b + c > 9 AND d > e OR f <= 30`:
 
@@ -326,11 +377,13 @@ achican lo que haya en pantalla, sea el árbol completo o una rama:
 
 | Control | Qué hace |
 |---|---|
-| `−` / `+` | Aleja o acerca de 10 % en 10 %, entre 30 % y 300 % |
+| `−` / `+` | Aleja o acerca de 10 % en 10 %, entre 10 % y 300 %, sin mover lo que está en el centro |
 | **Ajustar** | Encaja el dibujo al ancho del cuadro |
-| **Ctrl + rueda** | Lo mismo, con el mouse sobre el árbol |
+| **Ctrl + rueda** | Lo mismo, sin mover lo que está bajo el mouse |
 
-Si el dibujo no cabe, el cuadro se desplaza.
+Si el dibujo no cabe, el cuadro se desplaza hacia los cuatro lados. Al
+dibujar un árbol ancho (un programa completo, como el ejemplo de las
+variables), la raíz queda centrada a la vista.
 
 ---
 
@@ -340,7 +393,8 @@ La aplicación acepta tres cosas, y elige sola cuál es:
 
 ### Una o varias proposiciones sueltas
 
-No necesitan punto y coma. Cada renglón es una proposición:
+Sólo en las pestañas 1 y 2, para practicar (en la pestaña 3 les falta la
+clase). No necesitan punto y coma. Cada renglón es una proposición:
 
 ```swordbyte
 a > b
@@ -351,33 +405,36 @@ a && b || c + f > d
 Una proposición puede seguir en el renglón de abajo si todavía no termina
 (`a = b +` y abajo `c`). Dos en el mismo renglón son un error.
 
-### Una o varias instrucciones
-
-Cada una con su punto y coma. Una expresión seguida de `;` también cuenta como
-instrucción (`a && b || c;`).
-
-```swordbyte
-entero a = 5;
-si (edad >= 18) {
-    imprimirLn("Mayor");
-} sino {
-    imprimirLn("Menor");
-}
-```
-
 ### Un programa completo
+
+Como en Java, el código del lenguaje va dentro de una clase, y se ejecuta
+desde `clasePrincipal`:
 
 ```swordbyte
 clase ejemplo {
     clasePrincipal {
         entero edad = 20;
-        imprimirLn(edad);
+        si (edad >= 18) {
+            imprimirLn("Mayor");
+        } sino {
+            imprimirLn("Menor");
+        }
     }
 }
 ```
 
-No hace falta indicar de cuál se trata: si el código empieza con `clase` se
-analiza como programa completo y, si no, como fragmento.
+Dentro de un bloque sólo valen las **instrucciones del lenguaje** (las de la
+especificación): una expresión sola con punto y coma, como `a > b;`, no es
+una instrucción, igual que en Java.
+
+### Instrucciones sueltas: falta la clase
+
+Si escribes instrucciones sin la clase (`entero a = 5;`), el análisis
+sintáctico marca el error *Falta la clase: todo el código va dentro de una
+clase*. Lo mismo si empiezas con `clasePrincipal` sin la
+`clase` alrededor.
+
+No hace falta indicar qué se escribió: la aplicación lo detecta sola.
 
 ---
 
@@ -389,8 +446,10 @@ Los errores aparecen dentro del cuadro que les corresponde:
   la tabla de la pestaña 1 y en el cuadro *Análisis Léxico* de la pestaña 2.
 - **Errores sintácticos** (falta un `;`, un `)` sin cerrar) → en el cuadro
   *Análisis Sintáctico* de la pestaña 2.
-- En la pestaña 3, si hay errores léxicos o sintácticos **no se genera la
-  gramática**: el recuadro rojo dice por qué y repite los errores.
+- En la pestaña 3, si hay errores léxicos o sintácticos **no se hace el
+  análisis semántico**: el recuadro rojo dice por qué y repite los errores.
+- Además, en los cuadros de código cada error queda **subrayado en rojo** (ver
+  la sección 2).
 
 ![Errores](capturas/errores.png)
 
@@ -410,40 +469,91 @@ dado** y los botones a la derecha.
 
 | Botón | Qué hace |
 |---|---|
-| **Limpieza** | Vacía el código y los resultados de las tres pestañas |
-| **Analiza** | Genera la gramática del código (y llena las pestañas 1 y 2) |
+| **Limpieza** | Vacía el código y los resultados de las cuatro pestañas |
+| **Analiza** | Hace el análisis semántico (y llena las pestañas 1 y 2) |
 | **Equipo** | Abre la ventana con los integrantes |
 | **Termina** | Muestra al equipo y pregunta si quieres salir |
 
-**Escribe cualquier código del lenguaje y presiona Analiza: se genera su
-gramática**, como en el pizarrón. Para `a1 = b5 / 20`:
+Las pestañas 1 y 2 revisan que el código **esté bien escrito**. La pestaña 3
+revisa que **tenga sentido**:
+- que cada nombre esté declarado antes de usarse;
+- que los tipos coincidan (un texto no cabe en un `entero`);
+- que una `Constante` no cambie;
+- que las medidas de una figura sean positivas y que un triángulo tenga lados
+  posibles…
+
+**Escribe un programa SwordByte** (`clase nombre { clasePrincipal { ... } }`) y
+presiona **Analiza**. El cuadro muestra:
+
+1. **Los errores semánticos**, si hay: cada uno con su línea y columna, el
+   mensaje y una sugerencia. Si no hay errores, no sale ningún recuadro: la
+   insignia junto al título dice *sin errores*.
+2. **Las advertencias**, en ámbar: cosas que no impiden ejecutar el programa
+   pero parecen un descuido (una variable que nunca se usa, código después de
+   `romper`, una división entre cero).
+3. **La gramática del código**, como en el pizarrón.
+
+![Errores semánticos](capturas/semantico-errores.png)
+
+En la imagen, el código está bien escrito (la pestaña 2 dice *correcto*), pero
+tiene cinco errores:
+- `area.cuadrado` devuelve un decimal que no cabe en un `entero`;
+- una medida es negativa;
+- los lados 1, 2 y 10 no forman un triángulo;
+- se usó `&&` en lugar de `Y`;
+- `total` nunca se declaró.
+
+### En el lenguaje: Y, O, NO y potencia
+
+Las pestañas 1 y 2 reconocen varias formas de escribir lo mismo, para
+practicar. En el lenguaje sólo valen:
+
+| Para | Se escribe | En la pestaña 3 es error |
+|---|---|---|
+| Y · O · negación | `Y` · `O` · `NO` | `&&` `AND` · `\|\|` `OR` · `!` `NOT` |
+| Potencias y raíces | `potencia(base, exponente)` | `^` `**` `√` `raiz` `raizCuadrada` `raizCubica` |
+
+Una raíz es una potencia: `potencia(16, 0.5)` es la raíz cuadrada de 16 y
+`potencia(27, 1.0 / 3)` la cúbica de 27. El error dice qué escribir en su
+lugar.
+
+### Sólo programas: falta la clase
+
+Como en Java, el código va dentro de una clase. Las expresiones sueltas
+(`a = b + c`, sin punto y coma) se practican en las pestañas 1 y 2; en la
+pestaña 3 la insignia dice *falta la clase* y se muestra cómo se escribe un
+programa:
+
+![Falta la clase en la pestaña 3](capturas/semantico-proposiciones.png)
+
+Si el código tiene errores léxicos o sintácticos (por ejemplo, instrucciones
+sin la clase), la insignia dice *corrige primero* y se listan esos errores: el
+sentido se revisa cuando el código ya está bien escrito.
+
+### La gramática
+
+Para el ejemplo del pizarrón dentro de su clase,
+`clase p { clasePrincipal { a1 = b5 / 20; } }`, la gramática es:
 
 ```
-prop → id = exp
-exp  → id | num | exp / exp
-id   → let ( dig )*
-num  → dig ( dig )*
-dig  → 0-9
-let  → a-z
+prop      → clase id { principal }
+principal → clasePrincipal { inst }
+inst      → id = exp ;
+exp       → id | num | exp / exp
+id        → let ( dig )*
+num       → dig ( dig )*
+dig       → 0-9
+let       → a-z
 ```
 
-Funciona con proposiciones sueltas (`a = b + c`, `a && b || c + f > d`, `a`),
-con **varias proposiciones, una por renglón**, con las instrucciones del
-lenguaje y con programas completos. Con varias proposiciones aparece arriba
-`props → prop prop` y cada una es una alternativa de `prop`:
-
-![Varias proposiciones](capturas/semantico-proposiciones.png)
-
-Y para una instrucción del lenguaje, como
-`opcion (a) { caso 1: imprimir("Hola"); romper; }`:
-
-![Gramática de una opcion](capturas/semantico-opcion.png)
+Como `a1` y `b5` no están declaradas, también salen dos errores. Aun así la
+gramática sale igual: describe la forma del código, y la forma es correcta.
 
 Cómo leerla:
 
-- **`prop`** es la proposición: todo el código. Las demás reglas salen de
-  arriba hacia abajo y al final van las de los caracteres (`dig`, `LET`,
-  `let`, `simb`).
+- **`prop`** es la proposición: todo el programa. Cada instrucción es una
+  alternativa de `inst`. Las demás reglas salen de arriba hacia abajo y al
+  final van las de los caracteres (`dig`, `LET`, `let`, `simb`).
 - Sólo salen las alternativas que **aparecen en tu código**: si no hay
   multiplicaciones, no sale `exp → exp * exp`.
 - Los **terminales** (lo que se escribe tal cual) van en negritas; las
@@ -452,11 +562,54 @@ Cómo leerla:
 - `( … )*` quiere decir «cero o más veces» y `[ … ]` «opcional».
 - **Pasa el mouse** sobre una producción para ver de qué parte del código salió.
 
-Si el código tiene errores, no se puede generar la gramática: la caja lo dice y
-lista los errores para corregirlos.
-
-El detalle de cómo se genera está en
+Todas las reglas que revisa, con un ejemplo de cada mensaje, están en
 [08 — Analizador semántico](08-analizador-semantico.md).
+
+---
+
+## 10 bis. Pestaña 4 — Generador de Código Intermedio
+
+![Código intermedio](capturas/intermedio.png)
+
+Tiene el estilo de la pestaña 3: los tres logos en columna a la izquierda,
+arriba *Programación de Sistemas de Base II — Generador de Código Intermedio
+“SwordByte”*, el cuadro **Programa para traducir**, el cuadro **Código
+intermedio** y los botones a la derecha.
+
+| Botón | Qué hace |
+|---|---|
+| **Limpieza** | Vacía el código y los resultados de las cuatro pestañas |
+| **Genera** | Genera el código intermedio (y llena las pestañas 1, 2 y 3) |
+| **Equipo** | Abre la ventana con los integrantes |
+| **Termina** | Muestra al equipo y pregunta si quieres salir |
+
+Escribe un programa **sin errores** y presiona **Genera**. Se traduce a
+**código de tres direcciones**: cada instrucción hace una sola operación.
+
+```
+entero a = b + c * d;          t1 = c * d
+                               t2 = b + t1
+                               a = t2
+```
+
+- `t1`, `t2`… son **temporales**: guardan los resultados a medio camino.
+- `L1`, `L2`… son **etiquetas**: a donde saltan las decisiones y los ciclos
+  (`goto L1`, `ifFalse t1 goto L2`).
+- En verde, antes de cada grupo, el renglón del programa de donde sale.
+
+Con los botones junto al título cambias de vista:
+
+| Vista | Qué muestra |
+|---|---|
+| **Tres direcciones** | El código intermedio, una instrucción por renglón, con su número |
+| **Cuádruplos** | La misma lista como tabla: operador, argumento 1, argumento 2 y resultado |
+
+![Cuádruplos](capturas/intermedio-cuadruplos.png)
+
+Si el programa tiene algún error (léxico, sintáctico o semántico), la insignia
+dice *corrige primero* y se listan los errores: el código intermedio sólo se
+genera para un programa correcto. Cómo se traduce cada instrucción está en
+[09 — Código intermedio](09-codigo-intermedio.md).
 
 ---
 
@@ -490,7 +643,14 @@ aplicación.
 ## 12. Guardar y volver a abrir
 
 **Archivo → Guardar reporte** (`Ctrl+S`) o el botón **Guardar** de la pestaña 1
-guardan un **reporte completo** del código. El diálogo ofrece dos formatos:
+guardan un **reporte completo** del código.
+
+**El archivo se llama igual que la clase**, como en Java: si tu programa es
+`clase ejemplo { ... }`, el diálogo propone `ejemplo.html`. Si escribes otro
+nombre, la aplicación te avisa y lo guarda con el nombre de la clase. (Si el
+código no tiene clase, se llama `analisis`.)
+
+El diálogo ofrece dos formatos:
 
 | Formato | Cómo se ve | Para qué |
 |---|---|---|
@@ -508,15 +668,17 @@ trae:
 
 - **El encabezado**: los logos, la materia, el equipo y el grupo, de qué pestaña
   se guardó, y una ficha con el programa, los seis integrantes, la carrera, la
-  institución, la unidad y la fecha y hora. A la derecha, un resumen de los
-  tres análisis.
+  institución, la unidad y la fecha y hora. A la derecha, un resumen de las
+  cuatro fases.
 - **1. Código fuente**, con los renglones numerados.
 - **2. Análisis léxico**: la salida `id1 > id2` en colores, la lista de
   identificadores y la tabla de tokens.
 - **3. Análisis sintáctico**: el árbol dibujado (y, al desplegar *Ver el árbol
   en texto*, la versión con sangría), o los errores.
-- **4. Análisis semántico**: la gramática generada del código, con los
-  terminales subrayados como en la pestaña 3.
+- **4. Análisis semántico**: los errores y las advertencias, si hay, y la
+  gramática generada del código, con los terminales subrayados como en la
+  pestaña 3.
+- **5. Código intermedio**: el código de tres direcciones y los cuádruplos.
 
 Al terminar de guardar aparece un aviso con el botón **Abrir reporte**, que lo
 abre en el navegador.
@@ -533,7 +695,7 @@ Hay dos formas:
 2. **Arrastrar** el `.html` desde el explorador de archivos y soltarlo sobre la
    ventana del compilador.
 
-El código regresa a las tres pestañas, la aplicación **cambia a la pestaña desde
+El código regresa a las cuatro pestañas, la aplicación **cambia a la pestaña desde
 la que se guardó** y lo analiza de nuevo.
 
 Esto funciona porque el reporte guarda, escondido, un bloque con el código tal
@@ -564,7 +726,8 @@ a = b + c > 9 AND d > e OR f <= 30
 //  ...
 //  2. ANÁLISIS LÉXICO       (la salida id1 > id2 y los identificadores)
 //  3. ANÁLISIS SINTÁCTICO   (el árbol con sangría:  OR  ├── AND ...)
-//  4. ANÁLISIS SEMÁNTICO: GRAMÁTICA DEL CÓDIGO   (prop → id = exp ...)
+//  4. ANÁLISIS SEMÁNTICO    (errores, advertencias y gramática)
+//  5. CÓDIGO INTERMEDIO     (el código de tres direcciones, comentado)
 ```
 
 Al abrirlo se recupera sólo el código, usando las marcas
@@ -590,18 +753,18 @@ texto, escribe su nombre en la constante `AUTOR` de ese mismo archivo.
 | Menú | Contiene |
 |---|---|
 | **Archivo** | Abrir, Guardar reporte, Limpiar, Salir |
-| **Analizar** | Analizar (llena las tres pestañas) |
+| **Analizar** | Analizar (llena las cuatro pestañas) |
 | **Ejemplos** | Los programas incluidos; al elegir uno se carga y se analiza |
-| **Ver** | Las tres pestañas, recargar, herramientas de desarrollo, zoom, pantalla completa |
+| **Ver** | Las cuatro pestañas, recargar, herramientas de desarrollo, zoom, pantalla completa |
 | **Ayuda** | Equipo, Documentación del proyecto, Acerca de |
 
 ### Atajos
 
 | Atajo | Acción |
 |---|---|
-| `Ctrl+1` / `Ctrl+2` / `Ctrl+3` | Ir a la pestaña 1, 2 o 3 |
+| `Ctrl+1` … `Ctrl+4` | Ir a la pestaña 1, 2, 3 o 4 |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Pestaña siguiente / anterior |
-| `F5` | Analizar (llena las tres pestañas) |
+| `F5` | Analizar (llena las cuatro pestañas) |
 | `Ctrl+O` | Abrir un reporte `.html`, un `.bs` o un `.txt` |
 | `Ctrl+S` | Guardar reporte |
 | `Ctrl+L` | Limpiar |
@@ -646,3 +809,8 @@ Después de cambiar un logo hay que volver a generar el ejecutable
 | El árbol se sale del cuadro | El cuadro se desplaza. También puedes alejar con `Ctrl -`. |
 | Al abrir un `.html` dice que *no es un reporte del compilador* | Sólo se pueden abrir los reportes que guardó esta aplicación: son los que traen el código guardado adentro. Una página web cualquiera no lo trae. |
 | El reporte `.html` se ve sin colores en el Bloc de notas | Es una página web: se abre con doble clic (se abre en el navegador). Para volver a usarlo en el compilador, ábrelo con `Ctrl+O` o arrástralo a la ventana. |
+| Marca *'break' no es una palabra de SwordByte* (o `int`, `if`, `System`…) | El lenguaje está basado en Java pero usa sus propias palabras. La sugerencia del error dice cuál va: `romper`, `entero`, `si`, `imprimirLn`… |
+| Marca *'a > b' no es una instrucción del lenguaje* | Con punto y coma sólo valen las instrucciones del lenguaje. Guarda el resultado (`x = a > b;`), úsalo en una condición (`si (a > b) { … }`) o quítale el `;` para analizarla suelta. |
+| Marca *Falta la clase* | Como en Java, el código va dentro de una clase: `clase ejemplo { clasePrincipal { ... } }`. Sólo las expresiones sueltas (sin `;`) se aceptan sin clase, en las pestañas 1 y 2. |
+| Marca *'&&' no se usa en SwordByte* (o `^`, `√`, `raiz`…) en la pestaña 3 | En el lenguaje la lógica es `Y`, `O`, `NO` y las potencias y raíces se sacan con `potencia(base, exponente)`. La sugerencia dice cómo escribirlo. |
+| Al guardar, el archivo se llama distinto de lo que escribí | Como en Java, el archivo se llama igual que la clase (`clase ejemplo` → `ejemplo.html`). Para otro nombre, cambia el de la clase. |

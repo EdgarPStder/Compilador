@@ -25,11 +25,14 @@ const Dom = {
     caja.replaceChildren(Dom.nota(mensaje));
   },
 
-  /** Un renglón de error:  ✕  L1:C5  mensaje  → sugerencia */
-  filaError (e) {
+  /**
+   * Un renglón de error:  ✕  L1:C5  mensaje  → sugerencia
+   * Las advertencias usan la misma fila con otra marca:  ⚠
+   */
+  filaError (e, marca = '✕') {
     const fila = Dom.crear('div', 'error-linea');
     fila.append(
-      Dom.crear('span', 'marca', '✕'),
+      Dom.crear('span', 'marca', marca),
       Dom.crear('span', 'sitio', `L${e.linea}:C${e.columna}`),
       Dom.crear('span', null, e.mensaje + (e.sugerencia ? '  → ' + e.sugerencia : ''))
     );
@@ -38,7 +41,7 @@ const Dom = {
 
   /**
    * Pone la insignia junto a un título: verde con clase 'ok', roja con
-   * 'error', o la esconde si clase es null.
+   * 'error', ámbar con 'advertencia', o la esconde si clase es null.
    */
   ponerInsignia (elemento, clase, texto) {
     elemento.className = 'insignia';

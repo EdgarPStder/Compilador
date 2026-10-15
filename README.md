@@ -3,14 +3,15 @@
 Compilador del lenguaje de programación **SwordByte**, un lenguaje propio con
 sintaxis en español que traduce a Java.
 
-La aplicación de escritorio tiene **tres pestañas**, una por analizador, que
-trabajan sobre el mismo código:
+La aplicación de escritorio tiene **cuatro pestañas**, una por fase del
+compilador, que trabajan sobre el mismo código:
 
 | Pestaña | Qué muestra |
 |---|---|
 | **1 · Analizador Léxico** | La tabla de tokens: lexema, token y descripción |
 | **2 · Analizador Léxico-Sintáctico** | El código reescrito con los identificadores numerados (`id1 > id2`) y el árbol sintáctico dibujado |
-| **3 · Analizador Semántico** | La gramática del código: le das cualquier código del lenguaje y escribe las reglas que lo producen |
+| **3 · Analizador Semántico** | Que el programa tenga sentido: sus errores semánticos (nombres sin declarar, tipos que no coinciden…) y la gramática del código |
+| **4 · Código Intermedio** | El programa traducido a código de tres direcciones (`t1 = c * d`, `ifFalse t1 goto L1`…) y su tabla de cuádruplos |
 
 ![Compilador SwordByte](docs/capturas/lexico.png)
 
@@ -135,8 +136,8 @@ npm start
 ### Correr las pruebas
 
 ```bash
-npm run pruebas       # 118 pruebas del compilador
-npm run pruebas:ui    # 109 comprobaciones sobre la aplicación
+npm run pruebas       # 161 pruebas del compilador
+npm run pruebas:ui    # 142 comprobaciones sobre la aplicación
 ```
 
 ### Generar el ejecutable
@@ -226,8 +227,8 @@ La interfaz se abre directamente en el navegador desde `src/gui/index.html`.
 
 ## La ventana
 
-Hasta arriba van **las tres pestañas**. Se cambia con un clic, con `Ctrl+1` /
-`Ctrl+2` / `Ctrl+3` o con `Ctrl+Tab`.
+Hasta arriba van **las cuatro pestañas**. Se cambia con un clic, con `Ctrl+1` a
+`Ctrl+4` o con `Ctrl+Tab`.
 
 **Cada pestaña conserva su propio diseño**, con sus logos y sus botones donde
 los pide ese diseño. Lo que comparten es el estilo (los colores, los botones y
@@ -238,62 +239,132 @@ las cajas del analizador léxico-sintáctico):
 | **1 · Léxico** | UAT a la izquierda y UAMM a la derecha; en medio, la carrera, el analizador, el grupo y el equipo | A la derecha: Realizar Análisis · Guardar · Borrar · **Fuga** |
 | **2 · Léxico-Sintáctico** | Los tres arriba (UAT, UAMM, ISC) | A la izquierda: Limpiar · Análisis Léxico · Análisis Sintáctico · Análisis Léxico-Sintáctico · Equipo · Salir |
 | **3 · Semántico** | Los tres en columna, a la izquierda | A la derecha: Limpieza · Analiza · Equipo · Termina |
+| **4 · Código Intermedio** | Como la 3: los tres en columna, a la izquierda | A la derecha: Limpieza · Genera · Equipo · Termina |
 
 **Fuga**, **Salir** y **Termina** abren la misma ventana: el equipo con sus
 seis integrantes y la pregunta *¿Quieres salir del compilador?*
 
 ![Ventana de salida](docs/capturas/fuga.png)
 
-### Las tres pestañas comparten el código
+### Los cuadros de código
+
+Los tres cuadros donde se escribe llevan **números de renglón** y los
+**colores de Java** que usa VS Code (tema *Light+*), mientras se escribe: el
+control de flujo (`si`, `para`, `retornar`) en morado, los tipos y las clases
+(`entero`, `area`) en verde azulado, `clase`, `funcion` y `verdadero` en
+azul, las funciones en café, las variables en azul marino, los números en
+verde, los textos en rojo oscuro y los comentarios en verde. Con mucho código
+el cuadro no se estira: se desplaza por dentro. La salida del análisis léxico
+de la pestaña 2 va numerada igual: el renglón 3 del análisis es el renglón 3
+del código.
+
+Al dejar de escribir medio segundo, **los errores se subrayan en rojo**, con
+el número de su renglón también en rojo; al pasar el mouse sobre ese renglón
+se ve el mensaje. Cada pestaña marca los errores de su fase y de las
+anteriores.
+
+![Subrayado rojo](docs/capturas/subrayado.png)
+
+### Las cuatro pestañas comparten el código
 
 - Lo que se escribe en una pestaña aparece al momento en las otras dos.
 - Al analizar en cualquiera, **se llenan las tres**: si analizas en la pestaña 1
   y pasas a la 2, el árbol ya está dibujado.
 - **Cambiar de pestaña no borra nada**: la tabla, la fila marcada, la rama
   abierta del árbol y el zoom siguen ahí al regresar.
-- Sólo Borrar / Limpiar / Limpieza vacían el código, en las tres a la vez.
+- Sólo Borrar / Limpiar / Limpieza vacían el código, en las cuatro a la vez.
 
 El árbol de la pestaña 2 se puede **acercar y alejar** con los botones `−` /
 `+` de su encabezado, con **Ajustar** (lo encaja al ancho) o con
-**Ctrl + rueda** del mouse.
+**Ctrl + rueda** del mouse, sin perder de vista lo que se estaba viendo. Un
+árbol ancho (un programa completo) se dibuja de su tamaño real, con la raíz
+centrada, y se puede recorrer hacia los dos lados.
 
 La aplicación **abre en blanco, en la pestaña 1**. Para empezar: escribe el
 código, elige uno del menú **Ejemplos**, abre un archivo con `Ctrl+O` o
 arrástralo a la ventana.
 
-Las tres pestañas trabajan con el mismo lenguaje y las mismas reglas. Se puede
-analizar una o varias proposiciones sueltas, una por renglón y sin punto y
-coma (`a = b + c`, `a && b || c + f > d`), instrucciones con punto y coma
-(`entero a = 5;`) o un programa completo (`clase p { clasePrincipal { ... } }`).
-La aplicación detecta sola de cuál se trata.
+Las cuatro pestañas trabajan con el mismo lenguaje y las mismas reglas. Como en
+Java, **el código va dentro de una clase** (`clase p { clasePrincipal { ... } }`):
+unas instrucciones sueltas son un error, *Falta la clase*. Para practicar la
+forma, las pestañas 1 y 2 aceptan también expresiones sueltas, una por renglón
+y sin punto y coma (`a = b + c`, `a && b || c + f > d`). La aplicación detecta
+sola qué se escribió.
+
+El análisis sintáctico sólo reconoce las **instrucciones del lenguaje**. El
+lenguaje está basado en Java, así que si se escribe una palabra de Java
+(`break`, `int`, `System.out.println`…), el error dice cuál es la de
+SwordByte (`romper`, `entero`, `imprimirLn`…).
 
 ### El analizador semántico
 
 ![Analizador semántico](docs/capturas/semantico.png)
 
-Le das **cualquier código del lenguaje** —una proposición como `a = b + c` o
-`a && b || c + f > d`, varias (una por renglón), instrucciones o un programa
-completo— y **genera su gramática**, como en el pizarrón. Para `a1 = b5 / 20`:
+Le das un **programa SwordByte** y revisa que **tenga sentido**, como lo haría
+un compilador de Java:
+
+- cada nombre debe estar **declarado** antes de usarse, y no repetirse;
+- los **tipos** deben coincidir (`entero x = "hola";` es error; un `decimal`
+  no cabe en un `entero`);
+- las condiciones deben ser lógicas, una `Constante` no cambia, `romper` va
+  dentro de un ciclo, una función devuelve lo que dice…;
+- las reglas de **geometría**: medidas mayores que cero, lados que formen
+  un triángulo, `area.circulo(…)` devuelve `decimal`;
+- y lo que es del lenguaje: la lógica se escribe con `Y`, `O` y `NO`, y las
+  potencias y las raíces con `potencia(base, exponente)` (`&&`, `^`, `√`,
+  `raiz`… sólo se aceptan en las pestañas 1 y 2, para practicar).
+
+Muestra los **errores** y, aparte, las **advertencias** (como variables que
+nunca se usan) —si no hay errores, lo dice la insignia— y la **gramática del
+código**, como en el pizarrón. Para el ejemplo del pizarrón dentro de su
+clase, `clase p { clasePrincipal { a1 = b5 / 20; } }`:
 
 ```
-prop → id = exp
-exp  → id | num | exp / exp
-id   → let ( dig )*
-num  → dig ( dig )*
-dig  → 0-9
-let  → a-z
+prop      → clase id { principal }
+principal → clasePrincipal { inst }
+inst      → id = exp ;
+exp       → id | num | exp / exp
+id        → let ( dig )*
+num       → dig ( dig )*
+dig       → 0-9
+let       → a-z
 ```
 
-Sólo salen las reglas y los caracteres que aparecen en el código. Los
-terminales van subrayados, como en el pizarrón, y al pasar el mouse sobre una
-producción se ve de qué parte del código salió. Detalles en
+La **tabla de símbolos** y el **manejo de errores** no son sólo del
+semántico: como en el esquema clásico de un compilador, los usan las tres
+fases (`src/core/comun/`).
+
+![Errores semánticos](docs/capturas/semantico-errores.png)
+
+Detalles, con cada regla y su mensaje, en
 [08 — Analizador semántico](docs/08-analizador-semantico.md).
+
+### El código intermedio
+
+![Código intermedio](docs/capturas/intermedio.png)
+
+La pestaña 4 traduce un programa sin errores a **código de tres
+direcciones**: cada instrucción hace una sola operación, los resultados a medio
+camino van en temporales (`t1`, `t2`…) y las decisiones y los ciclos saltan a
+etiquetas (`L1`, `L2`…):
+
+```
+entero a = b + c * d;          t1 = c * d
+                               t2 = b + t1
+                               a = t2
+```
+
+Cada instrucción se ve también como **cuádruplo** (operador, argumento 1,
+argumento 2, resultado): `( *, c, d, t1 )`. Antes de cada grupo va, como
+comentario, el renglón del programa de donde sale. Detalles en
+[09 — Código intermedio](docs/09-codigo-intermedio.md).
 
 ### Guardar
 
 **Guardar** (pestaña 1), `Ctrl+S` o **Archivo → Guardar reporte** guardan un
 **reporte visual**: una página web (`.html`) que se abre con doble clic en
-cualquier navegador.
+cualquier navegador. Como en Java, **el archivo se llama igual que la clase**:
+`clase ejemplo` se guarda como `ejemplo.html`.
 
 ![Reporte visual](docs/capturas/reporte.png)
 
@@ -303,7 +374,7 @@ cualquier navegador.
 - Es **un solo archivo**: los logos y los estilos van adentro. Se imprime o se
   pasa a PDF con `Ctrl+P` desde el navegador.
 - **Se puede volver a poner en el compilador**: ábrelo con `Ctrl+O` o
-  arrástralo a la ventana. Regresa el código a las tres pestañas y vuelve a la
+  arrástralo a la ventana. Regresa el código a las cuatro pestañas y vuelve a la
   pestaña desde la que se guardó.
 
 En el diálogo también se puede elegir el **reporte en texto** (`.bs`) de antes,
@@ -387,9 +458,10 @@ public class bienvenida {
 | [03 — Analizador sintáctico](docs/03-analizador-sintactico.md) | Descenso recursivo, los tres modos de análisis, precedencia, recuperación de errores y el árbol |
 | [04 — Gramática EBNF](docs/04-gramatica-ebnf.md) | La gramática formal completa |
 | [05 — Arquitectura](docs/05-arquitectura.md) | Estructura de carpetas y decisiones de diseño |
-| [06 — Manual de usuario](docs/06-manual-de-usuario.md) | Cómo usar la aplicación: las tres pestañas, guardar y volver a abrir |
+| [06 — Manual de usuario](docs/06-manual-de-usuario.md) | Cómo usar la aplicación: las cuatro pestañas, guardar y volver a abrir |
 | [07 — Mantenimiento](docs/07-mantenimiento.md) | Cómo agregar instrucciones, cambiar datos y empaquetar |
-| [08 — Analizador semántico](docs/08-analizador-semantico.md) | Cómo se genera la gramática del código |
+| [09 — Código intermedio](docs/09-codigo-intermedio.md) | La fase 4: código de tres direcciones, cuádruplos y cómo se traduce cada instrucción |
+| [08 — Analizador semántico](docs/08-analizador-semantico.md) | Las reglas que revisa la pestaña 3, la tabla de símbolos que comparten las tres fases, los tipos y la gramática del código |
 
 ---
 
@@ -398,12 +470,13 @@ public class bienvenida {
 ```
 Compilador/
 ├── src/core/         El compilador (JavaScript puro, sin dependencias)
-│   ├── lexico/           Fase 1 — tokens, la tabla y la salida id1/num()
-│   ├── sintactico/       Fase 2 — gramática, parser y árbol
-│   ├── semantico/        Pestaña 3 — genera la gramática del código
+│   ├── 01.lexico/        Fase 1 — tokens, la tabla y la salida id1/num()
+│   ├── 02.sintactico/    Fase 2 — gramática, parser y árbol
+│   ├── 03.semantico/     Fase 3 — nombres, tipos y la gramática
+│   ├── 04.intermedio/    Fase 4 — código de tres direcciones y cuádruplos
 │   ├── ReporteHTML.js    El reporte visual que se guarda y se vuelve a abrir
-│   └── comun/            Token, tipos, errores y datos del equipo
-├── src/ui/           Interfaz gráfica: las tres pestañas (incluye img/ con los logos)
+│   └── comun/            Lo que usan las 3 fases: tabla de símbolos, errores, tokens y datos del equipo
+├── src/ui/           Interfaz gráfica: las cuatro pestañas (incluye img/ con los logos)
 ├── electron/         Aplicación de escritorio
 ├── ejemplos/         Programas .bs de demostración
 ├── pruebas/          Pruebas automáticas
@@ -421,7 +494,7 @@ Compilador/
 | [`03-control.bs`](ejemplos/03-control.bs) | `si`/`sinoSi`/`sino`, los tres ciclos y `opcion` |
 | [`04-funciones.bs`](ejemplos/04-funciones.bs) | Funciones con y sin retorno |
 | [`05-completo.bs`](ejemplos/05-completo.bs) | Arreglos, matrices, entrada, errores y funciones nativas |
-| [`06-potencias-y-raices.bs`](ejemplos/06-potencias-y-raices.bs) | `^` `**` `√` y las funciones `raiz`, `raizCuadrada`, `raizCubica` |
+| [`06-potencias-y-raices.bs`](ejemplos/06-potencias-y-raices.bs) | Potencias y raíces con `potencia(base, exponente)`: la raíz cuadrada es `potencia(x, 0.5)` |
 | [`07-con-errores.bs`](ejemplos/07-con-errores.bs) | Errores a propósito, para ver el reporte |
 
 Se abren con `Ctrl+O` desde la aplicación.
@@ -437,7 +510,7 @@ Se abren con `Ctrl+O` desde la aplicación.
 | `npm run pruebas:ui` | Comprobaciones sobre la aplicación |
 | `npm run dist` | Genera los ejecutables en `dist/` |
 | `npm run icono` | Regenera el icono de la aplicación |
-| `npm run capturas` | Regenera las capturas de la documentación (las tres pestañas, Fuga y el reporte) |
+| `npm run capturas` | Regenera las capturas de la documentación (las cuatro pestañas, Fuga y el reporte) |
 | `npm run gramatica` | Regenera `docs/04-gramatica-ebnf.md` desde `Gramatica.js` |
 
 ---
