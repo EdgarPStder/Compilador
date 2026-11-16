@@ -1,0 +1,13 @@
+// Programa con errores a proposito: sirve para probar el reporte del compilador
+clase pruebaErrores {
+    clasePrincipal {
+        entero edad = 20        // falta el punto y coma
+        cadena nombre = "sin cerrar;
+        entero 5malNombre = 3;
+        decimal x = 4.;
+        si (edad > 18 {
+            imprimirLn("Mayor")
+        }
+        entero y = 10 @ 5;
+    }
+}

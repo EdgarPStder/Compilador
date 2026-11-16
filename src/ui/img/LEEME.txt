@@ -1,0 +1,12 @@
+LOGOS DE LA APLICACION
+======================
+
+    logo-uat.jpeg    Universidad Autonoma de Tamaulipas
+    logo-uamm.jpeg   Unidad Academica Multidisciplinaria Mante
+    logo-isc.jpeg    Ingenieria en Sistemas Computacionales
+
+Para cambiar uno, copia aqui la imagen nueva CON EL MISMO NOMBRE. Si la
+imagen no existe, la aplicacion muestra las siglas en un recuadro.
+
+La aplicacion escala cada logo para que quepa sin deformarse, asi que
+funcionan tanto los logos apaisados como los cuadrados.

@@ -1,0 +1,17 @@
+// Ejemplo 9: funciones con y sin retorno
+clase ejemplo {
+    funcion entero sumar(entero a, entero b) {
+        retornar a + b;
+    }
+
+    funcion vacio saludar(cadena n) {
+        imprimirLn("Hola " + n);
+    }
+
+    clasePrincipal {
+        entero resultado;
+        resultado = sumar(5, 3);
+        imprimirLn(resultado);
+        saludar("Ana");
+    }
+}

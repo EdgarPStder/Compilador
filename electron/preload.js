@@ -1,0 +1,92 @@
+/**
+ * preload.js
+ * Puente seguro entre el proceso principal (Node) y la interfaz (navegador).
+ *
+ * La interfaz NO tiene acceso a Node ni al sistema de archivos: solo puede
+ * llamar a las funciones expuestas aqui, que a su vez hablan por IPC con
+ * electron/main.js.
+ */
+
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
+
+// El coloreado del codigo y el subrayado de errores corren aqui mismo (no
+// por IPC) porque se llaman mientras se escribe: asi aparecen al instante,
+// sin esperar respuesta.
+const { resaltarCodigo } = require('../src/core/01.lexico/ResaltadoCodigo');
+const { erroresParaMarcar } = require('../src/core/Compilador');
+
+/** Ordenes que el menu de la aplicacion manda a la interfaz. */
+const CANALES_MENU = [
+  'menu:abrir', 'menu:guardar', 'menu:guardarFuente', 'menu:guardarCompilado',
+  'menu:limpiar', 'menu:analizar', 'menu:equipo', 'menu:salir', 'menu:ejemplo',
+  'menu:pestana', 'menu:cerrarPestanas', 'menu:documentacion', 'menu:zoom',
+  'menu:insertarClase'
+];
+
+/** Límites y paso del zoom de toda la interfaz. */
+const ZOOM_MINIMO = 0.5;
+const ZOOM_MAXIMO = 2.5;
+const ZOOM_PASO = 0.1;
+
+/** Aplica el zoom y devuelve el factor que quedó. */
+function cambiarZoom (accion) {
+  let factor = webFrame.getZoomFactor();
+  if (accion === 'mas') factor += ZOOM_PASO;
+  else if (accion === 'menos') factor -= ZOOM_PASO;
+  else factor = 1;
+
+  factor = Math.min(ZOOM_MAXIMO, Math.max(ZOOM_MINIMO, factor));
+  webFrame.setZoomFactor(Number(factor.toFixed(2)));
+  return webFrame.getZoomFactor();
+}
+
+contextBridge.exposeInMainWorld('api', {
+  // --- Compilador ---
+  analizar: (fuente, opciones) => ipcRenderer.invoke('compilador:analizar', fuente, opciones),
+  equipo: () => ipcRenderer.invoke('compilador:equipo'),
+  /** El codigo en HTML con los colores de Java (ver ResaltadoCodigo.js). */
+  resaltar: (texto) => resaltarCodigo(texto),
+  /**
+   * El codigo con colores y sus errores subrayados en rojo.
+   * @param {string} pestana 'lexico' | 'sintactico' | 'semantico': que
+   *                         errores se marcan (ver erroresParaMarcar).
+   * @returns {{html: string, errores: Array}}
+   */
+  revisar: (texto, pestana) => {
+    const errores = erroresParaMarcar(texto, pestana).map((e) => ({
+      fase: e.fase, linea: e.linea, columna: e.columna, mensaje: e.mensaje, sugerencia: e.sugerencia
+    }));
+    return { html: resaltarCodigo(texto, errores), errores };
+  },
+
+  // --- Archivos ---
+  abrirArchivo: () => ipcRenderer.invoke('archivo:abrir'),
+  /** Lee el texto de un archivo que se solto sobre la ventana. */
+  leerArchivo: (texto) => ipcRenderer.invoke('archivo:leer', texto),
+  guardarReporte: (fuente, pestana) => ipcRenderer.invoke('archivo:guardar', fuente, pestana),
+  /** Guarda la fuente en <carpeta>/<clase>/<clase>.sb */
+  guardarFuente: (fuente) => ipcRenderer.invoke('archivo:guardarFuente', fuente),
+  /** Guarda el Java generado en <carpeta>/<clase>/<clase>.java */
+  guardarCompilado: (fuente) => ipcRenderer.invoke('archivo:guardarCompilado', fuente),
+  /** Abre en el navegador el ultimo reporte .html que se guardo. */
+  verReporte: () => ipcRenderer.invoke('archivo:verReporte'),
+
+  /** Acerca ('mas'), aleja ('menos') o restablece ('normal') la interfaz. */
+  zoom: (accion) => cambiarZoom(accion),
+  /** Factor de zoom actual (1 = 100 %). */
+  zoomActual: () => webFrame.getZoomFactor(),
+
+  // --- Cerrar la aplicacion (la interfaz ya pregunto antes) ---
+  salir: () => ipcRenderer.invoke('app:salir'),
+
+  /**
+   * Recibe las ordenes del menu.
+   * @param {Function} manejador (orden, datos) => void
+   */
+  alMenu: (manejador) => {
+    CANALES_MENU.forEach((canal) => {
+      ipcRenderer.on(canal, (evento, datos) =>
+        manejador(canal.replace('menu:', ''), datos));
+    });
+  }
+});

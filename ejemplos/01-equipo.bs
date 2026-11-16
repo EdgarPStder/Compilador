@@ -1,0 +1,6 @@
+// Ejemplo 0: instruccion equipo
+clase ejemplo {
+    clasePrincipal {
+        equipo(Null);
+    }
+}

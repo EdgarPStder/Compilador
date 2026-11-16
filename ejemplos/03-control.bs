@@ -1,0 +1,45 @@
+// Ejemplo: decisiones y ciclos
+clase control {
+    clasePrincipal {
+        entero edad = 20;
+
+        si (edad >= 18 Y edad < 100) {
+            imprimirLn("Mayor de edad");
+        } sinoSi (edad > 0) {
+            imprimirLn("Menor de edad");
+        } sino {
+            imprimirLn("Edad no valida");
+        }
+
+        para (entero i = 1; i <= 3; i++) {
+            imprimirLn(i);
+        }
+
+        entero j = 1;
+        mientras (j <= 3) {
+            imprimirLn(j);
+            j++;
+        }
+
+        entero x = 0;
+        hacer {
+            imprimirLn("Hola");
+            x = x + 1;
+        } mientras (x < 1);
+
+        entero dia = 3;
+        opcion (dia) {
+            caso 1:
+                imprimirLn("Lunes");
+                romper;
+            caso 2:
+                imprimirLn("Martes");
+                romper;
+            caso 3:
+                imprimirLn("Miercoles");
+                romper;
+            porDefecto:
+                imprimirLn("Otro dia");
+        }
+    }
+}
