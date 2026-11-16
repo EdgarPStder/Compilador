@@ -1247,7 +1247,7 @@ prueba('leer usa Scanner y equipo imprime a los integrantes', () => {
   verdadero(java.includes('import java.util.Scanner;'), 'debe importar Scanner');
   verdadero(java.includes('__entrada.nextInt()'), 'debe leer un entero');
   verdadero(java.includes('System.out.println("Equipo: " + "SwordByte");'), 'equipo:');
-  verdadero(java.includes('Avalos Castillo'), 'integrantes:');
+  verdadero(java.includes('Ávalos Castillo'), 'integrantes:');
 });
 
 prueba('sin programa completo o con errores no se genera Java', () => {

@@ -1203,8 +1203,8 @@ function informar (d) {
     conError: ce, editor: ed, alineado: al, largo: lg, zoomGrande: zg, subrayado: sb } = d;
 
   const ORDEN_ESPERADO = [
-    'Avalos Castillo', 'Borjas Arias', 'Pesina Santander',
-    'Ramos Antonio', 'Vazquez Romo', 'Verlage Aceves'
+    'Ávalos Castillo', 'Borjas Arias', 'Pesina Santander',
+    'Ramos Antonio', 'Vázquez Romo', 'Verlage Aceves'
   ];
 
   // Con 80 renglones el cuadro mide lo mismo que su texto (no se estira),

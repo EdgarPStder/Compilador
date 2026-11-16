@@ -28,11 +28,11 @@ const AUTOR = '';
 
 /** Integrantes. Apellidos y nombres van aparte para poder ordenar y alinear. */
 const INTEGRANTES = [
-  { apellidos: 'Avalos Castillo', nombres: 'Armando de Jesús' },
+  { apellidos: 'Ávalos Castillo', nombres: 'Armando de Jesús' },
   { apellidos: 'Borjas Arias', nombres: 'Ronaldo Antonio' },
   { apellidos: 'Pesina Santander', nombres: 'Edgar Gael' },
   { apellidos: 'Ramos Antonio', nombres: 'Saqueo' },
-  { apellidos: 'Vazquez Romo', nombres: 'Marco Antonio' },
+  { apellidos: 'Vázquez Romo', nombres: 'Marco Antonio' },
   { apellidos: 'Verlage Aceves', nombres: 'Axel Aram' }
 ];
 

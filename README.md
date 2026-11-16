@@ -456,11 +456,11 @@ Se abren con `Ctrl+O` desde la aplicación.
 
 **SwordByte**
 
-1. Avalos Castillo Armando de Jesús
+1. Ávalos Castillo Armando de Jesús
 2. Borjas Arias Ronaldo Antonio
 3. Pesina Santander Edgar Gael
 4. Ramos Antonio Saqueo
-5. Vazquez Romo Marco Antonio
+5. Vázquez Romo Marco Antonio
 6. Verlage Aceves Axel Aram
 
 ## Autor

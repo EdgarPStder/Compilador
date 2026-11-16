@@ -9,11 +9,11 @@ Integrantes (orden alfabético por apellidos):
 
 | # | Integrante |
 |---|---|
-| 1 | Avalos Castillo Armando de Jesús |
+| 1 | Ávalos Castillo Armando de Jesús |
 | 2 | Borjas Arias Ronaldo Antonio |
 | 3 | Pesina Santander Edgar Gael |
 | 4 | Ramos Antonio Saqueo |
-| 5 | Vazquez Romo Marco Antonio |
+| 5 | Vázquez Romo Marco Antonio |
 | 6 | Verlage Aceves Axel Aram |
 
 ---
@@ -2088,11 +2088,11 @@ cuarta sección con la gramática generada.
 // ==========================================================================
 //  Programa .......... ejemplo.bs
 //  Equipo ............ SwordByte
-//  Autores ........... Avalos Castillo Armando de Jesús
+//  Autores ........... Ávalos Castillo Armando de Jesús
 //                      Borjas Arias Ronaldo Antonio
 //                      Pesina Santander Edgar Gael
 //                      Ramos Antonio Saqueo
-//                      Vazquez Romo Marco Antonio
+//                      Vázquez Romo Marco Antonio
 //                      Verlage Aceves Axel Aram
 //  Materia ........... Programación de Sistemas de Base II
 //  Grado y grupo ..... 9° F
